@@ -1,0 +1,2410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>클래스뱅크 LMS v16</title>
+<link href="https://fonts.googleapis.com/css2?family=Gmarket+Sans:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#080b12;--surface:#0f1219;--card:#161c28;--card2:#1e2535;--border:#263047;
+  --accent:#6c8fff;--accent2:#b48eff;--gold:#f5c842;--green:#2ecc71;--red:#e74c3c;
+  --orange:#f39c12;--teal:#1abc9c;--pink:#e91e8c;--cyan:#00d4ff;
+  --text:#dde4f0;--muted:#5a6a8a;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:14px;padding-bottom:72px;overflow-x:hidden}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+header{background:linear-gradient(135deg,#0f1525,#080b12);border-bottom:1px solid var(--border);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:200;backdrop-filter:blur(10px)}
+.logo{font-family:'Gmarket Sans',sans-serif;font-weight:700;color:var(--gold);font-size:18px}
+.bottom-nav{position:fixed;bottom:0;width:100%;background:rgba(15,18,25,0.97);border-top:1px solid var(--border);display:flex;z-index:200;backdrop-filter:blur(12px);padding-bottom:env(safe-area-inset-bottom)}
+.nav-item{flex:1;padding:9px 0;text-align:center;color:var(--muted);font-size:10px;cursor:pointer;transition:.2s;position:relative}
+.nav-item.active{color:var(--accent);font-weight:700}
+.nav-item.active::before{content:'';position:absolute;top:0;left:20%;right:20%;height:2px;background:var(--accent);border-radius:0 0 4px 4px;box-shadow:0 0 12px var(--accent)}
+.nav-icon{font-size:20px;display:block;margin-bottom:2px}
+.urgent-banner{background:linear-gradient(90deg,var(--red),#c0392b);color:#fff;padding:8px;font-size:12px;overflow:hidden;white-space:nowrap;display:none;border-bottom:1px solid rgba(255,255,255,.2)}
+.marquee{display:inline-block;padding-left:100%;animation:marquee 18s linear infinite}
+@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-200%)}}
+.panel{display:none;padding:14px;max-width:640px;margin:0 auto;animation:fadeUp .25s ease}
+.panel.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(108,143,255,.3),transparent)}
+.card2{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px}
+.card-title{font-family:'Gmarket Sans',sans-serif;font-size:13px;color:var(--accent2);margin-bottom:12px;font-weight:500;display:flex;justify-content:space-between;align-items:center}
+.sub-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:10px}
+.sub-tabs::-webkit-scrollbar{display:none}
+.sub-tab{padding:6px 13px;border-radius:20px;background:var(--card2);border:1px solid var(--border);white-space:nowrap;font-size:11px;color:var(--muted);cursor:pointer;transition:.2s}
+.sub-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 0 12px rgba(108,143,255,.4)}
+.sub-panel{display:none}.sub-panel.active{display:block}
+input,select,textarea{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);margin-bottom:10px;outline:none;font-family:'Noto Sans KR';font-size:13px;transition:border-color .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,143,255,.1)}
+.btn{width:100%;padding:12px;border-radius:8px;border:none;font-weight:700;cursor:pointer;background:var(--accent);color:#fff;transition:.2s;font-family:'Noto Sans KR';font-size:13px}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-sm{padding:6px 12px;font-size:11px;width:auto;border-radius:6px}
+.btn-xs{padding:4px 8px;font-size:10px;width:auto;border-radius:4px}
+.btn-red{background:var(--red)}.btn-green{background:var(--green);color:#000}
+.btn-gold{background:var(--gold);color:#000}.btn-outline{background:transparent;border:1px solid var(--muted);color:var(--text)}
+.btn-teal{background:var(--teal);color:#000}.btn-pink{background:var(--pink)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.badge{padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(255,255,255,.08)}
+.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:12px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
+.date-nav button{background:var(--border);border:none;color:var(--text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px;font-weight:700}
+.date-nav button:active{opacity:.7}
+.date-nav input[type=date]{flex:1;margin:0;text-align:center;font-weight:700;font-size:13px;background:transparent;border:none;padding:4px 0}
+.date-nav-label{font-size:11px;color:var(--muted);white-space:nowrap}
+.seat-grid{display:grid;gap:4px;margin-top:8px}
+.seat-box{background:var(--card2);border:1.5px solid var(--border);border-radius:6px;padding:7px 2px;text-align:center;font-size:10px;cursor:pointer;transition:.2s;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;user-select:none}
+.seat-box:hover:not(.empty){border-color:var(--accent);transform:scale(1.04)}
+.seat-box.empty{opacity:.12;border-style:dashed}
+.seat-box.occupied{border-color:rgba(108,143,255,.4)}
+.seat-box.mine{border-color:var(--gold);background:rgba(245,200,66,.07)}
+.seat-box.sale{border-color:var(--gold);background:rgba(245,200,66,.1);color:var(--gold);font-weight:700}
+.seat-name{font-size:10px;line-height:1.2;word-break:break-all}
+.seat-price{font-size:9px;color:var(--gold)}
+.stock-info-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.si-item{flex:1;min-width:70px;background:var(--card2);border-radius:8px;padding:8px;text-align:center;border:1px solid var(--border)}
+.sil{font-size:10px;color:var(--muted);margin-bottom:3px}
+.siv{font-size:13px;font-weight:700}
+.emo-chip{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;transition:transform .15s;display:inline-block;margin:2px}
+.emo-chip:active{transform:scale(.93)}
+.emo-stat-bar{height:6px;border-radius:3px;transition:width .7s ease;margin-top:6px}
+.atab-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:14px}
+.atab-bar::-webkit-scrollbar{display:none}
+.atab{padding:7px 14px;border-radius:8px;background:var(--card2);border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;white-space:nowrap;transition:.2s;font-weight:700}
+.atab.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+.heatmap-scroll{overflow-x:auto;padding-bottom:8px}
+.hm-table{border-collapse:collapse;font-size:9px}
+.hm-table th{padding:4px 5px;color:var(--muted);font-weight:500;text-align:center;background:var(--card2);position:sticky;top:0;z-index:2}
+.hm-table td{width:28px;height:26px;text-align:center;border:1px solid rgba(255,255,255,.03);cursor:pointer}
+.hm-th-row{width:56px!important;text-align:right;padding-right:6px;color:var(--muted);font-weight:500;background:var(--card2);position:sticky;left:0;z-index:1}
+.hm-cell{width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:3px;font-size:8px;font-weight:700;transition:.2s}
+.hm-cell:hover{transform:scale(1.2);z-index:10;position:relative}
+.gram-tag{display:inline-block;padding:4px 10px;border-radius:20px;margin:3px;font-size:11px;font-weight:700;border:1px solid;cursor:default}
+.stat-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:16px;font-size:10px;font-weight:700;border:1px solid}
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)}
+.setting-label{font-size:12px;font-weight:700}
+.setting-desc{font-size:10px;color:var(--muted);margin-top:2px}
+.setting-input{width:110px;margin:0;text-align:right;padding:7px 10px}
+.popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:8000;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.popup-overlay.open{display:flex;animation:fadeUp .2s}
+.popup-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto}
+.popup-title{font-family:'Gmarket Sans',sans-serif;font-size:14px;color:var(--accent2);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+#loader{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;justify-content:center;align-items:center;flex-direction:column;gap:12px;backdrop-filter:blur(4px)}
+.spinner{border:3px solid rgba(108,143,255,.15);border-top-color:var(--accent);border-radius:50%;width:42px;height:42px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast{position:fixed;top:22px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);padding:10px 22px;border-radius:22px;font-size:12px;z-index:10000;opacity:0;pointer-events:none;transition:opacity .3s;box-shadow:0 6px 24px rgba(0,0,0,.6);font-weight:700;white-space:nowrap}
+#admin-modal{display:none;position:fixed;inset:0;background:var(--bg);z-index:9000;overflow-y:auto;padding:14px 14px 60px}
+#rel-canvas-wrap{background:var(--card2);border-radius:12px;overflow:hidden;border:1px solid var(--border);position:relative}
+#rel-canvas{display:block;touch-action:none}
+@keyframes shuffle-fly{0%{transform:scale(1)}40%{transform:scale(.5) rotate(-20deg);opacity:.2;filter:blur(3px)}100%{transform:scale(1);opacity:1}}
+.anim-shuffle{animation:shuffle-fly .65s ease-in-out forwards}
+#profile-radar-wrap{background:var(--card2);border-radius:10px;padding:10px;height:200px;position:relative}
+.toggle-wrap{position:relative;display:inline-block;width:44px;height:24px}
+.toggle-wrap input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--border);border-radius:24px;transition:.3s}
+.toggle-slider:before{position:absolute;content:'';height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+input:checked+.toggle-slider{background:var(--accent)}
+input:checked+.toggle-slider:before{transform:translateX(20px)}
+.rel-bar{height:8px;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .6s ease}
+#wc-wrap{min-height:160px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;padding:12px;background:var(--card2);border-radius:12px;border:1px solid var(--border)}
+.meal-section{margin-bottom:14px}
+.meal-type-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:6px}
+.menu-item{padding:4px 0;font-size:12px;border-bottom:1px dashed rgba(255,255,255,.06);display:flex;align-items:center;gap:6px}
+.menu-item:last-child{border-bottom:none}
+.menu-item::before{content:'•';color:var(--muted)}
+.tt-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;margin-bottom:4px;background:var(--card2)}
+.tt-period{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:var(--accent);color:#fff;flex-shrink:0}
+.tt-subject{font-size:13px;font-weight:700}
+.tt-teacher{font-size:10px;color:var(--muted);margin-top:1px}
+.empty-state{text-align:center;padding:24px 16px;color:var(--muted)}
+.empty-state .empty-icon{font-size:32px;margin-bottom:8px}
+.empty-state p{font-size:12px;line-height:1.7}
+</style>
+</head>
+<body>
+<div id="loader"><div class="spinner"></div><div style="font-size:12px;color:var(--muted)" id="loader-msg">처리 중...</div></div>
+<div id="toast"></div>
+
+<div class="popup-overlay" id="emo-popup">
+  ...
+</div>
+<div class="popup-overlay" id="profile-popup">
+  ...
+</div>
+
+<div class="popup-overlay" id="asg-submit-popup">
+  <div class="popup-box" style="max-width:420px">
+    <div class="popup-title">
+      <span id="asg-popup-title">📤 과제 제출</span>
+      <button class="btn btn-outline btn-sm" onclick="closePopup('asg-submit-popup')">✕</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px" id="asg-popup-filetype-info"></div>
+
+    <div id="asg-file-drop-zone"
+      style="border:2px dashed var(--border);border-radius:12px;padding:32px 16px;text-align:center;cursor:pointer;background:var(--card2);transition:border-color .2s;margin-bottom:12px"
+      onclick="document.getElementById('asg-file-input').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+      ondragleave="this.style.borderColor='var(--border)'"
+      ondrop="event.preventDefault();this.style.borderColor='var(--border)';asgHandleFile(event.dataTransfer.files[0])">
+      <div style="font-size:36px;margin-bottom:10px">📁</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px">
+        파일 드래그 또는 <span style="color:var(--accent);text-decoration:underline">클릭</span>하여 업로드
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;background:rgba(108,143,255,.07);border-radius:6px;padding:6px">
+        📌 파일명 자동 설정:
+        <b style="color:var(--accent2)">학생이름_과제이름_날짜.확장자</b>
+      </div>
+    </div>
+    <input type="file" id="asg-file-input" style="display:none"
+      onchange="asgHandleFile(this.files[0])">
+
+    <div id="asg-selected-filename"
+      style="display:none;font-size:12px;color:var(--teal);font-weight:700;
+             padding:8px 12px;background:rgba(26,188,156,.08);
+             border:1px solid rgba(26,188,156,.2);border-radius:8px;margin-bottom:12px">
+    </div>
+
+    <button class="btn btn-green" id="asg-submit-confirm-btn"
+      onclick="doSubmitConfirm(this)" disabled>
+      📤 제출하기
+    </button>
+  </div>
+</div>
+
+<div id="login-screen" style="padding:52px 20px;max-width:400px;margin:0 auto;text-align:center">
+  <div class="logo" style="font-size:36px;margin-bottom:8px">💰</div>
+  <div class="logo" style="font-size:22px;margin-bottom:4px">클래스뱅크</div>
+  <p style="color:var(--muted);font-size:11px;margin-bottom:32px">삼현여중 LMS v16</p>
+  <select id="ls-name"><option value="">이름 선택 (로딩 중...)</option></select>
+  <input type="password" id="ls-pw" placeholder="비밀번호 (초기 로그인은 빈칸)">
+  <button class="btn btn-gold" onclick="doLogin(this)">🚀 입장하기</button>
+  <div style="margin-top:40px;padding-top:18px;border-top:1px dashed var(--border)">
+    <button class="btn btn-outline btn-sm" onclick="showAdminLogin()">🔐 선생님(관리자) 로그인</button>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <div class="logo">💰 클래스뱅크</div>
+    <div style="font-size:12px"><span id="hdr-name" style="color:var(--gold);font-weight:700"></span>님</div>
+  </header>
+  <div id="urgent-banner" class="urgent-banner"></div>
+
+  <div id="p-home" class="panel active">
+    <div class="sub-tabs">
+      <div class="sub-tab active" onclick="switchSubTab('home','main',this)">🏠 내 자산</div>
+      <div class="sub-tab" onclick="switchSubTab('home','rank',this)">🏆 랭킹</div>
+    </div>
+    <div id="home-main" class="sub-panel active">
+      <div class="card" style="background:linear-gradient(135deg,#161c28,#0f1525);border-color:rgba(108,143,255,.4)">
+        <div class="card-title">💵 총 자산 <span id="h-level-badge" style="font-size:11px;padding:2px 10px;border-radius:20px;background:rgba(245,200,66,.15);color:var(--gold);font-weight:700;margin-left:6px"></span></div>
+        <div style="font-size:34px;font-weight:700;color:var(--gold);font-family:'Gmarket Sans'" id="h-total">0원</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)">
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px">💵 현금</div>
+            <div id="h-cash" style="color:var(--gold);font-size:13px;font-weight:700">0원</div>
+          </div>
+          <div style="text-align:center;border-left:1px dashed var(--border);border-right:1px dashed var(--border)">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px">🏦 예금</div>
+            <div id="h-dep" style="color:var(--teal);font-size:13px;font-weight:700">0원</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px">📈 주식</div>
+            <div id="h-stk" style="color:var(--accent2);font-size:13px;font-weight:700">0원</div>
+          </div>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-bottom:12px">
+        <div class="card2" style="margin:0;text-align:center;cursor:pointer" onclick="nav('eval')"><div style="font-size:22px;margin-bottom:5px">✅</div><div style="font-size:12px">오늘의 평가</div><div id="h-chk" style="font-size:10px;font-weight:700;margin-top:4px;color:var(--red)">미완료</div></div>
+        <div class="card2" style="margin:0;text-align:center;cursor:pointer" onclick="nav('lms');setTimeout(()=>switchSubTab('lms','hw',null),50)"><div style="font-size:22px;margin-bottom:5px">📚</div><div style="font-size:12px">숙제 알림</div><div id="h-hw" style="font-size:10px;font-weight:700;margin-top:4px;color:var(--red)">0건</div></div>
+      </div>
+
+      <div class="card" style="border-color:rgba(26,188,156,.4)">
+        <div class="card-title">🏛️ 학급 공공 자산 (국고)</div>
+        <div class="grid-2">
+          <div class="card2" style="margin:0;text-align:center"><div style="font-size:10px;color:var(--muted)">거둬들인 세금/벌금</div><div id="h-tax-total" style="color:var(--orange);font-weight:700">0원</div></div>
+          <div class="card2" style="margin:0;text-align:center"><div style="font-size:10px;color:var(--muted)">마트 등 공공수익</div><div id="h-public-total" style="color:var(--teal);font-weight:700">0원</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🚥 오늘의 감정 신호등</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:8px">감정 등록 시 보상 지급! (1일 1회)</div>
+        <div class="grid-2" style="margin-bottom:8px">
+          <button class="btn btn-outline" style="border-color:var(--green);color:var(--green)" onclick="sendEmotion('🟢 좋음',this)">🟢 좋음</button>
+          <button class="btn btn-outline" style="border-color:var(--gold);color:var(--gold)" onclick="sendEmotion('🟡 보통',this)">🟡 보통</button>
+        </div>
+        <button class="btn btn-outline" style="border-color:var(--red);color:var(--red);margin-bottom:8px" onclick="sendEmotion('🔴 힘듦',this)">🔴 힘듦 (오늘 좀 힘들어요)</button>
+        <input type="text" id="emo-msg" placeholder="선생님께 비밀 메세지 (선택)">
+      </div>
+      <div id="h-emo-bonus" style="display:none;background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);border-radius:8px;padding:10px;margin-top:-4px;margin-bottom:12px;font-size:12px;color:var(--gold);text-align:center"></div>
+    </div>
+    <div id="home-rank" class="sub-panel">
+      <div class="card"><div class="card-title">👑 자산 랭킹 Top 5</div><div id="rank-asset" style="font-size:12px"></div></div>
+      <div class="card">
+        <div class="card-title">💰 학생별 자산 상세</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:8px;display:flex;gap:4px;flex-wrap:wrap">
+          <span style="color:var(--gold)">■ 현금</span>
+          <span style="color:var(--teal)">■ 예금</span>
+          <span style="color:var(--accent2)">■ 주식</span>
+        </div>
+        <div id="rank-asset-detail" style="font-size:11px"></div>
+      </div>
+      <div class="card"><div class="card-title">🚥 오늘의 학급 감정 현황</div><div id="rank-emo" style="display:flex;flex-wrap:wrap;gap:4px"></div></div>
+      <div class="grid-2">
+        <div class="card" style="padding:10px"><div class="card-title" style="font-size:11px">📈 주식 Top</div><div id="rank-stock" style="font-size:11px"></div></div>
+        <div class="card" style="padding:10px"><div class="card-title" style="font-size:11px">🏦 예금 Top</div><div id="rank-deposit" style="font-size:11px"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="p-lms" class="panel">
+    <div class="sub-tabs">
+      <div class="sub-tab active" onclick="switchSubTab('lms','call',this)">🔔 호출</div>
+      <div class="sub-tab" onclick="switchSubTab('lms','hw',this)">📚 숙제</div>
+      <div class="sub-tab" onclick="switchSubTab('lms','assign',this)">📝 과제제출</div>
+      <div class="sub-tab" onclick="switchSubTab('lms','meal',this)">🍱 급식</div>
+      <div class="sub-tab" onclick="switchSubTab('lms','notice',this)">📢 공지</div>
+    </div>
+    <div id="lms-call" class="sub-panel active">
+      <div class="card"><div class="card-title">선생님 호출</div><select id="call-type"><option>질문있어요</option><option>아파요(질병)</option><option>긴급상황!</option><option>기타</option></select><textarea id="call-msg" rows="3" placeholder="내용을 자세히 적어주세요"></textarea><button class="btn" onclick="doCall(this)">🚀 전송</button></div>
+      <div class="card"><div class="card-title">나의 호출 내역</div><div id="call-list" style="font-size:12px;color:var(--muted)">조회 중...</div></div>
+    </div>
+    <div id="lms-hw" class="sub-panel">
+      <div class="card"><div class="card-title">미완료 숙제</div><div id="hw-list" style="font-size:12px">없음</div></div>
+      <div class="card"><div class="card-title">새 숙제 등록</div><div class="grid-2"><select id="hw-sub"><option>국어</option><option>수학</option><option>영어</option><option>과학</option><option>기타</option></select><input type="date" id="hw-due" style="margin:0"></div><input type="text" id="hw-msg" placeholder="숙제 내용" style="margin-top:8px"><button class="btn btn-outline" onclick="doAddHw(this)">등록</button></div>
+    </div>
+    <div id="lms-assign" class="sub-panel">
+      <div class="card">
+        <div class="card-title">📝 과제 제출 <span id="assign-reward-badge" style="font-size:10px;color:var(--gold)"></span></div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">과제를 제출하면 설정된 특별 수당이 즉시 지급됩니다!</div>
+        <div id="assign-list">
+          <div class="empty-state"><div class="empty-icon">📝</div><p>등록된 과제가 없습니다</p></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">✅ 내 제출 내역</div>
+        <div id="assign-my-list" style="font-size:12px;color:var(--muted)">조회 중...</div>
+      </div>
+    </div>
+    <div id="lms-meal" class="sub-panel">
+      <div class="date-nav">
+        <span class="date-nav-label">날짜</span>
+        <button onclick="changeMealDate(-1)">‹</button>
+        <input type="date" id="meal-date-picker" onchange="loadMealByDate()">
+        <button onclick="changeMealDate(1)">›</button>
+        <button class="btn-sm btn-outline" style="border-color:var(--accent);color:var(--accent);padding:4px 10px;font-size:10px;border-radius:6px;background:transparent;border:1px solid var(--accent);cursor:pointer;white-space:nowrap" onclick="goMealToday()">오늘</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🍱 급식 <span id="meal-date-label" style="font-size:10px;color:var(--muted)"></span></div>
+        <div id="meal-list"><div class="empty-state"><div class="empty-icon">🍽</div><p>날짜를 선택하면<br>급식 정보가 나타납니다</p></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📅 시간표 <span id="tt-date-label" style="font-size:10px;color:var(--muted)"></span></div>
+        <div id="tt-list"><div class="empty-state"><div class="empty-icon">📋</div><p>시간표를 불러오는 중...</p></div></div>
+      </div>
+    </div>
+    <div id="lms-notice" class="sub-panel"><div class="card"><div class="card-title">학급 공지사항</div><div id="notice-list" style="font-size:12px;line-height:1.7">불러오는 중...</div></div></div>
+  </div>
+
+  <div id="p-eco" class="panel">
+    <div class="sub-tabs">
+      <div class="sub-tab active" onclick="switchSubTab('eco','stock',this)">📈 주식</div>
+      <div class="sub-tab" onclick="switchSubTab('eco','re',this)">🏢 부동산</div>
+      <div class="sub-tab" onclick="switchSubTab('eco','market',this)">🛒 장터</div>
+      <div class="sub-tab" onclick="switchSubTab('eco','deposit',this)">🏦 예금/상점</div>
+      <div class="sub-tab" onclick="switchSubTab('eco','lottery',this)">🎟️ 복권</div>
+      <div class="sub-tab" onclick="switchSubTab('eco','job',this)">👔 구직</div>
+      <div class="sub-tab" onclick="switchSubTab('eco','transfer',this)">💸 송금</div>
+      <div class="sub-tab" onclick="switchSubTab('eco','mart',this)">🛒 마트</div>
+    </div>
+    <div id="eco-stock" class="sub-panel active">
+      <div class="card">
+        <div class="card-title">학급 주식 거래소</div>
+        <div class="stock-info-bar">
+          <div class="si-item"><div class="sil">현재가</div><div class="siv" id="st-cur" style="color:var(--gold)">-</div></div>
+          <div class="si-item"><div class="sil">내 보유</div><div class="siv" id="st-my" style="color:var(--accent)">-</div></div>
+          <div class="si-item"><div class="sil">현금</div><div class="siv" id="st-cash" style="color:var(--green)">-</div></div>
+          <div class="si-item"><div class="sil">평가액</div><div class="siv" id="st-val" style="color:var(--accent2)">-</div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <input type="number" id="st-qty" placeholder="주문 수량" style="margin:0;flex:1">
+          <button class="btn btn-red btn-sm" onclick="doOrder('매도',this)">📉 매도</button>
+          <button class="btn btn-green btn-sm" onclick="doOrder('매수',this)">📈 매수</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between"><span>주가 추이</span><span id="st-badge" class="badge"></span></div>
+        <div style="background:var(--card2);border-radius:8px;padding:10px;height:150px;position:relative;margin-bottom:12px"><canvas id="stockLineChart"></canvas></div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:5px">매물대 분석</div>
+        <div style="background:var(--card2);border-radius:8px;padding:10px;height:120px;position:relative"><canvas id="stockBarChart"></canvas></div>
+      </div>
+      <div class="card"><div class="card-title">📰 주식 뉴스</div><div id="st-news" style="font-size:12px">로딩 중...</div></div>
+    </div>
+    <div id="eco-re" class="sub-panel">
+      <div class="card">
+        <div class="card-title">교실 좌석 부동산</div>
+        <div id="re-my-info" style="margin-bottom:12px;padding:10px;background:var(--card2);border-radius:8px;font-size:12px">조회 중...</div>
+        <div style="font-size:11px;text-align:center;padding:5px;background:var(--border);border-radius:6px;margin-bottom:6px;letter-spacing:2px">📋 칠판 (교탁)</div>
+        <div id="re-grid" class="seat-grid"></div>
+      </div>
+    </div>
+    <div id="eco-market" class="sub-panel">
+      <div class="card"><div class="card-title">물건 판매 등록</div><input type="text" id="mk-name" placeholder="판매 물건 이름"><input type="number" id="mk-price" placeholder="가격"><button class="btn btn-gold" onclick="doAddMarket(this)">판매 등록</button></div>
+      <div class="card"><div class="card-title">실시간 장터</div><div id="mk-list" style="font-size:12px"></div></div>
+    </div>
+    <div id="eco-deposit" class="sub-panel">
+      <div class="card"><div class="card-title">예금 가입 <span id="dp-rate-display" style="color:var(--teal);font-size:11px"></span></div><input type="number" id="dp-amt" placeholder="금액 입력"><button class="btn" onclick="doDeposit(this)">가입하기</button><div id="dp-list" style="margin-top:14px;font-size:12px"></div></div>
+      <div class="card"><div class="card-title">아이템 상점</div><div id="shop-list" class="grid-2"></div><div class="card-title" style="margin-top:14px;font-size:12px">🎒 내 가방</div><div id="inv-list" style="font-size:12px"></div></div>
+    </div>
+    <div id="eco-lottery" class="sub-panel">
+      <div class="card">
+        <div class="card-title">🎟️ 랜덤 복권 구매
+          <span id="lottery-price-badge" style="font-size:11px;color:var(--gold)"></span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px" id="lottery-limit-info"></div>
+        <div style="background:rgba(108,143,255,.07);border:1px solid rgba(108,143,255,.2);border-radius:10px;padding:12px;margin-bottom:14px;font-size:11px;line-height:1.8;color:var(--muted)">
+          🎰 <b style="color:var(--text)">완전 랜덤 복권!</b><br>
+          복권 내용은 구매 전 알 수 없습니다.<br>
+          구매 후 긁기 버튼으로 결과를 확인하세요!<br>
+          <span style="color:var(--gold);font-size:10px">💡 시트에 등록된 복권 항목 중 확률에 따라 랜덤 당첨</span>
+        </div>
+        <div id="lottery-buy-area" style="text-align:center">
+          <div style="font-size:56px;margin-bottom:14px;filter:drop-shadow(0 0 12px rgba(245,200,66,.4))">🎟️</div>
+          <button class="btn btn-gold" id="lottery-main-buy-btn" onclick="doBuyLottery(this)" style="font-size:15px;padding:14px;letter-spacing:1px">
+            🎰 복권 1장 구매하기
+          </button>
+        </div>
+      </div>
+      <div class="card" id="lottery-scratch-card" style="display:none">
+        <div class="card-title">🎰 긁지 않은 복권 <span id="lottery-scratch-count" style="color:var(--gold);font-size:11px"></span></div>
+        <div id="lottery-unscratched-list"></div>
+      </div>
+    </div>
+
+    <div class="popup-overlay" id="scratch-popup">
+      <div class="popup-box" style="text-align:center;max-width:340px">
+        <div id="scratch-anim" style="font-size:64px;margin:10px 0;animation:none" id="scratch-emoji">🎟️</div>
+        <div id="scratch-result-title" style="font-size:16px;font-weight:700;color:var(--gold);margin-bottom:6px"></div>
+        <div id="scratch-result-detail" style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6"></div>
+        <button class="btn btn-gold" onclick="closePopup('scratch-popup');loadLottery();loadHome()">확인 ✓</button>
+      </div>
+    </div>
+
+
+    <div id="eco-job" class="sub-panel"><div class="card"><div class="card-title">👔 구직 시장</div><div id="job-list" style="font-size:12px"></div></div></div>
+    <div id="eco-transfer" class="sub-panel">
+      <div class="card"><div class="card-title">💸 송금하기</div><select id="tf-to"><option value="">받을 사람</option></select><input type="number" id="tf-amt" placeholder="보낼 금액"><input type="password" id="tf-pw" placeholder="내 비밀번호"><button class="btn" onclick="doTransfer(this)">송금</button></div>
+      <div class="card"><div class="card-title">최근 거래내역</div><div id="tx-list" style="font-size:12px"></div></div>
+    </div>
+
+    <div id="eco-mart" class="sub-panel">
+      <div class="card" style="border-color:rgba(26,188,156,.4)">
+        <div class="card-title" style="color:var(--teal)">📱 학급 마트 제로페이</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px">금액만 입력해 자율 결제하거나, 아래 목록에서 물건을 골라 결제하세요!</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="mart-pay-item" placeholder="상품명 (비워두면 자율결제)" style="margin:0;flex:1">
+          <input type="number" id="mart-pay-amt" placeholder="결제 금액 (원)" style="margin:0;flex:1">
+        </div>
+        <input type="password" id="mart-pay-pw" placeholder="내 비밀번호 확인">
+        <button class="btn btn-teal" onclick="doMartPay(this)">제로페이 결제하기 💸</button>
+      </div>
+      
+      <div id="mart-receipt" class="card" style="display:none;background:var(--card2);border:1px dashed var(--border);text-align:center">
+         <div style="font-size:24px;margin-bottom:5px">🧾</div>
+         <div style="font-weight:700;margin-bottom:8px;color:var(--gold)">전자 영수증</div>
+         <div id="mart-receipt-body" style="font-size:12px;line-height:1.6;color:var(--text)"></div>
+         <button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="document.getElementById('mart-receipt').style.display='none'">영수증 닫기</button>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">🛒 마트 진열대</div>
+        <div id="mart-item-list" class="grid-2"></div>
+      </div>
+    </div>
+    </div> 
+
+
+
+
+
+
+
+
+  <div id="p-eval" class="panel">
+    <div id="eval-form" class="card" style="border-color:rgba(180,142,255,.4);display:none">
+      <div class="card-title">✅ 오늘의 자기평가</div>
+      <div id="eval-salary-guide" style="background:rgba(245,200,66,.08);border:1px solid rgba(245,200,66,.2);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--gold)">💡 급여 기준 로딩 중...</div>
+      <select id="ev-role"><option value="상">😊 상 (매우 잘함)</option><option value="중">😐 중 (보통)</option><option value="하">😞 하 (노력 필요)</option></select>
+      <textarea id="ev-comment" placeholder="오늘 느낀 점 한 줄 소감" rows="3"></textarea>
+      <button class="btn" onclick="doEval(this)">💾 평가 제출 및 급여 수령</button>
+    </div>
+    <div id="eval-result" style="display:none">
+      <div class="card" style="border-color:rgba(46,204,113,.4);text-align:center"><div style="font-size:28px;margin-bottom:8px">🎉</div><div style="font-weight:700;color:var(--green)">오늘의 평가 완료!</div></div>
+      <div class="card"><div class="card-title">📊 감정 & 평가 추이 (최근 7일)</div><div style="background:var(--card2);border-radius:8px;padding:10px;height:175px;position:relative"><canvas id="trendChart"></canvas></div><div style="color:var(--muted);font-size:11px;margin-top:12px;border-top:1px dashed var(--border);padding-top:10px">최근 소감 기록<div id="ev-history-list" style="margin-top:5px;line-height:1.7"></div></div></div>
+    </div>
+  </div>
+
+  <div id="p-set" class="panel">
+    <div class="card"><div class="card-title">내 정보</div><p style="font-size:13px;margin-bottom:12px">이름: <span id="set-name" style="color:var(--gold);font-weight:700"></span></p><button class="btn btn-outline" onclick="doLogout()">로그아웃</button></div>
+    <div class="card"><div class="card-title">비밀번호 변경</div><input type="password" id="set-pw-old" placeholder="현재 비밀번호"><input type="password" id="set-pw-new" placeholder="새 비밀번호"><button class="btn" onclick="doChangePw(this)">변경하기</button></div>
+  </div>
+
+  <div id="p-delegate" class="panel">
+    <div class="card" style="border-color:rgba(245,200,66,.4);background:linear-gradient(135deg,#161c28,#0f1525)">
+      <div class="card-title" style="color:var(--gold)">🔑 위임된 권한 패널</div>
+      <div id="delegate-permission-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+      <div style="font-size:10px;color:var(--muted)">담임 선생님으로부터 부여받은 권한입니다.</div>
+    </div>
+    <div id="delegate-salary-panel" style="display:none">
+      <div class="card" style="border-color:rgba(46,204,113,.3)">
+        <div class="card-title" style="color:var(--green)">💵 월급 배부</div>
+        <select id="dlg-pay-sel"><option value="all">전체 학생</option></select>
+        <input type="number" id="dlg-pay-amt" placeholder="금액 (원)">
+        <input type="text" id="dlg-pay-rsn" placeholder="지급 사유">
+        <button class="btn btn-green" onclick="doDelegatedPay(this)">월급 지급</button>
+      </div>
+    </div>
+    <div id="delegate-fine-panel" style="display:none">
+      <div class="card" style="border-color:rgba(231,76,60,.3)">
+        <div class="card-title" style="color:var(--red)">💸 벌금 징수</div>
+        <select id="dlg-fine-sel"><option value="">학생 선택</option></select>
+        <input type="number" id="dlg-fine-amt" placeholder="벌금액 (원)">
+        <input type="text" id="dlg-fine-rsn" placeholder="징수 사유">
+        <button class="btn btn-red" onclick="doDelegatedFine(this)">벌금 징수</button>
+      </div>
+    </div>
+    <div id="delegate-notice-panel" style="display:none">
+      <div class="card" style="border-color:rgba(108,143,255,.3)">
+        <div class="card-title">📢 공지사항 작성</div>
+        <input type="text" id="dlg-ntc-title" placeholder="공지 제목">
+        <textarea id="dlg-ntc-content" rows="3" placeholder="공지 내용"></textarea>
+        <label style="font-size:11px;color:var(--red);margin-bottom:10px;display:block"><input type="checkbox" id="dlg-ntc-urg"> 긴급 공지</label>
+        <button class="btn" onclick="doDelegatedNotice(this)">공지 등록</button>
+      </div>
+    </div>
+
+    <div id="delegate-tax-panel" style="display:none">
+      <div class="card" style="border-color:rgba(243,156,18,.3)">
+        <div class="card-title" style="color:var(--orange)">💰 세금 징수 (국고 편입)</div>
+        <select id="dlg-tax-sel"><option value="all">전체 학생</option></select>
+        <input type="number" id="dlg-tax-amt" placeholder="세금액 (원)">
+        <input type="text" id="dlg-tax-rsn" placeholder="징수 사유 (예: 소득세)">
+        <button class="btn btn-gold" onclick="doDelegatedTax(this)">국고로 세금 징수</button>
+      </div>
+    </div>
+    
+    <div id="delegate-praise-panel" style="display:none">
+      <div class="card" style="border-color:rgba(233,30,140,.3)">
+        <div class="card-title" style="color:var(--pink)">🌸 칭찬 카드 전달</div>
+        <select id="dlg-praise-sel"><option value="">받을 학생 선택</option></select>
+        <textarea id="dlg-praise-msg" rows="2" placeholder="칭찬 메시지 (받는 학생에게 +200원 보상)"></textarea>
+        <button class="btn btn-pink" onclick="doDelegatedPraise(this)">칭찬 카드 보내기 💌</button>
+      </div>
+    </div>
+    <div id="delegate-warning-panel" style="display:none">
+      <div class="card" style="border-color:rgba(243,156,18,.3)">
+        <div class="card-title" style="color:var(--orange)">⚠️ 경고 처분</div>
+        <select id="dlg-warn-sel"><option value="">학생 선택</option></select>
+        <input type="text" id="dlg-warn-rsn" placeholder="경고 사유">
+        <button class="btn btn-outline" style="border-color:var(--orange);color:var(--orange)" onclick="doDelegatedWarning(this)">경고 처분</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 내 활동 내역</div>
+      <div id="delegate-history" style="font-size:11px"></div>
+    </div>
+
+
+    <div class="card" id="my-praise-card-section">
+      <div class="card-title" style="color:var(--pink)">💌 받은 칭찬 카드</div>
+      <div id="my-praise-cards" style="font-size:12px"></div>
+    </div>
+
+    <div id="delegate-mart-panel" style="display:none">
+
+      <div class="card" style="border-color:var(--accent)">
+        <div class="card-title">🧾 마트 POS (직접 결제 청구)</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">구매자에게서 돈을 직접 차감하여 국고로 넘깁니다.</div>
+        <select id="dlg-mart-buyer"><option value="">구매 학생 선택</option></select>
+        <div class="grid-2" style="margin-top:8px">
+          <input type="text" id="dlg-mart-charge-item" placeholder="상품명">
+          <input type="number" id="dlg-mart-charge-amt" placeholder="결제 금액 (원)">
+        </div>
+        <button class="btn btn-teal" style="margin-top:8px" onclick="doMartCharge(this)">결제 청구 및 국고 입금</button>
+      </div>
+
+      <div class="card" style="border-color:rgba(26,188,156,.3)">
+        <div class="card-title" style="color:var(--teal)">🛒 학급 마트 사장님 데스크</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">새로운 마트 물건을 등록하고 재고를 관리하세요.</div>
+        <div class="grid-2">
+          <input type="text" id="dlg-mart-item" placeholder="판매 물품명" style="margin:0">
+          <input type="number" id="dlg-mart-price" placeholder="가격 (원)" style="margin:0">
+        </div>
+        <input type="number" id="dlg-mart-stock" placeholder="입고 수량" style="margin-top:8px">
+        <button class="btn btn-teal" style="margin-top:8px" onclick="doAddMartItem(this)">진열대에 물건 올리기</button>
+      </div>
+      <div class="card" style="border-color:rgba(231,76,60,.2)">
+        <div class="card-title" style="color:var(--red)">📦 등록된 물품 관리 <button class="btn btn-outline btn-sm" onclick="loadMartManageList()">🔄 새로고침</button></div>
+        <div id="mart-manage-list" style="font-size:12px;color:var(--muted)">새로고침을 눌러 불러오세요.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 마트 매출 통계</div>
+        <div class="grid-2" style="margin-bottom:10px">
+           <div class="card2" style="margin:0;text-align:center"><div style="font-size:10px;color:var(--muted)">총 수익</div><div id="mart-stat-total" style="color:var(--gold);font-weight:700;font-size:14px">0원</div></div>
+           <div class="card2" style="margin:0;text-align:center"><div style="font-size:10px;color:var(--muted)">결제 건수</div><div id="mart-stat-count" style="color:var(--accent);font-weight:700;font-size:14px">0건</div></div>
+        </div>
+        <div id="mart-stat-history" style="font-size:11px"></div>
+      </div>
+    </div>
+    </div>
+
+
+  <div class="bottom-nav">
+    <div class="nav-item active" onclick="nav('home',this)"><span class="nav-icon">🏠</span>홈</div>
+    <div class="nav-item" onclick="nav('lms',this)"><span class="nav-icon">📚</span>LMS</div>
+    <div class="nav-item" onclick="nav('eco',this)"><span class="nav-icon">💰</span>경제</div>
+    <div class="nav-item" onclick="nav('eval',this)"><span class="nav-icon">✅</span>자기평가</div>
+    <div class="nav-item" id="nav-delegate" style="display:none" onclick="nav('delegate',this)"><span class="nav-icon">🔑</span>권한</div>
+    <div class="nav-item" onclick="nav('set',this)"><span class="nav-icon">⚙️</span>설정</div>
+  </div>
+</div>
+
+<div id="admin-modal">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:10;border-bottom:1px solid var(--border)">
+    <div class="logo" style="font-size:15px">🛠 관리자 패널 v16</div>
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('admin-modal').style.display='none'">닫기 ✕</button>
+  </div>
+  <div class="sub-tabs">
+    <div class="sub-tab active" onclick="switchAdmTab('overview',this)">📋 학급현황</div>
+    <div class="sub-tab" onclick="switchAdmTab('profile',this)">👤 학생프로파일</div>
+    <div class="sub-tab" onclick="switchAdmTab('relation',this)">🕸 관계분석</div>
+    <div class="sub-tab" onclick="switchAdmTab('stat',this)">😊 감정통계</div>
+    <div class="sub-tab" onclick="switchAdmTab('re',this)">🏢 부동산</div>
+    <div class="sub-tab" onclick="switchAdmTab('std',this)">👨‍🎓 학생관리</div>
+    <div class="sub-tab" onclick="switchAdmTab('stk',this)">📈 주식/예금</div>
+    <div class="sub-tab" onclick="switchAdmTab('mkt',this)">📣 공지/장터</div>
+    <div class="sub-tab" onclick="switchAdmTab('lottery',this)">🎟️ 복권관리</div>
+    <div class="sub-tab" onclick="switchAdmTab('assign',this)">📝 과제관리</div>
+    <div class="sub-tab" onclick="switchAdmTab('perm',this)">🔑 권한부여</div>
+    <div class="sub-tab" onclick="switchAdmTab('config',this)">⚙️ 설정</div>
+  </div>
+
+  <div id="adm-overview" class="sub-panel active">
+    <div class="card" style="border-color:rgba(108,143,255,.4)"><div class="card-title">📊 학급 경제 현황</div><div class="grid-2" id="overview-stats"></div></div>
+    <div class="card"><div class="card-title">💰 학생별 자산 현황</div><div id="overview-asset-chart" style="background:var(--card2);border-radius:8px;padding:10px;height:220px;position:relative"><canvas id="assetChart"></canvas></div></div>
+    <div class="card"><div class="card-title">🏆 자산 순위</div><div id="overview-rank" style="font-size:12px"></div></div>
+    <div class="card"><div class="card-title">📅 오늘의 체크리스트 현황</div><div id="overview-chk" style="font-size:12px"></div></div>
+  </div>
+
+  <div id="adm-profile" class="sub-panel">
+    <div class="card"><div class="card-title">👤 학생 종합 프로파일</div><select id="profile-sel" onchange="loadStudentProfile(this.value)"><option value="">학생 선택</option></select></div>
+    <div id="profile-area"></div>
+  </div>
+
+  <div id="adm-relation" class="sub-panel">
+    <div class="atab-bar">
+      <div class="atab active" onclick="switchRelTab('network',this)">🕸 관계망</div>
+      <div class="atab" onclick="switchRelTab('heatmap',this)">🌡 친밀도</div>
+      <div class="atab" onclick="switchRelTab('emocomp',this)">📉 감정비교</div>
+      <div class="atab" onclick="switchRelTab('wordcloud',this)">☁️ 워드클라우드</div>
+      <div class="atab" onclick="switchRelTab('ngram',this)">📝 n-gram</div>
+      <div class="atab" onclick="switchRelTab('ranking',this)">🏆 관계순위</div>
+    </div>
+    <div id="rel-network" class="sub-panel active">
+      <div class="card"><div class="card-title">🕸 학급 관계망 <button class="btn btn-outline btn-xs" onclick="loadRelationData()">🔄 새로고침</button></div><div style="font-size:10px;color:var(--muted);margin-bottom:8px">탭=상세보기 | 선 굵기=관계강도 | 색=관계유형</div><div id="rel-canvas-wrap"><canvas id="rel-canvas"></canvas></div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-size:10px"><span>🔵 거래관계</span><span>🟢 좌석인접</span><span>🩷 감정동조</span></div></div>
+      <div class="card"><div class="card-title">🔗 관계 강도 Top 10</div><div id="rel-top-list" style="font-size:12px"></div></div>
+    </div>
+    <div id="rel-heatmap" class="sub-panel">
+      <div class="card"><div class="card-title">🌡 종합 친밀도 히트맵</div><div style="font-size:11px;color:var(--muted);margin-bottom:8px">거래+좌석+감정동조 합산 점수 | 클릭으로 상세</div><div class="heatmap-scroll"><div id="hm-container"></div></div></div>
+      <div class="card"><div class="card-title">📊 중심성 순위 (관계 허브 학생)</div><div id="centrality-list" style="font-size:12px"></div></div>
+    </div>
+    <div id="rel-emocomp" class="sub-panel">
+      <div class="card"><div class="card-title">📉 학생 감정 추이 비교</div><div class="grid-2" style="margin-bottom:10px"><select id="emo-comp-sel1" onchange="renderEmoCompChart()"><option value="">학생 1</option></select><select id="emo-comp-sel2" onchange="renderEmoCompChart()"><option value="">학생 2 (선택)</option></select></div><div style="background:var(--card2);border-radius:8px;padding:10px;height:200px;position:relative"><canvas id="emoCompChart"></canvas></div></div>
+      <div class="card"><div class="card-title">📊 학급 일별 평균 감정 추이</div><div style="background:var(--card2);border-radius:8px;padding:10px;height:180px;position:relative"><canvas id="classAvgEmoChart"></canvas></div></div>
+    </div>
+    <div id="rel-wordcloud" class="sub-panel">
+      <div class="card"><div class="card-title">☁️ 감정 메세지 워드클라우드</div><div id="wc-wrap"></div></div>
+      <div class="card"><div class="card-title">📊 상위 20 단어 빈도</div><div style="background:var(--card2);border-radius:8px;padding:10px;height:220px;position:relative"><canvas id="wordFreqChart"></canvas></div></div>
+    </div>
+    <div id="rel-ngram" class="sub-panel">
+      <div class="card"><div class="card-title">2-gram 빈출 패턴</div><div id="bigram-cloud" style="line-height:2.3"></div></div>
+      <div class="card"><div class="card-title">3-gram 빈출 패턴</div><div id="trigram-cloud" style="line-height:2.3"></div></div>
+      <div class="card"><div class="card-title">📊 2-gram 빈도 차트</div><div style="background:var(--card2);border-radius:8px;padding:10px;height:220px;position:relative"><canvas id="bigramChart"></canvas></div></div>
+    </div>
+    <div id="rel-ranking" class="sub-panel">
+      <div class="card"><div class="card-title">🏆 종합 관계 강도 순위 Top 15</div><div id="rel-ranking-list" style="font-size:12px"></div></div>
+      <div class="card"><div class="card-title">💰 거래 관계 Top 8</div><div style="background:var(--card2);border-radius:8px;padding:10px;height:200px;position:relative"><canvas id="txRelChart"></canvas></div></div>
+      <div class="card"><div class="card-title">🪑 좌석 친밀도 Top 8</div><div style="background:var(--card2);border-radius:8px;padding:10px;height:200px;position:relative"><canvas id="seatRelChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <div id="adm-stat" class="sub-panel">
+    <div class="card">
+      <div class="card-title">📊 오늘의 감정신호등</div>
+      <div class="grid-3" id="adm-emo-today">
+        <div class="card2" style="margin:0;text-align:center;cursor:pointer" id="adm-emo-good-box"><div style="font-size:26px">🟢</div><div style="font-size:20px;font-weight:700;color:var(--green)" id="adm-emo-good-cnt">0</div><div style="font-size:9px;color:var(--muted)">좋음</div><div class="emo-stat-bar" style="background:var(--green);width:0%" id="bar-good"></div></div>
+        <div class="card2" style="margin:0;text-align:center;cursor:pointer" id="adm-emo-mid-box"><div style="font-size:26px">🟡</div><div style="font-size:20px;font-weight:700;color:var(--gold)" id="adm-emo-mid-cnt">0</div><div style="font-size:9px;color:var(--muted)">보통</div><div class="emo-stat-bar" style="background:var(--gold);width:0%" id="bar-mid"></div></div>
+        <div class="card2" style="margin:0;text-align:center;cursor:pointer" id="adm-emo-bad-box"><div style="font-size:26px">🔴</div><div style="font-size:20px;font-weight:700;color:var(--red)" id="adm-emo-bad-cnt">0</div><div style="font-size:9px;color:var(--muted)">힘듦</div><div class="emo-stat-bar" style="background:var(--red);width:0%" id="bar-bad"></div></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;margin-bottom:8px">👆 클릭하면 학생 명단 팝업</div>
+      <div id="adm-emo-chips" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+    </div>
+    <div class="card" style="border-color:rgba(231,76,60,.3)"><div class="card-title" style="color:var(--red)">🚨 주의 필요 (연속 3일 힘듦)</div><div id="adm-emo-warn" style="font-size:12px">조회 중...</div></div>
+    <div class="card"><div class="card-title">📈 학급 감정 주간 추이</div><div style="background:var(--card2);border-radius:8px;padding:10px;height:175px;position:relative"><canvas id="classEmoChart"></canvas></div></div>
+    <div class="card"><div class="card-title">💬 오늘의 감정 메세지</div><div id="adm-emo-messages" style="font-size:12px;max-height:200px;overflow-y:auto"></div></div>
+  </div>
+
+  <div id="adm-re" class="sub-panel">
+    <div class="card"><div class="card-title" style="color:var(--orange)">⏳ 부동산 거래 승인 대기</div><div id="adm-re-pending" style="font-size:12px"></div></div>
+    <div class="card">
+      <div class="card-title">🎨 좌석표 DIY 생성기</div>
+      <div class="grid-2"><div><label style="font-size:10px;color:var(--muted);display:block;margin-bottom:4px">행 수</label><input type="number" id="adm-re-row" placeholder="예: 5" style="margin:0" min="1" max="12"></div><div><label style="font-size:10px;color:var(--muted);display:block;margin-bottom:4px">열 수</label><input type="number" id="adm-re-col" placeholder="예: 6" style="margin:0" min="1" max="12"></div></div>
+      <button class="btn btn-red btn-sm" onclick="doAdmInitSeats(this)" style="width:100%;margin-top:8px">🆕 새 좌석표 생성</button>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px">단탭=활성전환 | 더블탭=학생 배정</div>
+    </div>
+    <div class="card"><div class="card-title">🔀 랜덤 배치</div><button class="btn btn-teal" onclick="doAdmShuffle(this)">🎲 랜덤 자리 배치!</button></div>
+    <div class="card"><div class="card-title">📋 교실 좌석표</div><div style="font-size:11px;text-align:center;padding:5px;background:var(--border);border-radius:5px;margin-bottom:6px;letter-spacing:2px">📋 칠판</div><div id="adm-re-grid" class="seat-grid"></div></div>
+  </div>
+
+  <div id="adm-std" class="sub-panel">
+    <div class="card" style="border-color:rgba(26,188,156,.5)">
+      <div class="card-title" style="color:var(--teal)">🏛️ 공공자산(국고) 직접 관리</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px">세금, 벌금, 마트 수익 외에 국고를 수동으로 조절합니다. (+/- 입력)</div>
+      <div class="grid-2">
+        <input type="number" id="adm-public-amt" placeholder="조정 금액 (+/-)" style="margin:0">
+        <input type="text" id="adm-public-rsn" placeholder="조정 사유" style="margin:0">
+      </div>
+      <button class="btn btn-teal" style="margin-top:8px" onclick="doAdmUpdatePublicAsset(this)">국고 금액 적용</button>
+    </div>
+
+    <div class="card"><div class="card-title">급여 및 벌금</div><div class="grid-2"><select id="adm-pay-sel"><option value="all">전체 학생</option></select><input type="number" id="adm-pay-amt" placeholder="금액 (+/-)" style="margin:0"></div><input type="text" id="adm-pay-rsn" placeholder="사유" style="margin-top:8px"><div style="margin-bottom:10px"><label style="font-size:11px;color:var(--muted)"><input type="checkbox" id="adm-pay-tax"> 세금(설정값%) 징수</label></div><button class="btn" onclick="doAdmPay(this)">일괄 적용</button></div>
+    <div class="card"><div class="card-title">징계/해고</div><div class="grid-2"><select id="adm-dis-sel"></select><select id="adm-dis-type"><option>견책</option><option>감봉</option><option>정직</option><option>파면</option></select></div><div class="grid-2" style="margin-top:8px"><input type="number" id="adm-dis-amt" placeholder="벌금(선택)" style="margin:0"><input type="text" id="adm-dis-rsn" placeholder="사유" style="margin:0"></div><button class="btn btn-red" style="margin-top:10px" onclick="doAdmDiscipline(this)">징계 확정</button></div>
+    <div class="card"><div class="card-title">자산 강제 조정</div><select id="adm-std-sel" style="margin-bottom:8px"></select><div class="grid-2"><input type="number" id="adm-std-cash" placeholder="증감 현금" style="margin:0"><input type="number" id="adm-std-stock" placeholder="증감 주식" style="margin:0"></div><button class="btn btn-gold" style="margin-top:10px" onclick="doAdmUpdateStudent(this)">적용</button></div>
+    <div class="card"><div class="card-title">호출 답변</div><div id="adm-call-list" style="font-size:12px"></div></div>
+  </div>
+
+  <div id="adm-stk" class="sub-panel">
+    <div class="card"><div class="card-title">주가 및 뉴스 반영</div><input type="number" id="adm-stk-price" placeholder="새로운 1주당 주가 (원)"><input type="text" id="adm-stk-title" placeholder="뉴스 제목(선택)"><input type="text" id="adm-stk-content" placeholder="뉴스 내용"><input type="text" id="adm-stk-impact" placeholder="영향 예: 호재 +10%"><button class="btn btn-gold" onclick="doAdmUpdateStock(this)">적용하기</button></div>
+    <div class="card"><div class="card-title">예금 이자율 변경</div><input type="number" step="0.01" id="adm-dep-rate" placeholder="예: 0.02 (2%/일)"><button class="btn" onclick="doAdmUpdateDepRate(this)">이자율 변경</button></div>
+  </div>
+
+
+  <div id="adm-mkt" class="sub-panel">
+    <div class="card"><div class="card-title">공지사항 등록</div><input type="text" id="adm-ntc-title" placeholder="제목"><textarea id="adm-ntc-content" rows="2" placeholder="내용"></textarea><label style="font-size:11px;color:var(--red)"><input type="checkbox" id="adm-ntc-urg"> 긴급 (전광판 노출)</label><button class="btn" onclick="doAdmAddNotice(this)" style="margin-top:10px">등록</button></div>
+    <div class="card"><div class="card-title">직업 등록</div><div class="grid-2"><input type="text" id="adm-job-title" placeholder="직업명" style="margin:0"><input type="number" id="adm-job-sal" placeholder="급여" style="margin:0"></div><input type="text" id="adm-job-role" placeholder="역할 설명" style="margin-top:8px"><input type="number" id="adm-job-cnt" placeholder="모집인원"><button class="btn btn-gold" onclick="doAdmAddJob(this)">직업 등록</button></div>
+    <div class="card"><div class="card-title">🎁 상점 아이템 등록</div><div class="grid-2"><input type="text" id="adm-item-name" placeholder="아이템명" style="margin:0"><input type="number" id="adm-item-price" placeholder="가격" style="margin:0"></div><div class="grid-2" style="margin-top:8px"><input type="number" id="adm-item-stock" placeholder="재고 수량" style="margin:0"><input type="text" id="adm-item-emoji" placeholder="이모지 (예: 🎁)" style="margin:0"></div><input type="text" id="adm-item-desc" placeholder="아이템 설명 (선택)" style="margin-top:8px"><button class="btn btn-teal" onclick="doAdmAddShopItem(this)" style="margin-top:2px">아이템 등록</button></div>
+    <div class="card"><div class="card-title">공지사항 삭제</div><div id="adm-ntc-del" style="font-size:12px"></div></div>
+    <div class="card"><div class="card-title">장터 강제 삭제</div><div id="adm-mkt-list" style="font-size:12px"></div></div>
+    <div class="card">
+      <div class="card-title">🛒 마트 물품 관리 <button class="btn btn-outline btn-sm" onclick="loadAdmMartItems()">🔄 새로고침</button></div>
+      <div id="adm-mart-item-list" style="font-size:12px;color:var(--muted)">새로고침을 눌러 불러오세요.</div>
+    </div>
+  </div>
+
+  <div id="adm-lottery" class="sub-panel">
+    <div class="card">
+      <div class="card-title">🎟️ 복권 항목 추가</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.7">
+        <b>구분</b>: 현금 / 꽝 / 주식 / 아이템 / 벌칙<br>
+        <b>제목</b>: 복권 결과 이름 (예: 행운버거, 소액당첨 등)<br>
+        <b>내용</b>: 주식=주수, 아이템=이름, 벌칙=금액or텍스트 (현금은 아래 현금 칸 사용)<br>
+        <b>확률</b>: 숫자 (합계가 꼭 100일 필요 없음, 상대적 비율)<br>
+        <b>현금</b>: 현금 지급액 (구분이 현금일 때 입력)
+      </div>
+      <div class="grid-2">
+        <select id="adm-lt-type" style="margin:0">
+          <option value="현금">💰 현금</option>
+          <option value="꽝">💸 꽝</option>
+          <option value="주식">📈 주식</option>
+          <option value="아이템">🎁 아이템</option>
+          <option value="벌칙">😱 벌칙</option>
+        </select>
+        <input type="text" id="adm-lt-title" placeholder="결과 이름 (예: 행운버거)" style="margin:0">
+      </div>
+      <div class="grid-2" style="margin-top:8px">
+        <input type="text" id="adm-lt-content" placeholder="내용 (꽝=빈칸, 주식=수량...)" style="margin:0">
+        <input type="number" id="adm-lt-prob" placeholder="확률 (예: 30)" style="margin:0">
+      </div>
+      <div style="margin-top:8px">
+        <input type="number" id="adm-lt-cash" placeholder="현금 지급액 (현금 구분만 입력, 예: 5000)">
+      </div>
+      <button class="btn btn-gold" style="margin-top:10px" onclick="doAdmAddLottery(this)">➕ 항목 추가</button>
+    </div>
+    <div class="card">
+      <div class="card-title">현재 복권 목록 <button class="btn btn-outline btn-sm" onclick="loadAdmLottery(this)">🔄 새로고침</button></div>
+      <div id="adm-lottery-list" style="font-size:12px;color:var(--muted)">로딩 중...</div>
+    </div>
+  </div>
+
+  <div id="adm-assign" class="sub-panel">
+    <div class="card" style="border-color:rgba(46,204,113,.3)">
+      <div class="card-title" style="color:var(--green)">📝 과제 등록</div>
+      <input type="text" id="adm-asg-title" placeholder="과제 제목 (예: 독서록 제출)">
+      <textarea id="adm-asg-content" rows="3" placeholder="과제 내용 및 안내"></textarea>
+      <div class="grid-2">
+        <div>
+          <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:4px">제출 시작일</label>
+          <input type="date" id="adm-asg-start" style="margin:0">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:4px">제출 마감일</label>
+          <input type="date" id="adm-asg-end" style="margin:0">
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top:8px">
+        <select id="adm-asg-filetype" style="margin:0">
+          <option value="자유">📎 자유 (무엇이든)</option>
+          <option value="사진">📷 사진</option>
+          <option value="PDF">📄 PDF</option>
+          <option value="HWP">📝 HWP</option>
+          <option value="설문">📋 설문</option>
+          <option value="영상">🎥 영상</option>
+        </select>
+        <input type="number" id="adm-asg-reward" placeholder="수당 (0=설정값 사용)" style="margin:0">
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px;margin-bottom:10px">
+        💡 수당 0 입력 시 설정에서 지정한 과제 수당 자동 적용
+      </div>
+      <button class="btn btn-green" onclick="doAdmAddAssignment(this)">📝 과제 등록</button>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 등록된 과제 목록 <button class="btn btn-outline btn-sm" onclick="loadAdmAssignments()">🔄</button></div>
+      <div id="adm-assign-list" style="font-size:12px;color:var(--muted)">로딩 중...</div>
+    </div>
+  </div>
+
+  <div id="adm-perm" class="sub-panel">
+    <div class="card" style="border-color:rgba(245,200,66,.4)">
+      <div class="card-title" style="color:var(--gold)">🔑 학생 권한 부여 / 수정</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.7">
+        특정 직업을 가진 학생에게 시스템 권한을 부여합니다.<br>
+        권한을 받은 학생은 로그인 후 <b>🔑 권한</b> 탭에서 기능을 실행할 수 있습니다.
+      </div>
+      <select id="adm-perm-sel" style="margin-bottom:8px"><option value="">학생 선택</option></select>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">부여할 권한 선택 (복수 가능):</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;background:var(--card2);padding:6px 10px;border-radius:8px;border:1px solid var(--border)"><input type="checkbox" id="perm-salary" value="월급배부"> 💵 월급배부</label>
+        <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;background:var(--card2);padding:6px 10px;border-radius:8px;border:1px solid var(--border)"><input type="checkbox" id="perm-fine" value="벌금징수"> 💸 벌금징수</label>
+        <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;background:var(--card2);padding:6px 10px;border-radius:8px;border:1px solid var(--border)"><input type="checkbox" id="perm-fine" value="금징수"> 💸 세금징수</label>
+        <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;background:var(--card2);padding:6px 10px;border-radius:8px;border:1px solid var(--border)"><input type="checkbox" id="perm-notice" value="공지작성"> 📢 공지작성</label>
+        <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;background:var(--card2);padding:6px 10px;border-radius:8px;border:1px solid var(--border)"><input type="checkbox" id="perm-praise" value="칭찬카드"> 🌸 칭찬카드</label>
+        <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;background:var(--card2);padding:6px 10px;border-radius:8px;border:1px solid var(--border)"><input type="checkbox" id="perm-warning" value="경고"> ⚠️ 경고처분</label>
+        <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;background:var(--card2);padding:6px 10px;border-radius:8px;border:1px solid var(--border)"><input type="checkbox" id="perm-mart" value="마트관리"> 🛒 마트관리</label>
+      </div>
+      <button class="btn btn-gold" onclick="doAdmGrantPerm(this)">✅ 권한 저장</button>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 현재 권한 현황</div>
+      <div id="adm-perm-list" style="font-size:12px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">👥 직업별 역할표 참고</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px">직업과 미션을 참고하여 적절한 권한을 부여하세요.</div>
+      <div id="adm-role-table" style="font-size:11px;overflow-x:auto"></div>
+    </div>
+  </div>
+
+  <div id="adm-config" class="sub-panel">
+    <div class="card" style="border-color:rgba(26,188,156,.3)">
+      <div class="card-title" style="color:var(--teal)">📋 v15 시트 구조 안내</div>
+      <div style="font-size:11px;line-height:1.9;color:var(--muted)">
+        <div style="color:var(--text);font-weight:700;margin-bottom:6px">8개 통합 시트 구성</div>
+        <div>📗 <b style="color:var(--green)">학생</b> — 학생 마스터 (이름/비밀번호/직업/현금)</div>
+        <div>📘 <b style="color:var(--accent)">거래LOG</b> — 현금거래+세금+주식주문+고용+부동산 모든 이력</div>
+        <div>📙 <b style="color:var(--gold)">자산현황</b> — 예금+상점아이템+인벤토리+중고거래</div>
+        <div>📈 <b style="color:var(--accent2)">주식시장</b> — 주가이력+주식뉴스</div>
+        <div>💬 <b style="color:var(--pink)">학급활동</b> — 자기평가+감정신호등+호출시스템</div>
+        <div>📚 <b style="color:var(--teal)">학습관리</b> — 숙제+공지사항+시간표</div>
+        <div>🪑 <b style="color:var(--orange)">자리배치</b> — 좌석배치+부동산거래이력</div>
+        <div>⚙️ <b style="color:var(--muted)">설정</b> — 카테고리별 모든 설정값+직업목록</div>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(108,143,255,.3)">
+      <div class="card-title">⚙️ 보상/급여 설정 <button class="btn btn-gold btn-sm" onclick="saveConfig(this)">💾 저장</button></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px">변경 후 반드시 저장 버튼을 눌러주세요.</div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">✅ 자기평가 급여 설정</div>
+      <div class="setting-row"><div><div class="setting-label">상 급여</div><div class="setting-desc">자기평가 [상] 선택 시 지급액</div></div><input type="number" id="cfg-eval-up" class="setting-input" value="10000"></div>
+      <div class="setting-row"><div><div class="setting-label">중 급여</div><div class="setting-desc">자기평가 [중] 선택 시 지급액</div></div><input type="number" id="cfg-eval-mid" class="setting-input" value="5000"></div>
+      <div class="setting-row"><div><div class="setting-label">하 급여</div><div class="setting-desc">자기평가 [하] 선택 시 지급액</div></div><input type="number" id="cfg-eval-down" class="setting-input" value="3000"></div>
+      <div class="setting-row"><div><div class="setting-label">세금 적용</div><div class="setting-desc">자기평가 급여에서 세금 차감</div></div><label class="toggle-wrap"><input type="checkbox" id="cfg-eval-tax" checked><span class="toggle-slider"></span></label></div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent2);margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">🚥 감정신호등 보상 설정</div>
+      <div class="setting-row"><div><div class="setting-label">보상 활성화</div><div class="setting-desc">감정 등록 시 보상 지급 여부</div></div><label class="toggle-wrap"><input type="checkbox" id="cfg-emo-active" checked><span class="toggle-slider"></span></label></div>
+      <div class="setting-row"><div><div class="setting-label">🟢 좋음 보상</div><div class="setting-desc">감정 [좋음] 등록 시 지급액</div></div><input type="number" id="cfg-emo-good" class="setting-input" value="500"></div>
+      <div class="setting-row"><div><div class="setting-label">🟡 보통 보상</div><div class="setting-desc">감정 [보통] 등록 시 지급액</div></div><input type="number" id="cfg-emo-mid" class="setting-input" value="300"></div>
+      <div class="setting-row"><div><div class="setting-label">🔴 힘듦 보상</div><div class="setting-desc">감정 [힘듦] 등록 시 지급액</div></div><input type="number" id="cfg-emo-bad" class="setting-input" value="1000"></div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent2);margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">💹 세금 및 기타</div>
+      <div class="setting-row"><div><div class="setting-label">세금율 (%)</div><div class="setting-desc">급여 세금 비율 (예: 0.10 = 10%)</div></div><input type="number" id="cfg-tax-rate" class="setting-input" value="0.10" step="0.01"></div>
+      <div class="setting-row"><div><div class="setting-label">예금 기본이자율</div><div class="setting-desc">예금 기본 이자율 (예: 0.02 = 2%/일)</div></div><input type="number" id="cfg-dep-rate" class="setting-input" value="0.02" step="0.01"></div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent2);margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">🎟️ 복권 설정</div>
+      <div class="setting-row"><div><div class="setting-label">복권 1장 가격</div><div class="setting-desc">복권 구매 가격 (원)</div></div><input type="number" id="cfg-lottery-price" class="setting-input" value="500"></div>
+      <div class="setting-row"><div><div class="setting-label">1인당 일일 한도</div><div class="setting-desc">하루 최대 구매 가능 장수</div></div><input type="number" id="cfg-lottery-limit" 
+      class="setting-input" value="3"></div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent2);margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">📝 과제 수당 설정</div>
+      <div class="setting-row"><div><div class="setting-label">과제 제출 수당</div><div class="setting-desc">과제 제출 시 기본 지급액 (원)</div></div><input type="number" id="cfg-assign-reward" class="setting-input" value="2000"></div>
+      <div class="setting-row"><div><div class="setting-label">과제 수당 세금 적용</div><div class="setting-desc">과제 수당에서 세금 차감</div></div><label class="toggle-wrap"><input type="checkbox" id="cfg-assign-tax"><span class="toggle-slider"></span></label></div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent2);margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">🏅 레벨(등급) 설정</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">총 자산 기준으로 등급을 자동 부여합니다. 레벨1은 기본 등급(최소자산 0)입니다.</div>
+      <div class="setting-row"><div><div class="setting-label">레벨1 이름</div><div class="setting-desc">기본 등급명</div></div><input type="text" id="cfg-lv1-name" class="setting-input" value="씨앗"></div>
+      <div class="setting-row"><div><div class="setting-label">레벨2 이름</div><div class="setting-desc">최소 자산액 (원)</div></div><div style="display:flex;gap:6px;align-items:center"><input type="text" id="cfg-lv2-name" class="setting-input" value="새싹" style="width:70px"><input type="number" id="cfg-lv2-min" class="setting-input" value="50000" placeholder="최소자산"></div></div>
+      <div class="setting-row"><div><div class="setting-label">레벨3 이름</div><div class="setting-desc">최소 자산액 (원)</div></div><div style="display:flex;gap:6px;align-items:center"><input type="text" id="cfg-lv3-name" class="setting-input" value="나무" style="width:70px"><input type="number" id="cfg-lv3-min" class="setting-input" value="150000" placeholder="최소자산"></div></div>
+      <div class="setting-row"><div><div class="setting-label">레벨4 이름</div><div class="setting-desc">최소 자산액 (원)</div></div><div style="display:flex;gap:6px;align-items:center"><input type="text" id="cfg-lv4-name" class="setting-input" value="별" style="width:70px"><input type="number" id="cfg-lv4-min" class="setting-input" value="300000" placeholder="최소자산"></div></div>
+      <div class="setting-row"><div><div class="setting-label">레벨5 이름</div><div class="setting-desc">최소 자산액 (원)</div></div><div style="display:flex;gap:6px;align-items:center"><input type="text" id="cfg-lv5-name" class="setting-input" value="왕" style="width:70px"><input type="number" id="cfg-lv5-min" class="setting-input" value="500000" placeholder="최소자산"></div></div>
+      <div style="margin-top:20px"><button class="btn btn-gold" onclick="saveConfig(this)">💾 설정 저장하기</button></div>
+    </div>
+    <div class="card"><div class="card-title">📋 현재 설정값 미리보기</div><div id="cfg-preview" style="font-size:11px;color:var(--muted)">저장 후 반영됩니다.</div></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// 전역 변수 & 유틸
+// ═══════════════════════════════════════════════════════
+let ME=null, ALL_STUDENTS=[], DEPOSITS=[], G_DEP_RATE=0.02, G_SETTINGS={};
+let lineChart=null, barChart=null, trendChart=null, classEmoChart=null;
+let emoCompChart=null, classAvgEmoChart=null, txRelChart=null, seatRelChart=null;
+let bigramChart=null, wordFreqChart=null, assetChart=null;
+let relAnimId=null, selRelNode=null, relNodes=[], relEdges=[], relW=0, relH=0;
+let ADM_SEAT_CLICK_TIMER={};
+let REL_DATA=null, ADM_EMO_DETAIL={};
+
+const api=(action,payload)=>new Promise((res,rej)=>google.script.run.withSuccessHandler(res).withFailureHandler(rej).dispatch(action,payload||{}));
+const showToast=(msg,c='var(--accent)')=>{const t=document.getElementById('toast');t.textContent=msg;t.style.background=c;t.style.borderColor=c;t.style.opacity='1';setTimeout(()=>t.style.opacity='0',2800);};
+const showLoad=(msg='처리 중...')=>{document.getElementById('loader-msg').textContent=msg;document.getElementById('loader').style.display='flex';};
+const hideLoad=()=>document.getElementById('loader').style.display='none';
+const wrapClick=async(btn,fn)=>{if(btn&&btn.disabled)return;if(btn)btn.disabled=true;showLoad();try{await fn();}catch(e){console.error(e);showToast('서버 오류','var(--red)');}finally{if(btn)btn.disabled=false;hideLoad();}};
+const closePopup=id=>document.getElementById(id).classList.remove('open');
+const openPopup=id=>document.getElementById(id).classList.add('open');
+const fmt=n=>Number(n||0).toLocaleString();
+const CHART_DEFAULTS={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#5a6a8a',boxWidth:10,font:{size:9}}}},scales:{x:{ticks:{color:'#5a6a8a',font:{size:9}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#5a6a8a',font:{size:9}},grid:{color:'rgba(255,255,255,0.04)'}}}};
+
+// ─── 급식 날짜 상태 ───
+let _mealDate = new Date();
+
+function _dateToStr(d) {
+  // yyyy-MM-dd 형식
+  return d.toLocaleDateString('sv-SE');
+}
+function _formatKor(d) {
+  const days = ['일','월','화','수','목','금','토'];
+  const m = d.getMonth()+1, dd = d.getDate(), dw = days[d.getDay()];
+  return `${m}월 ${dd}일 (${dw})`;
+}
+
+// ─── 앱 초기화 ───
+window.onload=async()=>{
+  try{
+    showLoad('서버 초기화 중...');
+    const res=await api('getStudents');
+    hideLoad();
+    ALL_STUDENTS=res||[];
+    const sel=document.getElementById('ls-name');
+    sel.innerHTML='<option value="">이름 선택</option>'+ALL_STUDENTS.map(s=>`<option value="${s.name}">${s.id}번 ${s.name}</option>`).join('');
+    // 날짜 피커 초기값 오늘
+    const todayStr = _dateToStr(new Date());
+    const dp = document.getElementById('meal-date-picker');
+    if(dp) dp.value = todayStr;
+  }catch(e){hideLoad();showToast('네트워크 오류','var(--red)');}
+};
+
+// ─── 로그인 ───
+function doLogin(btn){wrapClick(btn,async()=>{
+  const name=document.getElementById('ls-name').value,pw=document.getElementById('ls-pw').value;
+  if(!name)return showToast('이름 선택','var(--red)');
+  const res=await api('studentLogin',{name,pw});
+  if(!res.success)return showToast(res.msg,'var(--red)');
+  ME=res.student;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('hdr-name').textContent=ME.name;
+  document.getElementById('set-name').textContent=ME.name;
+  document.getElementById('hw-due').value=new Date(Date.now()+86400000).toLocaleDateString('sv-SE');
+
+  // ★ 권한 탭 표시 여부
+  const hasPerm=String(ME.permission||'').trim()!=='';
+  document.getElementById('nav-delegate').style.display=hasPerm?'block':'none';
+  await loadHome();
+});}
+function doLogout(){ME=null;document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='block';document.getElementById('ls-pw').value='';document.getElementById('nav-delegate').style.display='none';}
+function doChangePw(btn){wrapClick(btn,async()=>{
+  const o=document.getElementById('set-pw-old').value,n=document.getElementById('set-pw-new').value;
+  if(!n)return showToast('새 비밀번호 입력','var(--red)');
+  const res=await api('changePassword',{name:ME.name,oldPw:o,newPw:n});
+  showToast(res.msg,res.success?'var(--green)':'var(--red)');
+  if(res.success){document.getElementById('set-pw-old').value='';document.getElementById('set-pw-new').value='';}
+});}
+
+// ─── 네비게이션 ───
+function nav(panelId,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('p-'+panelId).classList.add('active');
+  if(el){document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));el.classList.add('active');}
+  if(panelId==='home')loadHome();
+  else if(panelId==='lms'){
+    // ★ 현재 활성된 서브탭만 로드 (급식 중복 표시 방지)
+    const activeSubTab = document.querySelector('#p-lms .sub-tab.active');
+    const activeTabText = activeSubTab ? activeSubTab.textContent.trim() : '';
+    if(activeTabText.includes('호출')) loadCallList();
+    else if(activeTabText.includes('숙제')) loadHwList();
+    else if(activeTabText.includes('급식') || activeTabText.includes('시간표')) loadMealByDate();
+    else if(activeTabText.includes('공지')) loadNotice();
+    else if(activeTabText.includes('과제')) loadAssignments();
+    else loadCallList(); // 기본값: 첫 번째 탭(호출)
+  }
+  else if(panelId==='eco')loadEcoStock();
+  else if(panelId==='eval')loadEval();
+  else if(panelId==='delegate')loadDelegatePanel();
+}
+
+function switchSubTab(parent,tab,el){
+  document.querySelectorAll(`#p-${parent} .sub-panel`).forEach(p=>p.classList.remove('active'));
+  const el2=document.getElementById(`${parent}-${tab}`);if(el2)el2.classList.add('active');
+  if(el){el.parentElement.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
+  if(tab==='stock')loadEcoStock();if(tab==='market')loadMarket();if(tab==='deposit'){loadDeposit();loadShop();}
+  if(tab==='transfer')loadTransfer();if(tab==='re')loadRealEstate();if(tab==='job')loadJob();
+  if(tab==='mart') loadEcoMart();
+  if(tab==='meal')loadMealByDate();
+  if(tab==='notice')loadNotice();
+  if(tab==='lottery')loadLottery();
+  if(tab==='assign')loadAssignments();
+}
+
+
+// 함수 추가
+function doAdmUpdatePublicAsset(btn){wrapClick(btn,async()=>{
+  const amt=document.getElementById('adm-public-amt').value;
+  const rsn=document.getElementById('adm-public-rsn').value;
+  if(!amt||!rsn) return showToast('금액과 사유를 입력하세요', 'var(--red)');
+  
+  const res = await api('adminUpdatePublicAsset', {amount:amt, reason:rsn});
+  showToast(res.msg, res.success?'var(--green)':'var(--red)');
+  if(res.success){
+    document.getElementById('adm-public-amt').value='';
+    document.getElementById('adm-public-rsn').value='';
+    loadAdminData(); // 데이터 갱신
+  }
+});} // <-- 누락되었던 괄호 추가!
+
+// 💰 세금 징수 함수 추가
+function doDelegatedTax(btn){wrapClick(btn,async()=>{
+  const target=document.getElementById('dlg-tax-sel').value;
+  const amt=document.getElementById('dlg-tax-amt').value;
+  const rsn=document.getElementById('dlg-tax-rsn').value;
+  if(!amt||!rsn)return showToast('금액과 사유를 입력하세요','var(--red)');
+  if(!confirm(`${target==='all'?'전체 학생':target}에게 ${Number(amt).toLocaleString()}원 세금 징수?`))return;
+  const res=await api('delegatedTax',{actorName:ME.name,targetName:target,amount:amt,reason:rsn});
+  showToast(res.msg,res.success?'var(--green)':'var(--red)');
+  if(res.success){document.getElementById('dlg-tax-amt').value='';document.getElementById('dlg-tax-rsn').value='';}
+});}
+
+// 🛒 마트 POS 결제 청구 함수 추가
+function doMartCharge(btn){wrapClick(btn,async()=>{
+  const buyer=document.getElementById('dlg-mart-buyer').value;
+  const item=document.getElementById('dlg-mart-charge-item').value;
+  const amt=document.getElementById('dlg-mart-charge-amt').value;
+  if(!buyer||!amt) return showToast('구매자와 금액을 입력하세요', 'var(--red)');
+  if(!confirm(`${buyer} 학생에게 ${fmt(amt)}원을 결제하시겠습니까?`)) return;
+  
+  const res = await api('delegatedMartCharge', {actorName:ME.name, buyerName:buyer, amount:amt, itemName:item});
+  showToast(res.msg, res.success?'var(--green)':'var(--red)');
+  if(res.success){
+    document.getElementById('dlg-mart-charge-item').value='';
+    document.getElementById('dlg-mart-charge-amt').value='';
+    loadMartStats(); // 매출 갱신
+  }
+});}
+
+
+
+
+// ─── HOME ───
+async function loadHome(){
+  showLoad('내 자산 로딩...');
+  const data=await api('getInitData',{name:ME.name});
+  hideLoad();
+  if(!data.success)return;
+  ME=data.student;ME.chkDone=data.chkDone;G_DEP_RATE=data.depositRate;G_SETTINGS=data.settings||{};
+  // ★ 자산 상세 표시
+  document.getElementById('h-cash').textContent=fmt(ME.cash)+'원';
+  document.getElementById('h-dep').textContent=fmt(data.depTotal)+'원';
+  document.getElementById('h-stk').textContent=fmt(data.stockAsset)+'원';
+  document.getElementById('h-total').textContent=fmt(ME.cash+data.depTotal+data.stockAsset)+'원';
+
+  // 👇 추가된 부분: 국고(세금 및 공공자산) 표시 👇
+  if (document.getElementById('h-tax-total')) {
+    document.getElementById('h-tax-total').textContent = fmt(data.taxTotal) + '원';
+  }
+  if (document.getElementById('h-public-total')) {
+    document.getElementById('h-public-total').textContent = fmt(data.publicTotal) + '원';
+  }
+  // 👆 여기까지 👆
+  // ★ 레벨 배지
+  const levelBadge=document.getElementById('h-level-badge');
+  if(levelBadge&&data.level){levelBadge.textContent='🏅 '+data.level;}
+  const chkEl=document.getElementById('h-chk');chkEl.textContent=ME.chkDone?'✅ 완료':'❌ 미완료';chkEl.style.color=ME.chkDone?'var(--green)':'var(--red)';
+  document.getElementById('h-hw').textContent=data.hwCount+'건';
+
+  // ★ 전광판 애니메이션 수정: 요소를 새로 생성해 강제 재시작
+  const banner=document.getElementById('urgent-banner');
+  if(data.urgentNotice){
+    banner.style.display='block';
+    // 기존 텍스트 노드/span 제거 후 새 span 삽입 → 애니메이션 재시작
+    banner.innerHTML='';
+    const span=document.createElement('span');
+    span.className='marquee';
+    span.textContent=`🚨 [긴급공지] ${data.urgentNotice['제목']} : ${data.urgentNotice['내용']}`;
+    banner.appendChild(span);
+  } else {
+    banner.style.display='none';
+    banner.innerHTML='';
+  }
+
+  const up=fmt(G_SETTINGS['자기평가_상_급여']||10000),mid=fmt(G_SETTINGS['자기평가_중_급여']||5000),dw=fmt(G_SETTINGS['자기평가_하_급여']||3000);
+  const evalGuide=document.getElementById('eval-salary-guide');
+  if(evalGuide)evalGuide.textContent=`💡 오늘의 급여 기준 — 상: ${up}원 / 중: ${mid}원 / 하: ${dw}원`;
+  const selEl=document.getElementById('ev-role');
+  if(selEl){selEl.options[0].text=`😊 상 (매우 잘함) +${up}원`;selEl.options[1].text=`😐 중 (보통) +${mid}원`;selEl.options[2].text=`😞 하 (노력 필요) +${dw}원`;}
+
+  const rd=data.rank,medals=['🥇','🥈','🥉','4️⃣','5️⃣'];
+  document.getElementById('rank-asset').innerHTML=rd.asset.slice(0,5).map((r,i)=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>${medals[i]} ${r.name}${r.level?' <span class="badge" style="background:rgba(245,200,66,.15);color:var(--gold);font-size:9px">'+r.level+'</span>':''}</span><span style="color:var(--gold);font-weight:700">${fmt(r.total)}원</span></div>`).join('');
+  // ★ 학생별 자산 상세 (현금+예금+주식)
+  const detailEl=document.getElementById('rank-asset-detail');
+  if(detailEl){detailEl.innerHTML=rd.asset.map((r,i)=>`
+    <div style="padding:7px 0;border-bottom:1px dashed var(--border)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-weight:700">${i+1}. ${r.name}${r.level?' <span style="font-size:9px;color:var(--gold)">[${r.level}]</span>':''}</span>
+        <span style="color:var(--gold);font-weight:700">${fmt(r.total)}원</span>
+      </div>
+      <div style="display:flex;gap:8px;font-size:10px;color:var(--muted)">
+        <span>💵 ${fmt(r.cash||0)}</span>
+        <span>🏦 ${fmt(r.depAmt||0)}</span>
+        <span>📈 ${fmt(r.stockAmt||0)}</span>
+      </div>
+    </div>`).join('');}
+  document.getElementById('rank-emo').innerHTML=rd.emotion.map(r=>`<span class="emo-chip" style="background:${r.emotion.includes('좋음')?'rgba(46,204,113,.15)':r.emotion.includes('힘듦')?'rgba(231,76,60,.15)':'rgba(243,156,18,.15)'};color:${r.emotion.includes('좋음')?'var(--green)':r.emotion.includes('힘듦')?'var(--red)':'var(--gold)'}">${r.name} ${r.emotion.split(' ')[0]||'❓'}</span>`).join('');
+  document.getElementById('rank-stock').innerHTML=rd.stock.slice(0,3).map((r,i)=>`<div style="padding:4px 0">${medals[i]} ${r.name}<br><span style="color:var(--gold);font-size:10px">${fmt(r.stockAmt)}원</span></div>`).join('');
+  document.getElementById('rank-deposit').innerHTML=rd.deposit.slice(0,3).map((r,i)=>`<div style="padding:4px 0">${medals[i]} ${r.name}<br><span style="color:var(--teal);font-size:10px">${fmt(r.depAmt)}원</span></div>`).join('');
+}
+
+function sendEmotion(emo,btn){wrapClick(btn,async()=>{
+  const msg=document.getElementById('emo-msg').value;
+  const res=await api('logEmotion',{name:ME.name,emotion:emo,message:msg});
+  showToast(res.msg,'var(--green)');
+  document.getElementById('emo-msg').value='';
+  if(res.bonus){const bd=document.getElementById('h-emo-bonus');bd.textContent='🎉 '+res.bonus;bd.style.display='block';setTimeout(()=>bd.style.display='none',3500);}
+  loadHome();
+});}
+
+// ─── LMS ───
+function doCall(btn){wrapClick(btn,async()=>{const cat=document.getElementById('call-type').value,msg=document.getElementById('call-msg').value;if(!msg)return showToast('내용 입력','var(--red)');const res=await api('sendCall',{name:ME.name,category:cat,message:msg});showToast(res.msg,res.success?'var(--green)':'var(--red)');document.getElementById('call-msg').value='';loadCallList();});}
+async function loadCallList(){const calls=await api('getCalls',{name:ME.name});document.getElementById('call-list').innerHTML=calls.map(c=>`<div class="card2"><span class="badge" style="background:rgba(108,143,255,.2);color:var(--accent)">${c['구분']}</span> ${c['메세지']}<div style="color:var(--gold);margin-top:5px;font-size:11px">↳ ${c['교사답변']||'대기중'}</div></div>`).join('')||'<div style="color:var(--muted);padding:10px">내역 없음</div>';}
+async function loadHwList(){const hw=await api('getHomework',{status:'미완료'});document.getElementById('hw-list').innerHTML=hw.map(h=>`<div class="card2" style="display:flex;justify-content:space-between;align-items:center"><div><span class="badge">${h['과목']}</span> ${h['내용']}<br><span style="color:var(--red);font-size:10px">마감: ${String(h['마감일']).slice(0,10)}</span></div><button class="btn btn-green btn-sm" onclick="doCompleteHw('${h['번호']}',this)">완료</button></div>`).join('')||'<div style="color:var(--muted);padding:10px">숙제 없음 🎉</div>';}
+function doAddHw(btn){wrapClick(btn,async()=>{const sub=document.getElementById('hw-sub').value,due=document.getElementById('hw-due').value,msg=document.getElementById('hw-msg').value;if(!msg)return showToast('내용 입력','var(--red)');await api('addHomework',{subject:sub,content:msg,dueDate:due,registrant:ME.name,importance:'보통'});showToast('등록 완료','var(--green)');document.getElementById('hw-msg').value='';loadHwList();});}
+function doCompleteHw(id,btn){wrapClick(btn,async()=>{await api('completeHomework',{id});showToast('완료!','var(--green)');loadHwList();loadHome();});}
+
+// ─── ★ 급식/시간표 (날짜 선택) ───
+function changeMealDate(delta) {
+  const dp = document.getElementById('meal-date-picker');
+  const d = new Date(dp.value || _dateToStr(new Date()));
+  d.setDate(d.getDate() + delta);
+  dp.value = _dateToStr(d);
+  loadMealByDate();
+}
+function goMealToday() {
+  const dp = document.getElementById('meal-date-picker');
+  dp.value = _dateToStr(new Date());
+  loadMealByDate();
+}
+
+async function loadMealByDate() {
+  const dp = document.getElementById('meal-date-picker');
+  if (!dp) return;
+  const dateStr = dp.value || _dateToStr(new Date());
+  const dateObj = new Date(dateStr);
+  const korLabel = _formatKor(dateObj);
+
+  // 날짜 레이블 업데이트
+  const mealLabel = document.getElementById('meal-date-label');
+  const ttLabel = document.getElementById('tt-date-label');
+  if(mealLabel) mealLabel.textContent = korLabel;
+  if(ttLabel) ttLabel.textContent = korLabel;
+
+  // 급식 로드
+  document.getElementById('meal-list').innerHTML = `<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">🔄 불러오는 중...</div>`;
+  document.getElementById('tt-list').innerHTML = `<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">🔄 불러오는 중...</div>`;
+
+  try {
+    const meals = await api('getMeal', {date: dateStr});
+    if (meals.success && meals.meals && meals.meals.length > 0) {
+      const typeColors = {'조식':'var(--teal)','중식':'var(--gold)','석식':'var(--accent2)'};
+      document.getElementById('meal-list').innerHTML = meals.meals.map(m => {
+        const color = typeColors[m.type] || 'var(--accent)';
+        const items = m.menu.split(/[,\n]/).map(s=>s.trim()).filter(Boolean);
+        return `<div class="meal-section">
+          <div class="meal-type-badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${m.type}</div>
+          <div>${items.map(item=>`<div class="menu-item">${item.replace(/\(\d+\)/g,'').trim()}</div>`).join('')}</div>
+        </div>`;
+      }).join('<div style="height:1px;background:var(--border);margin:8px 0"></div>');
+    } else {
+      document.getElementById('meal-list').innerHTML = `<div class="empty-state"><div class="empty-icon">🍽</div><p>${korLabel}<br>급식 정보가 없습니다</p></div>`;
+    }
+  } catch(e) {
+    document.getElementById('meal-list').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>급식 정보를 불러오지 못했습니다</p></div>`;
+  }
+
+  // 시간표 로드 (요일 기반)
+  try {
+    const tt = await api('getTimetable');
+    const days = ['일','월','화','수','목','금','토'];
+    const dayKorShort = days[dateObj.getDay()]; // "월","화"...
+    const dayKorFull = dayKorShort + '요일';
+
+    if (tt.success && tt.timetable && tt.timetable.length > 0) {
+      const todayRows = tt.timetable.filter(t =>
+        t.day === dayKorShort || t.day === dayKorFull
+      );
+      if (todayRows.length > 0) {
+        const subjectColors = ['#6c8fff','#b48eff','#2ecc71','#f5c842','#e91e8c','#1abc9c','#f39c12','#e74c3c'];
+        document.getElementById('tt-list').innerHTML = todayRows.map((t,i) =>
+          `<div class="tt-row">
+            <div class="tt-period" style="background:${subjectColors[i%subjectColors.length]}">${t.period}</div>
+            <div><div class="tt-subject">${t.subject}</div>${t.teacher?`<div class="tt-teacher">${t.teacher}</div>`:''}
+          </div></div>`
+        ).join('');
+      } else {
+        document.getElementById('tt-list').innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>${dayKorFull} 시간표가 없습니다</p></div>`;
+      }
+    } else {
+      document.getElementById('tt-list').innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>시간표 데이터가 없습니다<br><small style="font-size:10px">관리자 페이지에서 입력해 주세요</small></p></div>`;
+    }
+  } catch(e) {
+    document.getElementById('tt-list').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>시간표를 불러오지 못했습니다</p></div>`;
+  }
+}
+
+async function loadNotice() {
+  try {
+    const notices = await api('getNotices');
+    document.getElementById('notice-list').innerHTML = notices.slice(0,5).map(n=>
+      `<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--border)">
+        <b>${n['제목']}</b>${String(n['중요']).trim()==='긴급'?' <span class="badge" style="background:rgba(231,76,60,.2);color:var(--red)">긴급</span>':''}
+        <div style="color:var(--muted);font-size:11px;margin-top:3px">${n['내용']}</div>
+      </div>`
+    ).join('') || '공지 없음';
+  } catch(e) {
+    document.getElementById('notice-list').innerHTML = '<span style="color:var(--red)">공지를 불러오지 못했습니다</span>';
+  }
+}
+
+// ─── 주식 ───
+function loadEcoStock(){
+  document.getElementById('st-my').textContent=(ME.stock||0)+'주';document.getElementById('st-cash').textContent=fmt(ME.cash)+'원';document.getElementById('st-val').textContent='-';
+  setTimeout(async()=>{
+    try{const sData=await api('getStockData');const curP=Number(sData.info['현재가']||0);
+    document.getElementById('st-cur').textContent=fmt(curP)+'원';document.getElementById('st-val').textContent=fmt((ME.stock||0)*curP)+'원';
+    const hist=sData.history||[];
+    if(hist.length>=2){const prev=hist[hist.length-2].price,cur=hist[hist.length-1].price,diff=cur-prev,pct=((diff/prev)*100).toFixed(1);const badge=document.getElementById('st-badge');badge.textContent=`${diff>=0?'+':''}${fmt(diff)}원 (${pct}%)`;badge.style.background=diff>=0?'rgba(46,204,113,.2)':'rgba(231,76,60,.2)';badge.style.color=diff>=0?'var(--green)':'var(--red)';}
+    document.getElementById('st-news').innerHTML=(sData.news||[]).map(n=>`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)"><div style="font-weight:700;margin-bottom:3px">${n['제목']}${n['영향']?` <span class="badge" style="background:${String(n['영향']).includes('+')?'rgba(46,204,113,.2)':'rgba(231,76,60,.2)'};color:${String(n['영향']).includes('+')?'var(--green)':'var(--red)'}">${n['영향']}</span>`:''}</div><div style="font-size:11px;color:var(--muted)">${n['내용']||''}</div></div>`).join('')||'<div style="color:var(--muted)">뉴스 없음</div>';
+    if(lineChart)lineChart.destroy();
+    lineChart=new Chart(document.getElementById('stockLineChart').getContext('2d'),{type:'line',data:{labels:hist.map(h=>h.date),datasets:[{data:hist.map(h=>h.price),borderColor:'#b48eff',backgroundColor:'rgba(180,142,255,.1)',borderWidth:2,fill:true,tension:.3,pointRadius:3}]},options:{...CHART_DEFAULTS,plugins:{legend:{display:false}}}});
+    if(barChart)barChart.destroy();
+    const vols=sData.volume||[];
+    barChart=new Chart(document.getElementById('stockBarChart').getContext('2d'),{type:'bar',data:{labels:vols.length?vols.map(v=>v.price+'원'):['없음'],datasets:[{data:vols.length?vols.map(v=>v.volume):[0],backgroundColor:'rgba(46,204,113,.65)',borderRadius:3}]},options:{indexAxis:'y',...CHART_DEFAULTS,plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{color:'var(--muted)',font:{size:9}},grid:{display:false}}}}});
+    }catch(e){console.error(e);}
+  },50);
+}
+function doOrder(type,btn){wrapClick(btn,async()=>{const qty=document.getElementById('st-qty').value;if(!qty)return showToast('수량 입력','var(--red)');const res=await api('tradeStock',{name:ME.name,type,qty});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){document.getElementById('st-qty').value='';loadHome();loadEcoStock();}});}
+
+// ─── 부동산 ───
+async function loadRealEstate(){
+  showLoad();const data=await api('getRealEstateData');hideLoad();
+  let mySeat=null,maxCol=1;data.seats.forEach(s=>{if(Number(s['열'])>maxCol)maxCol=Number(s['열']);});
+  const gridHTML=data.seats.map(s=>{
+    let cls='seat-box',txt='';const isActive=String(s['활성여부']).trim()==='O',status=String(s['매물상태']||'').trim(),sName=s['이름']||'';
+    if(!isActive){cls+=' empty';txt='─';}
+    else if(!sName){txt='<span style="color:var(--muted);font-size:9px">빈자리</span>';}
+    else{if(sName===ME.name){cls+=' mine';mySeat=s;}else cls+=' occupied';if(status==='매물등록'){cls+=' sale';txt=`<span class="seat-name">${sName}</span><span class="seat-price">🏷${fmt(s['매물가격'])}</span>`;}else{txt=`<span class="seat-name">${sName===ME.name?'👑'+sName:sName}</span>`;}}
+    return `<div class="${cls}" onclick="handleSeatClick('${s['좌석ID']}','${sName}','${status}','${s['매물가격']||0}','${s['활성여부']}')">${txt}</div>`;
+  }).join('');
+  const gridEl=document.getElementById('re-grid');gridEl.style.gridTemplateColumns=`repeat(${maxCol},1fr)`;gridEl.innerHTML=gridHTML;
+  const myInfoEl=document.getElementById('re-my-info');
+  if(!mySeat)myInfoEl.innerHTML='<span style="color:var(--red)">🚫 배정된 자리 없음</span>';
+  else{const st=String(mySeat['매물상태']||'').trim();if(st==='일반')myInfoEl.innerHTML=`내 자리 (${mySeat['이름']}) <button class="btn btn-gold btn-sm" style="margin-left:10px" onclick="doSellSeat()">🏷 매물 등록</button>`;else if(st==='매물등록')myInfoEl.innerHTML=`등록가: <b>${fmt(mySeat['매물가격'])}원</b> <button class="btn btn-outline btn-sm" style="margin-left:8px" onclick="doCancelSale()">취소</button>`;else myInfoEl.innerHTML='<span style="color:var(--orange)">🔄 거래 진행중</span>';}
+}
+function doSellSeat(){const price=prompt('판매 희망 가격 (원):');if(!price)return;api('sellSeat',{name:ME.name,price}).then(res=>{showToast(res.msg,res.success?'var(--green)':'var(--red)');loadRealEstate();});}
+function doCancelSale(){api('cancelMySale',{name:ME.name}).then(res=>{showToast(res.msg,res.success?'var(--green)':'var(--red)');loadRealEstate();});}
+function handleSeatClick(seatId,name,status,price,isActive){if(String(isActive).trim()==='X'||!name||name===ME.name)return;if(status==='매물등록'){if(confirm(`${name}의 자리를 ${fmt(price)}원에 구매?`))api('buySeat',{buyer:ME.name,seatId}).then(res=>{showToast(res.msg,res.success?'var(--green)':'var(--red)');loadHome();loadRealEstate();});}else showToast(`${name}의 자리 (${status||'배정됨'})`,'var(--accent)');}
+
+// ─── 장터 ───
+async function loadMarket(){const items=await api('getMarketItems');document.getElementById('mk-list').innerHTML=items.map(i=>`<div class="card2" style="display:flex;justify-content:space-between;align-items:center"><div><span style="color:var(--muted);font-size:10px">${i['이름']}</span><br><b>${i['아이템명']}</b> <span style="color:var(--gold)">${fmt(i['금액'])}원</span></div>${String(i['상태']).trim()==='판매중'?`<button class="btn btn-outline btn-sm" style="border-color:var(--accent);color:var(--accent)" onclick="buyMarket('${i['이름']}','${i['아이템명']}',${i['금액']},this)">구매</button>`:'<span class="badge" style="color:var(--muted)">판매완료</span>'}</div>`).join('')||'<div style="color:var(--muted);padding:10px">물품 없음</div>';}
+function doAddMarket(btn){wrapClick(btn,async()=>{const name=document.getElementById('mk-name').value,price=document.getElementById('mk-price').value;if(!name||!price)return showToast('입력 확인','var(--red)');await api('addMarketItem',{name:ME.name,itemName:name,price});showToast('등록 완료','var(--green)');document.getElementById('mk-name').value='';document.getElementById('mk-price').value='';loadMarket();});}
+function buyMarket(seller,itemName,price,btn){if(!confirm(`[${itemName}] ${fmt(price)}원에 구매?`))return;wrapClick(btn,async()=>{const res=await api('buyMarketItem',{buyer:ME.name,seller,itemName,price});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){loadHome();loadMarket();}});}
+
+// ─── 구직 ───
+async function loadJob(){
+  const jobs=await api('getJobMarket');
+  const hasJob = ME.job && ME.job !== '무직' && ME.job !== '';
+  const jobListEl = document.getElementById('job-list');
+  if(hasJob){
+    jobListEl.innerHTML=`<div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);border-radius:10px;padding:14px;text-align:center"><div style="font-size:22px;margin-bottom:8px">🚫</div><div style="font-weight:700;color:var(--red);margin-bottom:4px">현재 직업이 있습니다</div><div style="font-size:12px;color:var(--muted)">현재 직업: <b style="color:var(--gold)">${ME.job}</b><br>직업이 있는 경우 구직할 수 없습니다.<br>파면 처분 후 재지원이 가능합니다.</div></div>`;
+    return;
+  }
+  jobListEl.innerHTML=jobs.map(j=>`<div class="card2"><b>${j['직업명']}</b> <span class="badge" style="background:rgba(108,143,255,.2);color:var(--accent)">${fmt(j['급여'])}원</span><div style="font-size:11px;color:var(--muted);margin:4px 0">역할: ${j['역할']} | 모집: ${j['모집인원']}명</div><button class="btn btn-outline btn-sm" onclick="applyJob('${j['직업명']}',this)">지원하기</button></div>`).join('')||'<div style="color:var(--muted);padding:10px">모집 직업 없음</div>';
+}
+function applyJob(jobName,btn){const msg=prompt(`[${jobName}] 지원 동기:`);if(msg===null)return;wrapClick(btn,async()=>{const r=await api('applyJob',{name:ME.name,jobName,msg});showToast(r.msg,r.success?'var(--green)':'var(--red)');});}
+
+
+// ─── 송금 ───
+function loadTransfer(){const sel=document.getElementById('tf-to');sel.innerHTML='<option value="">받을 사람 선택</option>'+ALL_STUDENTS.filter(s=>s.name!==ME.name).map(s=>`<option value="${s.name}">${s.name}</option>`).join('');loadTx();}
+function doTransfer(btn){wrapClick(btn,async()=>{const to=document.getElementById('tf-to').value,amt=document.getElementById('tf-amt').value,pw=document.getElementById('tf-pw').value;if(!to||!amt||!pw)return showToast('모두 입력하세요','var(--red)');const res=await api('transferMoney',{fromName:ME.name,toName:to,amount:amt,pw});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){document.getElementById('tf-amt').value='';document.getElementById('tf-pw').value='';loadHome();loadTransfer();}});}
+async function loadTx(){const tx=await api('getTransactions',{name:ME.name});document.getElementById('tx-list').innerHTML=tx.slice(0,30).map(t=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between"><div><span style="font-size:10px;color:var(--muted)">${String(t['날짜']).slice(5,16)}</span><br><span style="font-size:12px">${t['사유']}</span></div><div style="color:${t['유형']==='수입'?'var(--green)':'var(--red)'};font-weight:700">${t['유형']==='수입'?'+':'-'}${fmt(t['금액'])}</div></div>`).join('')||'<div style="color:var(--muted);padding:10px">내역 없음</div>';}
+
+// ─── 예금 ───
+async function loadDeposit(){
+  document.getElementById('dp-rate-display').textContent=`(이자율: ${Math.round(G_DEP_RATE*100)}%/일)`;
+  DEPOSITS=await api('getDeposits',{name:ME.name});const actives=DEPOSITS.filter(d=>String(d['상태']).trim()==='활성');
+  document.getElementById('dp-list').innerHTML=actives.map((d,i)=>{
+    const canW=d.canWithdraw===true||d.canWithdraw==='true';
+    return `<div class="card2"><div style="display:flex;justify-content:space-between"><b>원금 ${fmt(d['금액']||d['예금액']||0)}원</b><span style="color:var(--green)">+${fmt(d.예상이자)}원</span></div><div style="font-size:10px;color:var(--muted);margin-top:3px">가입: ${d.가입일문자열} | ${d.경과일수}일 경과</div><button class="btn btn-outline btn-sm" style="margin-top:7px;width:100%;border-color:${canW?'var(--red)':'var(--border)'};color:${canW?'var(--red)':'var(--muted)'}" onclick="doWith(${d._idx},this)" ${canW?'':' disabled'}>${canW?'💸 해지 및 수령':'⏳ 24시간 후 해지가능'}</button></div>`;
+  }).join('')||'<div style="color:var(--muted);padding:10px">가입내역 없음</div>';
+}
+function doDeposit(btn){wrapClick(btn,async()=>{const amt=document.getElementById('dp-amt').value;if(!amt||amt<1000)return showToast('최소 1000원','var(--red)');const res=await api('depositMoney',{name:ME.name,amount:amt});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){document.getElementById('dp-amt').value='';loadHome();loadDeposit();}});}
+function doWith(idx,btn){if(!confirm('예금 해지?'))return;wrapClick(btn,async()=>{const res=await api('withdrawDeposit',{name:ME.name,rowIndex:idx});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){loadHome();loadDeposit();}});}
+
+// ─── 복권 (★ v16: 완전 랜덤 구매) ───
+let G_LOTTERY_PRICE = 500;
+
+async function loadLottery(){
+  showLoad('복권 정보 로딩...');
+  const data = await api('getLotteryInfo',{name:ME.name});
+  hideLoad();
+  G_LOTTERY_PRICE = data.price || 500;
+  document.getElementById('lottery-price-badge').textContent = `(장당 ${G_LOTTERY_PRICE.toLocaleString()}원)`;
+  document.getElementById('lottery-limit-info').textContent =
+    `오늘 구매: ${data.todayBought}/${data.dailyLimit}장 | 내 현금: ${fmt(ME.cash)}원`;
+
+  const canBuy = data.todayBought < data.dailyLimit && ME.cash >= G_LOTTERY_PRICE && data.ticketCount > 0;
+  const buyBtn = document.getElementById('lottery-main-buy-btn');
+  if (buyBtn) {
+    buyBtn.disabled = !canBuy;
+    if (!canBuy) {
+      if (data.ticketCount === 0)
+        buyBtn.textContent = '⚠️ 복권 항목 없음 (관리자 등록 필요)';
+      else if (data.todayBought >= data.dailyLimit)
+        buyBtn.textContent = `🚫 오늘 한도 도달 (${data.dailyLimit}장)`;
+      else
+        buyBtn.textContent = '💸 잔액 부족';
+    } else {
+      buyBtn.textContent = '🎰 복권 1장 구매하기';
+    }
+  }
+
+  // 미긁은 복권
+  const scratches = data.unscratched || [];
+  const scratchCard = document.getElementById('lottery-scratch-card');
+  const scratchList = document.getElementById('lottery-unscratched-list');
+  const cntEl = document.getElementById('lottery-scratch-count');
+  if (scratches.length > 0) {
+    scratchCard.style.display = 'block';
+    if (cntEl) cntEl.textContent = `(${scratches.length}장)`;
+    scratchList.innerHTML = scratches.map(u => `
+      <div class="card2" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div>
+          <div style="font-weight:700;font-size:13px">🎟️ 랜덤 복권</div>
+          <div style="font-size:10px;color:var(--muted)">${String(u.날짜).slice(0,16)} 구매 · 무엇이 나올까요?</div>
+        </div>
+        <button class="btn btn-pink btn-sm" onclick="doScratch('${u.메타}',this)">긁기 🎰</button>
+      </div>`).join('');
+  } else {
+    scratchCard.style.display = 'none';
+  }
+}
+
+function doBuyLottery(btn){
+  wrapClick(btn, async() => {
+    const res = await api('buyLottery',{name:ME.name});
+    showToast(res.msg, res.success?'var(--green)':'var(--red)');
+    if (res.success) { ME.cash -= G_LOTTERY_PRICE; loadLottery(); loadHome(); }
+  });
+}
+function doScratch(txId, btn){
+  wrapClick(btn,async()=>{
+    const res=await api('scratchLottery',{name:ME.name,txId:txId});
+    if(!res.success){showToast(res.msg,'var(--red)');return;}
+    // 스크래치 애니메이션 팝업
+    const emoji = res.구분==='꽝'?'😭':res.구분==='벌칙'?'😱':res.구분==='현금'?'💰':res.구분==='주식'?'📈':'🎁';
+    const scratchEmoji = document.getElementById('scratch-anim');
+    scratchEmoji.textContent='🎟️';
+    document.getElementById('scratch-popup').classList.add('open');
+    // 긁기 애니메이션
+    let frames=['🎟️','✨','🎰','✨','🎰','✨'];
+    let fi=0;
+    const animInterval=setInterval(()=>{
+      scratchEmoji.textContent=frames[fi%frames.length];
+      fi++;
+      if(fi>=12){clearInterval(animInterval);scratchEmoji.textContent=emoji;}
+    },120);
+    document.getElementById('scratch-result-title').textContent=res.rewardMsg;
+    document.getElementById('scratch-result-detail').textContent=res.rewardDetail;
+  });
+}
+async function loadShop(){const items=await api('getShopItems');document.getElementById('shop-list').innerHTML=items.map(i=>`<div class="card2" style="text-align:center;margin:0"><div style="font-size:26px">${i['이모지']||'🎁'}</div><div style="font-weight:700;margin:4px 0;font-size:12px">${i['아이템명']}</div><div style="color:var(--gold);font-size:11px;margin-bottom:8px">${fmt(i['가격'])}원</div><button class="btn btn-sm ${i['재고']>0?'btn-gold':'btn-outline'}" onclick="buyItem('${i['아이템명']}',this)" ${i['재고']<=0?'disabled':''}>${i['재고']>0?'구매':'품절'}</button></div>`).join('');const inv=await api('getInventory',{name:ME.name});document.getElementById('inv-list').innerHTML=inv.map(i=>`<div class="card2" style="display:flex;justify-content:space-between;align-items:center"><span>${i['아이템명']}</span><button class="btn btn-green btn-sm" onclick="useItem('${i['아이템명']}',this)">사용</button></div>`).join('')||'<div style="color:var(--muted)">보유 아이템 없음</div>';}
+function buyItem(name,btn){wrapClick(btn,async()=>{const r=await api('buyItem',{name:ME.name,itemName:name});showToast(r.msg,r.success?'var(--green)':'var(--red)');if(r.success){loadHome();loadShop();}});}
+function useItem(name,btn){if(!confirm(`[${name}] 사용?`))return;wrapClick(btn,async()=>{const r=await api('useItem',{name:ME.name,itemName:name});showToast(r.msg,r.success?'var(--green)':'var(--red)');if(r.success)loadShop();});}
+
+// ─── 자기평가 ───
+function loadEval(){
+  if(ME.chkDone){
+    document.getElementById('eval-form').style.display='none';document.getElementById('eval-result').style.display='block';
+    showLoad();
+    setTimeout(async()=>{
+      const trends=await api('getTrends',{name:ME.name});hideLoad();
+      if(trendChart)trendChart.destroy();
+      const lblSet=new Set([...trends.emotions.map(e=>e.date),...trends.evals.map(e=>e.date)]);const labels=Array.from(lblSet).sort();
+      if(!labels.length)return;
+      trendChart=new Chart(document.getElementById('trendChart').getContext('2d'),{type:'line',data:{labels,datasets:[{label:'감정',data:labels.map(l=>{const f=trends.emotions.find(x=>x.date===l);return f?f.score:null;}),borderColor:'#2ecc71',backgroundColor:'rgba(46,204,113,.1)',tension:.3,spanGaps:true,pointRadius:4},{label:'평가',data:labels.map(l=>{const f=trends.evals.find(x=>x.date===l);return f?f.score:null;}),borderColor:'#6c8fff',backgroundColor:'rgba(108,143,255,.1)',tension:.3,spanGaps:true,pointRadius:4}]},options:{...CHART_DEFAULTS,scales:{y:{min:0,max:3.5,ticks:{stepSize:1,color:'#5a6a8a'},grid:{color:'rgba(255,255,255,.04)'}},x:{ticks:{color:'#5a6a8a'},grid:{color:'rgba(255,255,255,.04)'}}}}});
+      document.getElementById('ev-history-list').innerHTML=trends.hists.slice(0,3).map(h=>h['소감']?`<div style="background:var(--card2);padding:8px;border-radius:6px;margin-bottom:5px;font-size:12px">"${h['소감']}"</div>`:'').join('')||'<div style="color:var(--muted)">소감 없음</div>';
+    },50);
+  }else{document.getElementById('eval-form').style.display='block';document.getElementById('eval-result').style.display='none';}
+}
+function doEval(btn){wrapClick(btn,async()=>{
+  if(ME.chkDone)return showToast('이미 완료!','var(--red)');
+  const score=document.getElementById('ev-role').value,msg=document.getElementById('ev-comment').value;
+  const res=await api('saveChecklist',{scores:{role1:score},comment:msg,name:ME.name});
+  if(res.success){ME.chkDone=true;showToast(res.msg,'var(--green)');document.getElementById('ev-comment').value='';loadHome();loadEval();}
+  else showToast(res.msg,'var(--red)');
+});}
+
+// ══════════════════════════════════════════════════════════
+// 관리자 시스템
+// ══════════════════════════════════════════════════════════
+function showAdminLogin(){const pw=prompt('관리자 비밀번호:');if(!pw)return;api('adminAuth',{pw}).then(res=>{if(res.success){document.getElementById('admin-modal').style.display='block';loadAdminData();}else showToast('비밀번호 오류','var(--red)');});}
+function switchAdmTab(tabId,el){
+  document.querySelectorAll('#admin-modal>.sub-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('adm-'+tabId).classList.add('active');
+  if(el){el.parentElement.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
+  if(tabId==='relation'&&!REL_DATA)loadRelationData();
+  if(tabId==='lottery')loadAdmLottery();
+  if(tabId==='assign')loadAdmAssignments();
+  if(tabId==='perm')loadAdmPermPanel();
+}
+
+async function loadAdminData(){
+  showLoad('관리자 데이터 로딩...');
+  const data=await api('adminGetAllData');
+  hideLoad();
+  G_SETTINGS=data.settings||{};
+  const students=data.students||[],curP=Number(data.stockInfo['현재가']||0);
+  G_ADM_STUDENTS=students;
+  G_ADM_ROLE_TABLE=data.roleTable||[];
+  const totalCash=students.reduce((a,s)=>a+s.cash,0),totalStock=students.reduce((a,s)=>a+s.stock*curP,0);
+
+  // ★ assetOverview에서 예금 합계 가져오기 (adminGetAllData가 이미 반환)
+  const overview = data.assetOverview || [];
+  const totalDeposit = overview.reduce((a,s)=>a+(s.depAmt||0), 0);
+
+  // ★ 현황 카드: 예금 항목 추가 (4칸 → grid-3에서 4칸으로 늘리거나 2줄로 표시)
+  document.getElementById('overview-stats').innerHTML=[
+    `<div class="card2" style="margin:0;text-align:center"><div style="font-size:9px;color:var(--muted)">학생 수</div><div style="font-size:20px;font-weight:700;color:var(--accent)">${students.length}명</div></div>`,
+    `<div class="card2" style="margin:0;text-align:center"><div style="font-size:9px;color:var(--muted)">총 현금</div><div style="font-size:15px;font-weight:700;color:var(--gold)">${fmt(totalCash)}</div></div>`,
+    `<div class="card2" style="margin:0;text-align:center;border-color:rgba(26,188,156,.4)"><div style="font-size:9px;color:var(--muted)">총 예금</div><div style="font-size:15px;font-weight:700;color:var(--teal)">${fmt(totalDeposit)}</div></div>`,
+    `<div class="card2" style="margin:0;text-align:center"><div style="font-size:9px;color:var(--muted)">현재 주가</div><div style="font-size:15px;font-weight:700;color:var(--accent2)">${fmt(curP)}원</div></div>`
+  ].join('');
+
+  // ★ overview가 있을 때와 없을 때 모두 처리
+  const overviewMap = {};
+  overview.forEach(s => { overviewMap[s.name] = s; });
+
+  if(assetChart)assetChart.destroy();
+  const sorted=[...students].sort((a,b)=>b.cash-a.cash).slice(0,12);
+  assetChart=new Chart(document.getElementById('assetChart').getContext('2d'),{type:'bar',data:{labels:sorted.map(s=>s.name),datasets:[{label:'현금',data:sorted.map(s=>s.cash),backgroundColor:'rgba(108,143,255,.7)',borderRadius:4},{label:'주식',data:sorted.map(s=>s.stock*curP),backgroundColor:'rgba(180,142,255,.7)',borderRadius:4}]},options:{...CHART_DEFAULTS,scales:{x:{stacked:true,ticks:{color:'#5a6a8a',font:{size:9}},grid:{display:false}},y:{stacked:true,ticks:{color:'#5a6a8a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}}},plugins:{legend:{labels:{color:'#5a6a8a',boxWidth:10,font:{size:9}}}}}});
+
+  // ★ 자산 순위: 정렬 기준을 총자산(예금 포함)으로 변경 + 3줄 상세 표시
+  const rankedStudents = students.slice().sort((a,b)=>{
+    const aTotal = (overviewMap[a.name]?.totalAsset) || (a.cash + a.stock*curP);
+    const bTotal = (overviewMap[b.name]?.totalAsset) || (b.cash + b.stock*curP);
+    return bTotal - aTotal;
+  });
+  document.getElementById('overview-rank').innerHTML=rankedStudents.map((s,i)=>{
+    const ov = overviewMap[s.name] || {};
+    const depAmt = ov.depAmt || 0;
+    const stockAmt = s.stock * curP;
+    const totalAsset = ov.totalAsset || (s.cash + depAmt + stockAmt);
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span>${i+1}. <b>${s.name}</b> <span style="font-size:10px;color:var(--muted)">${s.job||'무직'}</span>${s.level?' <span class="badge" style="background:rgba(245,200,66,.15);color:var(--gold);font-size:9px">'+s.level+'</span>':''}</span>
+        <span style="color:var(--gold);font-weight:700">${fmt(totalAsset)}원</span>
+      </div>
+      <div style="display:flex;gap:10px;font-size:10px;color:var(--muted);padding-left:16px">
+        <span>💵 현금 ${fmt(s.cash)}</span>
+        <span style="color:var(--teal)">🏦 예금 ${fmt(depAmt)}</span>
+        <span style="color:var(--accent2)">📈 주식 ${fmt(stockAmt)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const stats=data.emotionStats,td=stats.todayStats,total=(td['🟢 좋음']||0)+(td['🟡 보통']||0)+(td['🔴 힘듦']||0);
+  document.getElementById('adm-emo-good-cnt').textContent=td['🟢 좋음']||0;document.getElementById('adm-emo-mid-cnt').textContent=td['🟡 보통']||0;document.getElementById('adm-emo-bad-cnt').textContent=td['🔴 힘듦']||0;
+  setTimeout(()=>{if(total>0){document.getElementById('bar-good').style.width=Math.round((td['🟢 좋음']||0)/total*100)+'%';document.getElementById('bar-mid').style.width=Math.round((td['🟡 보통']||0)/total*100)+'%';document.getElementById('bar-bad').style.width=Math.round((td['🔴 힘듦']||0)/total*100)+'%';}},150);
+  ADM_EMO_DETAIL=stats.detail||{};
+  ['adm-emo-good-box','adm-emo-mid-box','adm-emo-bad-box'].forEach((id,i)=>{const emoKey=['🟢 좋음','🟡 보통','🔴 힘듦'][i];document.getElementById(id).onclick=()=>{const list=ADM_EMO_DETAIL[emoKey]||[];document.getElementById('emo-popup-title').textContent=`${emoKey} 학생 명단 (${list.length}명)`;document.getElementById('emo-popup-list').innerHTML=list.length?list.map(s=>`<div style="padding:6px 0;border-bottom:1px solid var(--border)">${s}</div>`).join(''):'없음';openPopup('emo-popup');};});
+  const regNames=Object.values(ADM_EMO_DETAIL).flat();
+  document.getElementById('adm-emo-chips').innerHTML=students.map(s=>{const isReg=regNames.includes(s.name);const emo=isReg?(ADM_EMO_DETAIL['🟢 좋음']||[]).includes(s.name)?'🟢':(ADM_EMO_DETAIL['🔴 힘듦']||[]).includes(s.name)?'🔴':'🟡':'⬜';return `<span class="emo-chip" style="background:${isReg?'rgba(108,143,255,.12)':'rgba(46,52,72,.4)'};color:${isReg?'var(--text)':'var(--muted)'}">${emo} ${s.name}</span>`;}).join('');
+  document.getElementById('adm-emo-warn').innerHTML=(stats.warnings||[]).map(w=>`<div class="card2" style="border-color:rgba(231,76,60,.3);display:flex;justify-content:space-between;align-items:center"><b>${w}</b><span style="font-size:10px;color:var(--red);font-weight:700">3일↑ 힘듦 🚨</span></div>`).join('')||'<div style="color:var(--muted);padding:10px">해당 학생 없음 ✅</div>';
+  document.getElementById('adm-emo-messages').innerHTML=(stats.messages||[]).map(m=>`<div class="card2"><span class="badge" style="background:${m.emo.includes('좋음')?'rgba(46,204,113,.2)':m.emo.includes('힘듦')?'rgba(231,76,60,.2)':'rgba(243,156,18,.2)'};margin-right:6px">${m.emo.split(' ')[0]}</span><b>${m.name}</b>: ${m.msg}</div>`).join('')||'<div style="color:var(--muted);padding:5px">메세지 없음</div>';
+  if(classEmoChart)classEmoChart.destroy();
+  const weekly=stats.weeklyStats||[];
+  if(weekly.length>0)classEmoChart=new Chart(document.getElementById('classEmoChart').getContext('2d'),{type:'bar',data:{labels:weekly.map(d=>d.date),datasets:[{label:'🟢 좋음',data:weekly.map(d=>d.good||0),backgroundColor:'rgba(46,204,113,.7)',borderRadius:3},{label:'🟡 보통',data:weekly.map(d=>d.mid||0),backgroundColor:'rgba(243,156,18,.7)',borderRadius:3},{label:'🔴 힘듦',data:weekly.map(d=>d.bad||0),backgroundColor:'rgba(231,76,60,.7)',borderRadius:3}]},options:{...CHART_DEFAULTS}});
+  const opts=students.map(s=>`<option value="${s.name}">${s.name}${s.job&&s.job!=='무직'?' ('+s.job+')':''}</option>`).join('');
+  document.getElementById('adm-pay-sel').innerHTML=`<option value="all">전체 학생</option>${opts}`;
+  ['adm-std-sel','adm-dis-sel','profile-sel','emo-comp-sel1','emo-comp-sel2','adm-perm-sel'].forEach(id=>{const el=document.getElementById(id);if(el){const pref=id.includes('comp-sel2')?'<option value="">학생 2 (선택)</option>':id==='profile-sel'?'<option value="">학생 선택</option>':'<option value="">학생 선택</option>';el.innerHTML=pref+opts;}});
+  renderAdmSeatGrid(data.realEstateGrid);
+  document.getElementById('adm-re-pending').innerHTML=(data.realEstatePending||[]).map(r=>`<div class="card2" style="border-color:rgba(243,156,18,.3)"><div style="margin-bottom:8px"><b>${r['좌석ID']||r['txId']}</b> <span style="font-size:11px;color:var(--muted)">ID: ${r['txId']}</span><br><span style="color:var(--gold);font-weight:700">${fmt(r['가격']||r['매물가격'])}원</span></div><div style="display:flex;gap:6px"><button class="btn btn-green btn-sm" onclick="doAdmApproveRe('${r['txId']}',true)">✅ 승인</button><button class="btn btn-red btn-sm" onclick="doAdmApproveRe('${r['txId']}',false)">❌ 거절</button></div></div>`).join('')||'<div style="color:var(--muted);padding:10px">승인 대기 없음</div>';
+  document.getElementById('adm-call-list').innerHTML=(data.calls||[]).filter(c=>String(c['답변상태']).trim()!=='완료').map(c=>{const sid=String(c['날짜']).replace(/\D/g,'').slice(-10);return `<div class="card2"><b>${c['이름']}</b> <span class="badge">${c['구분']}</span><br><span style="font-size:11px">${c['메세지']}</span><div style="display:flex;gap:5px;margin-top:7px"><input type="text" id="rpl-${sid}" placeholder="답변 입력" style="margin:0;font-size:11px"><button class="btn btn-sm btn-teal" onclick="doAdmReply('${c['날짜']}','${c['이름']}','rpl-${sid}')">답변</button></div></div>`;}).join('')||'<div style="color:var(--muted);padding:10px">대기중인 호출 없음</div>';
+  document.getElementById('adm-ntc-del').innerHTML=(data.notices||[]).map(n=>`<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding:5px 0;font-size:12px"><span>${String(n['제목']).slice(0,16)}</span><button class="btn btn-red btn-xs" onclick="doAdmDel('학습관리',3,'${n['제목']}')">삭제</button></div>`).join('')||'<div style="color:var(--muted)">없음</div>';
+  document.getElementById('adm-mkt-list').innerHTML=(data.market||[]).filter(m=>String(m['상태']).trim()==='판매중').map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding:5px 0;font-size:12px"><span>${m['이름']} - ${m['아이템명']}</span><button class="btn btn-red btn-xs" onclick="doAdmDel('자산현황',3,'${m['아이템명']}')">삭제</button></div>`).join('')||'<div style="color:var(--muted)">없음</div>';
+  loadConfigPanel(data.settings);
+}
+
+// ─── 학생 프로파일 ───
+async function loadStudentProfile(name){
+  if(!name){document.getElementById('profile-area').innerHTML='';return;}
+  showLoad('프로파일 분석 중...');
+  const p=await api('getStudentProfile',{name});
+  hideLoad();
+  if(!p.success)return showToast('데이터 없음','var(--red)');
+  document.getElementById('profile-area').innerHTML=`
+  <div class="card" style="border-color:rgba(108,143,255,.5)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div><div style="font-size:22px;font-weight:700;color:var(--gold);font-family:'Gmarket Sans'">${name}</div><div style="font-size:12px;color:var(--muted)">${p.student.job||'무직'} · ${p.student.status||'재직'}</div></div>
+      <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--accent)">${fmt(p.totalAsset)}원</div><div style="font-size:10px;color:var(--muted)">총 자산</div></div>
+    </div>
+    <div class="grid-3" style="margin-bottom:12px">
+      <div class="card2" style="margin:0;text-align:center"><div style="font-size:9px;color:var(--muted)">현금</div><div style="font-size:13px;font-weight:700;color:var(--gold)">${fmt(p.student.cash)}</div></div>
+      <div class="card2" style="margin:0;text-align:center"><div style="font-size:9px;color:var(--muted)">예금</div><div style="font-size:13px;font-weight:700;color:var(--teal)">${fmt(p.depTotal)}</div></div>
+      <div class="card2" style="margin:0;text-align:center"><div style="font-size:9px;color:var(--muted)">주식</div><div style="font-size:13px;font-weight:700;color:var(--accent2)">${fmt(p.stockVal)}</div></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">💰 경제 활동 요약</div>
+    <div class="grid-2"><div class="card2" style="margin:0"><div style="font-size:10px;color:var(--muted)">총 수입</div><div style="color:var(--green);font-weight:700">${fmt(p.incomeTotal)}원</div></div><div class="card2" style="margin:0"><div style="font-size:10px;color:var(--muted)">총 지출</div><div style="color:var(--red);font-weight:700">${fmt(p.expenseTotal)}원</div></div></div>
+    <div class="grid-2" style="margin-top:8px"><div class="card2" style="margin:0"><div style="font-size:10px;color:var(--muted)">급여 수령액</div><div style="color:var(--gold);font-weight:700">${fmt(p.totalSalaryReceived)}원</div></div><div class="card2" style="margin:0"><div style="font-size:10px;color:var(--muted)">납부 세금</div><div style="color:var(--orange);font-weight:700">${fmt(p.totalTaxPaid)}원</div></div></div>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted)">거래 횟수: ${p.txCount}건 | 평가 횟수: ${p.evalDoneCount}일 | 감정 기록: ${p.emoDoneCount}일</div>
+  </div>
+  <div class="card"><div class="card-title">😊 감정 분석</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <span class="stat-chip" style="color:var(--green);border-color:rgba(46,204,113,.3)">🟢 ${p.emoCount['🟢 좋음']||0}회</span>
+      <span class="stat-chip" style="color:var(--gold);border-color:rgba(243,156,18,.3)">🟡 ${p.emoCount['🟡 보통']||0}회</span>
+      <span class="stat-chip" style="color:var(--red);border-color:rgba(231,76,60,.3)">🔴 ${p.emoCount['🔴 힘듦']||0}회</span>
+      <span class="stat-chip" style="color:${p.emoStr.includes('🟢')?'var(--green)':p.emoStr.includes('🟡')?'var(--gold)':'var(--red)'};border-color:rgba(180,142,255,.3)">종합: ${p.emoStr}</span>
+    </div>
+    <div style="display:flex;gap:3px;flex-wrap:wrap">${p.emoTimeline.slice(-20).map(e=>`<span class="emo-chip" style="font-size:9px;padding:2px 6px;background:${e.raw.includes('좋음')?'rgba(46,204,113,.15)':e.raw.includes('힘듦')?'rgba(231,76,60,.15)':'rgba(243,156,18,.15)'};color:${e.raw.includes('좋음')?'var(--green)':e.raw.includes('힘듦')?'var(--red)':'var(--gold)'}" title="${e.msg||''}">${e.date.slice(3)} ${e.raw.split(' ')[0]}</span>`).join('')}</div>
+  </div>
+  <div class="card"><div class="card-title">✅ 자기평가 분석</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <span class="stat-chip" style="color:var(--green);border-color:rgba(46,204,113,.3)">상: ${p.evalCount['상']||0}회</span>
+      <span class="stat-chip" style="color:var(--gold);border-color:rgba(243,156,18,.3)">중: ${p.evalCount['중']||0}회</span>
+      <span class="stat-chip" style="color:var(--red);border-color:rgba(231,76,60,.3)">하: ${p.evalCount['하']||0}회</span>
+      <span class="stat-chip" style="color:var(--accent2);border-color:rgba(180,142,255,.3)">평균: ${p.evalStr}</span>
+    </div>
+    <div style="background:var(--card2);border-radius:8px;padding:10px;height:160px;position:relative"><canvas id="profile-trend-chart"></canvas></div>
+  </div>
+  <div class="card"><div class="card-title">🪑 좌석 정보</div>
+    <div style="font-size:12px;margin-bottom:8px">현재 좌석: <b style="color:var(--gold)">${p.mySeat}</b></div>
+    <div style="font-size:11px;color:var(--muted)">인접 학생:</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${p.seatNeighbors.length?p.seatNeighbors.map(s=>`<span class="stat-chip" style="color:var(--teal);border-color:rgba(26,188,156,.3)">🪑 ${s.name} (${s.dist}칸)</span>`).join(''):'<span style="color:var(--muted);font-size:11px">인접 학생 없음</span>'}</div>
+  </div>
+  <div class="card"><div class="card-title">🤝 친밀도 분석 Top 8</div>
+    ${p.friendRank.map((f,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="color:var(--muted);font-size:11px;width:18px">#${i+1}</span><span style="flex:1;font-size:12px;font-weight:700">${f.name}</span><div style="flex:2;background:var(--card2);border-radius:4px;height:8px;overflow:hidden"><div class="rel-bar" style="width:${Math.min(100,f.score/3)}%"></div></div><span style="font-size:11px;color:var(--accent2);font-weight:700;width:30px;text-align:right">${f.score}</span></div>`).join('')}
+    ${!p.friendRank.length?'<div style="color:var(--muted);font-size:11px">데이터 부족</div>':''}
+  </div>
+  <div class="card"><div class="card-title">💸 주요 거래 파트너 Top 5</div>
+    ${p.topPartners.map((tp,i)=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span>#${i+1} ${tp.name}</span><span style="color:var(--accent);font-weight:700">${tp.count}회 거래</span></div>`).join('')}
+    ${!p.topPartners.length?'<div style="color:var(--muted);font-size:11px">거래 내역 없음</div>':''}
+  </div>
+  <div class="card"><div class="card-title">📞 최근 호출 내역</div>
+    ${p.callHistory.length?p.callHistory.map(c=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px"><span class="badge" style="background:rgba(108,143,255,.2);color:var(--accent)">${c['구분']}</span> ${c['메세지']}<div style="color:var(--muted);font-size:10px;margin-top:2px">${String(c['날짜']).slice(0,16)} | 답변: ${c['교사답변']||'대기중'}</div></div>`).join(''):'<div style="color:var(--muted)">호출 없음</div>'}
+  </div>`;
+  setTimeout(()=>{
+    const canvas=document.getElementById('profile-trend-chart');if(!canvas)return;
+    const labels=p.emoTimeline.slice(-14).map(e=>e.date.slice(5));
+    new Chart(canvas.getContext('2d'),{type:'line',data:{labels,datasets:[{label:'감정',data:p.emoTimeline.slice(-14).map(e=>e.score),borderColor:'#2ecc71',tension:.3,pointRadius:3,fill:false},{label:'평가',data:labels.map(l=>{const f=p.evalTimeline.find(e=>e.date.slice(5)===l);return f?f.score:null;}),borderColor:'#6c8fff',tension:.3,pointRadius:3,fill:false,spanGaps:true}]},options:{...CHART_DEFAULTS,scales:{y:{min:0,max:3.5,ticks:{stepSize:1,color:'#5a6a8a'},grid:{color:'rgba(255,255,255,.04)'}},x:{ticks:{color:'#5a6a8a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+  },100);
+}
+
+// ─── 관계 분석 ───
+function switchRelTab(tab,el){
+  document.querySelectorAll('#adm-relation .sub-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('rel-'+tab).classList.add('active');
+  if(el){el.parentElement.querySelectorAll('.atab').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
+  if(REL_DATA){
+    if(tab==='heatmap')renderHeatmap(REL_DATA);
+    if(tab==='emocomp')initEmoComp(REL_DATA);
+    if(tab==='wordcloud')renderWordCloud(REL_DATA);
+    if(tab==='ngram')renderNgram(REL_DATA);
+    if(tab==='ranking')renderRankingCharts(REL_DATA);
+    if(tab==='network')renderRelNetwork(REL_DATA);
+  }
+}
+async function loadRelationData(){
+  showLoad('관계 데이터 분석 중...');
+  REL_DATA=await api('getClassRelationData');
+  hideLoad();
+  if(!REL_DATA.success){showToast('데이터 없음','var(--red)');return;}
+  renderRelNetwork(REL_DATA);renderTopRelList(REL_DATA);
+}
+function renderRelNetwork(data){
+  const wrap=document.getElementById('rel-canvas-wrap');
+  relW=wrap.clientWidth||340;relH=Math.min(relW*0.85,320);
+  const canvas=document.getElementById('rel-canvas');canvas.width=relW;canvas.height=relH;
+  const names=data.names||[];const N=names.length;if(!N)return;
+  const cx=relW/2,cy=relH/2,r=Math.min(relW,relH)*0.36;
+  relNodes=names.map((name,i)=>{const a=(2*Math.PI*i/N)-Math.PI/2;return{name,x:cx+r*Math.cos(a),y:cy+r*Math.sin(a),base:{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)}};});
+  const combined=data.combined||[];
+  relEdges=combined.slice(0,20).map(e=>{const fi=names.indexOf(e.from),ti=names.indexOf(e.to);let type='mixed';if(e.txCount>0&&e.seatScore===0&&e.emoSync===0)type='tx';else if(e.seatScore>0&&e.txCount===0)type='seat';else if(e.emoSync>0&&e.txCount===0&&e.seatScore===0)type='emo';return{fi,ti,from:e.from,to:e.to,weight:e.total,type,txCount:e.txCount,seatScore:e.seatScore,emoSync:e.emoSync};});
+  selRelNode=null;
+  canvas.onclick=ev=>{const rect=canvas.getBoundingClientRect(),mx=(ev.clientX-rect.left)*(canvas.width/rect.width),my=(ev.clientY-rect.top)*(canvas.height/rect.height);let hit=null;relNodes.forEach((n,i)=>{if(Math.hypot(mx-n.x,my-n.y)<15)hit=i;});if(hit!==null){selRelNode=selRelNode===hit?null:hit;if(selRelNode!==null){showRelNodeDetail(data,relNodes[selRelNode].name);}}};
+  if(relAnimId)cancelAnimationFrame(relAnimId);
+  animRelNet(canvas);
+}
+const relEdgeColor={tx:'rgba(108,143,255,',seat:'rgba(26,188,156,',emo:'rgba(233,30,140,',mixed:'rgba(180,142,255,'};
+function animRelNet(canvas){
+  const ctx=canvas.getContext('2d');let t=0;
+  function draw(){
+    t+=0.012;ctx.clearRect(0,0,relW,relH);
+    ctx.strokeStyle='rgba(38,48,71,.35)';ctx.lineWidth=.5;
+    for(let x=0;x<relW;x+=30){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,relH);ctx.stroke();}
+    for(let y=0;y<relH;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(relW,y);ctx.stroke();}
+    const N=relNodes.length;
+    relNodes.forEach((n,i)=>{const a=(2*Math.PI*i/N)-Math.PI/2+Math.sin(t+i*.9)*.03;const rr=Math.min(relW,relH)*.36+Math.sin(t*1.1+i)*1.5;n.x=relW/2+rr*Math.cos(a);n.y=relH/2+rr*Math.sin(a);});
+    relEdges.forEach(e=>{
+      const fn=relNodes[e.fi],tn=relNodes[e.ti];if(!fn||!tn)return;
+      const isHL=selRelNode!==null&&(e.fi===selRelNode||e.ti===selRelNode);const fade=selRelNode!==null&&!isHL;
+      const alpha=fade?.04:isHL?.9:.3;const lw=Math.min(e.weight/18+1,5)*(isHL?1.8:1);
+      const c=relEdgeColor[e.type]||relEdgeColor.mixed;
+      const midX=(fn.x+tn.x)/2+Math.sin(t*.8+e.fi)*4,midY=(fn.y+tn.y)/2+Math.cos(t*.8+e.ti)*4;
+      ctx.beginPath();ctx.moveTo(fn.x,fn.y);ctx.quadraticCurveTo(midX,midY,tn.x,tn.y);
+      ctx.strokeStyle=c+alpha+')';ctx.lineWidth=lw;ctx.stroke();
+      if(isHL){ctx.fillStyle='rgba(255,255,255,.75)';ctx.font='bold 8px Noto Sans KR';ctx.textAlign='center';ctx.fillText(e.weight,midX,midY-3);}
+    });
+    relNodes.forEach((n,i)=>{
+      const isSel=i===selRelNode;const isConn=selRelNode!==null&&relEdges.some(e=>(e.fi===selRelNode&&e.ti===i)||(e.ti===selRelNode&&e.fi===i));const fade=selRelNode!==null&&!isSel&&!isConn;
+      if(isSel){const w=(t*2)%1;ctx.beginPath();ctx.arc(n.x,n.y,14+w*12,0,Math.PI*2);ctx.strokeStyle=`rgba(180,142,255,${.5*(1-w)})`;ctx.lineWidth=2;ctx.stroke();}
+      ctx.globalAlpha=fade?.18:1;ctx.beginPath();ctx.arc(n.x,n.y,12,0,Math.PI*2);
+      const g=ctx.createRadialGradient(n.x-2,n.y-2,1,n.x,n.y,12);
+      if(isSel){g.addColorStop(0,'#e91e8c');g.addColorStop(1,'#880e4f');}else if(isConn){g.addColorStop(0,'#b48eff');g.addColorStop(1,'#6a0dad');}else{g.addColorStop(0,'#2a3550');g.addColorStop(1,'#161c28');}
+      ctx.fillStyle=g;ctx.fill();ctx.strokeStyle=isSel?'rgba(233,30,140,.9)':isConn?'rgba(180,142,255,.8)':'rgba(108,143,255,.4)';ctx.lineWidth=isSel?2:1.5;ctx.stroke();
+      ctx.fillStyle=isSel?'#ff80b5':isConn?'#d4a8ff':'rgba(221,228,240,.92)';ctx.font=(isSel?'bold ':'')+'9px Noto Sans KR';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(n.name.length>3?n.name.slice(0,3):n.name,n.x,n.y);ctx.globalAlpha=1;
+    });
+    relAnimId=requestAnimationFrame(draw);
+  }draw();
+}
+function showRelNodeDetail(data,name){
+  const combined=data.combined||[];const edges=combined.filter(e=>e.from===name||e.to===name).slice(0,8);
+  document.getElementById('profile-popup-name').textContent=`🕸 ${name}의 관계 상세`;
+  document.getElementById('profile-popup-body').innerHTML=edges.length?edges.map(e=>{const partner=e.from===name?e.to:e.from;return `<div class="card2" style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><b>${partner}</b><span style="color:var(--accent2);font-weight:700">종합 ${e.total}점</span></div><div style="display:flex;gap:5px;flex-wrap:wrap"><span class="stat-chip" style="color:var(--accent);border-color:rgba(108,143,255,.3);font-size:9px">💰거래 ${e.txCount}회</span><span class="stat-chip" style="color:var(--teal);border-color:rgba(26,188,156,.3);font-size:9px">🪑좌석 ${e.seatScore}</span><span class="stat-chip" style="color:var(--pink);border-color:rgba(233,30,140,.3);font-size:9px">😊감정동조 ${e.emoSync}</span></div></div>`;}).join(''):'<div style="color:var(--muted)">관계 데이터 없음</div>';
+  openPopup('profile-popup');
+}
+function renderTopRelList(data){
+  const combined=data.combined||[];const maxScore=combined[0]?.total||1;
+  document.getElementById('rel-top-list').innerHTML=combined.slice(0,10).map((e,i)=>`<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:11px"><b style="color:var(--muted)">#${i+1}</b> ${e.from} ↔ ${e.to}</span><span style="color:var(--accent2);font-weight:700;font-size:13px">${e.total}</span></div><div style="display:flex;gap:4px;margin-bottom:4px"><span class="stat-chip" style="font-size:9px;color:var(--accent);border-color:rgba(108,143,255,.3)">💰${e.txCount}</span><span class="stat-chip" style="font-size:9px;color:var(--teal);border-color:rgba(26,188,156,.3)">🪑${e.seatScore}</span><span class="stat-chip" style="font-size:9px;color:var(--pink);border-color:rgba(233,30,140,.3)">😊${e.emoSync}</span></div><div style="background:var(--card2);border-radius:4px;height:5px;overflow:hidden"><div class="rel-bar" style="width:${Math.min(100,e.total/maxScore*100)}%"></div></div></div>`).join('')||'<div style="color:var(--muted)">관계 데이터 없음</div>';
+}
+function renderHeatmap(data){
+  const names=data.names||[],combined=data.combined||[];if(!names.length)return;
+  const scoreMap={};combined.forEach(e=>{const key=[e.from,e.to].sort().join('||');scoreMap[key]=e.total;});
+  const maxScore=Math.max(1,...combined.map(e=>e.total));
+  let html=`<table class="hm-table"><thead><tr><th class="hm-th-row"></th>${names.map(s=>`<th>${s.length>3?s.slice(0,3):s}</th>`).join('')}</tr></thead><tbody>`;
+  names.forEach(a=>{html+=`<tr><td class="hm-th-row">${a.length>4?a.slice(0,4):a}</td>`;
+    names.forEach(b=>{if(a===b){html+='<td><div class="hm-cell" style="background:rgba(108,143,255,.08)"></div></td>';}
+      else{const key=[a,b].sort().join('||'),v=scoreMap[key]||0,ratio=v/maxScore;const r=Math.round(108+ratio*(233-108)),g=Math.round(143+ratio*(30-143)),bl=Math.round(255+ratio*(140-255));html+=`<td onclick="showRelNodeDetailDirect('${a}','${b}',${v})"><div class="hm-cell" style="background:rgba(${r},${g},${bl},${.08+ratio*.8});color:${ratio>.45?'#fff':'rgba(255,255,255,.4)'}" title="${a}↔${b}: ${v}">${v>0?v:''}</div></td>`;}});
+    html+='</tr>';});
+  html+='</tbody></table>';
+  document.getElementById('hm-container').innerHTML=html;
+  document.getElementById('centrality-list').innerHTML=data.centralityRank.slice(0,8).map((s,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span style="color:var(--muted);font-size:11px;width:18px">#${i+1}</span><span style="flex:1;font-size:12px;font-weight:700">${s.name}</span><div style="flex:2;background:var(--card2);border-radius:4px;height:6px;overflow:hidden"><div class="rel-bar" style="width:${Math.min(100,s.score/(data.centralityRank[0]?.score||1)*100)}%"></div></div><span style="font-size:11px;color:var(--accent2);font-weight:700;width:32px;text-align:right">${s.score}</span></div>`).join('')||'<div style="color:var(--muted)">데이터 없음</div>';
+}
+function showRelNodeDetailDirect(a,b,v){document.getElementById('profile-popup-name').textContent=`${a} ↔ ${b}`;document.getElementById('profile-popup-body').innerHTML=`<div style="font-size:14px;text-align:center;padding:16px"><span style="font-size:28px;font-weight:700;color:var(--accent2)">${v}점</span><br><div style="color:var(--muted);font-size:11px;margin-top:8px">종합 친밀도 점수</div></div>`;openPopup('profile-popup');}
+let emoCompChartInst=null,classAvgEmoChartInst=null;
+function initEmoComp(data){renderClassAvgEmo(data);renderEmoCompChart();}
+function renderClassAvgEmo(data){
+  if(classAvgEmoChartInst)classAvgEmoChartInst.destroy();
+  const avg=data.classEmoAvg||[];if(!avg.length)return;
+  classAvgEmoChartInst=new Chart(document.getElementById('classAvgEmoChart').getContext('2d'),{type:'line',data:{labels:avg.map(d=>d.date),datasets:[{label:'학급 평균 감정',data:avg.map(d=>d.avg),borderColor:'#b48eff',backgroundColor:'rgba(180,142,255,.1)',borderWidth:2,fill:true,tension:.3,pointRadius:3}]},options:{...CHART_DEFAULTS,scales:{y:{min:1,max:3,ticks:{color:'#5a6a8a',callback:v=>v===3?'🟢':v===2?'🟡':'🔴'},grid:{color:'rgba(255,255,255,.04)'}},x:{ticks:{color:'#5a6a8a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+}
+function renderEmoCompChart(){
+  if(!REL_DATA)return;
+  const s1=document.getElementById('emo-comp-sel1').value,s2=document.getElementById('emo-comp-sel2').value;
+  if(!s1)return;
+  const tl1=REL_DATA.emoTimeline[s1]||[];
+  const allDates=[...new Set([...tl1.map(e=>e.date),(REL_DATA.emoTimeline[s2]||[]).map(e=>e.date)].flat())].sort().slice(-14);
+  const datasets=[{label:s1,data:allDates.map(d=>{const f=tl1.find(e=>e.date===d);return f?f.score:null;}),borderColor:'#6c8fff',backgroundColor:'rgba(108,143,255,.1)',tension:.3,spanGaps:true,pointRadius:3}];
+  if(s2){const tl2=REL_DATA.emoTimeline[s2]||[];datasets.push({label:s2,data:allDates.map(d=>{const f=tl2.find(e=>e.date===d);return f?f.score:null;}),borderColor:'#e91e8c',backgroundColor:'rgba(233,30,140,.1)',tension:.3,spanGaps:true,pointRadius:3});}
+  if(emoCompChartInst)emoCompChartInst.destroy();
+  emoCompChartInst=new Chart(document.getElementById('emoCompChart').getContext('2d'),{type:'line',data:{labels:allDates.map(d=>d.slice(5)),datasets},options:{...CHART_DEFAULTS,scales:{y:{min:1,max:3,ticks:{color:'#5a6a8a',callback:v=>v===3?'🟢':v===2?'🟡':'🔴'},grid:{color:'rgba(255,255,255,.04)'}},x:{ticks:{color:'#5a6a8a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+}
+function renderWordCloud(data){
+  const wc=data.wordCloud||[];
+  if(!wc.length){document.getElementById('wc-wrap').innerHTML='<div style="color:var(--muted)">메세지 데이터 없음</div>';return;}
+  const maxC=wc[0].count;
+  const colors=['#6c8fff','#b48eff','#2ecc71','#f5c842','#e91e8c','#1abc9c','#e74c3c','#f39c12','#00d4ff'];
+  document.getElementById('wc-wrap').innerHTML=wc.slice(0,50).map((w,i)=>{const size=Math.max(10,Math.round(10+w.count/maxC*22));const c=colors[i%colors.length];return `<span style="font-size:${size}px;color:${c};font-weight:${w.count>2?700:400};opacity:${0.5+w.count/maxC*.5};cursor:default" title="${w.count}회">${w.word}</span>`;}).join('');
+  if(wordFreqChart)wordFreqChart.destroy();
+  const top20=wc.slice(0,20);
+  wordFreqChart=new Chart(document.getElementById('wordFreqChart').getContext('2d'),{type:'bar',data:{labels:top20.map(w=>w.word),datasets:[{data:top20.map(w=>w.count),backgroundColor:top20.map((_,i)=>colors[i%colors.length]+'cc'),borderRadius:4}]},options:{indexAxis:'y',...CHART_DEFAULTS,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#5a6a8a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#5a6a8a',font:{size:9}},grid:{display:false}}}}});
+}
+function renderNgram(data){
+  const biColors=['#6c8fff','#b48eff','#2ecc71','#f5c842','#e91e8c','#1abc9c','#f39c12'];
+  const bigrams=data.bigramList||[];
+  document.getElementById('bigram-cloud').innerHTML=bigrams.length?bigrams.map((g,i)=>{const ratio=g.count/(bigrams[0].count);return `<span class="gram-tag" style="font-size:${Math.max(10,Math.round(9+ratio*14))}px;color:${biColors[i%biColors.length]};border-color:${biColors[i%biColors.length]}44;background:${biColors[i%biColors.length]}11">${g.gram} <span style="opacity:.6;font-size:9px">(${g.count})</span></span>`;}).join(''):'<div style="color:var(--muted)">데이터 없음</div>';
+  const trigrams=data.trigramList||[];
+  document.getElementById('trigram-cloud').innerHTML=trigrams.length?trigrams.map((g,i)=>`<span class="gram-tag" style="font-size:${Math.max(10,Math.round(9+(g.count/(trigrams[0].count))*13))}px;color:${biColors[i%biColors.length]};border-color:${biColors[i%biColors.length]}44;background:${biColors[i%biColors.length]}11">${g.gram} <span style="opacity:.6;font-size:9px">(${g.count})</span></span>`).join(''):'<div style="color:var(--muted)">데이터 없음</div>';
+  if(bigramChart)bigramChart.destroy();
+  const top12=bigrams.slice(0,12);
+  if(top12.length>0)bigramChart=new Chart(document.getElementById('bigramChart').getContext('2d'),{type:'bar',data:{labels:top12.map(g=>g.gram),datasets:[{data:top12.map(g=>g.count),backgroundColor:'rgba(108,143,255,.75)',borderRadius:4}]},options:{indexAxis:'y',...CHART_DEFAULTS,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#5a6a8a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#5a6a8a',font:{size:9}},grid:{display:false}}}}});
+}
+function renderRankingCharts(data){
+  const combined=data.combined||[];const maxScore=combined[0]?.total||1;
+  document.getElementById('rel-ranking-list').innerHTML=combined.slice(0,15).map((e,i)=>`<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:11px"><b style="color:var(--muted);font-size:10px">#${i+1}</b> ${e.from} ↔ ${e.to}</span><span style="color:var(--accent2);font-weight:700">${e.total}</span></div><div style="background:var(--card2);border-radius:4px;height:5px;overflow:hidden"><div class="rel-bar" style="width:${e.total/maxScore*100}%"></div></div></div>`).join('')||'<div style="color:var(--muted)">데이터 없음</div>';
+  if(txRelChart)txRelChart.destroy();const txEdges=data.txEdges||[];const top8tx=txEdges.slice().sort((a,b)=>b.count-a.count).slice(0,8);
+  if(top8tx.length>0)txRelChart=new Chart(document.getElementById('txRelChart').getContext('2d'),{type:'bar',data:{labels:top8tx.map(e=>`${e.from.slice(0,2)}-${e.to.slice(0,2)}`),datasets:[{data:top8tx.map(e=>e.count),backgroundColor:'rgba(108,143,255,.75)',borderRadius:4}]},options:{...CHART_DEFAULTS,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#5a6a8a',font:{size:8}},grid:{display:false}},y:{ticks:{color:'#5a6a8a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+  if(seatRelChart)seatRelChart.destroy();const seatEdges=data.seatEdges||[];const top8seat=seatEdges.slice().sort((a,b)=>b.score-a.score).slice(0,8);
+  if(top8seat.length>0)seatRelChart=new Chart(document.getElementById('seatRelChart').getContext('2d'),{type:'bar',data:{labels:top8seat.map(e=>`${e.from.slice(0,2)}-${e.to.slice(0,2)}`),datasets:[{data:top8seat.map(e=>e.score),backgroundColor:'rgba(26,188,156,.75)',borderRadius:4}]},options:{...CHART_DEFAULTS,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#5a6a8a',font:{size:8}},grid:{display:false}},y:{ticks:{color:'#5a6a8a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+}
+
+// ─── 설정 패널 ───
+function loadConfigPanel(cfg){
+  if(!cfg)return;
+  document.getElementById('cfg-eval-up').value=cfg['자기평가_상_급여']||10000;
+  document.getElementById('cfg-eval-mid').value=cfg['자기평가_중_급여']||5000;
+  document.getElementById('cfg-eval-down').value=cfg['자기평가_하_급여']||3000;
+  document.getElementById('cfg-eval-tax').checked=Number(cfg['자기평가_세금적용'])===1;
+  document.getElementById('cfg-emo-active').checked=Number(cfg['감정신호등_보상_활성'])===1;
+  document.getElementById('cfg-emo-good').value=cfg['감정신호등_좋음_보상']||500;
+  document.getElementById('cfg-emo-mid').value=cfg['감정신호등_보통_보상']||300;
+  document.getElementById('cfg-emo-bad').value=cfg['감정신호등_힘듦_보상']||1000;
+  document.getElementById('cfg-tax-rate').value=cfg['세금율']||0.10;
+  document.getElementById('cfg-dep-rate').value=cfg['예금_기본이자율']||0.02;
+  if(document.getElementById('cfg-lottery-price'))document.getElementById('cfg-lottery-price').value=cfg['복권_가격']||500;
+  if(document.getElementById('cfg-lottery-limit'))document.getElementById('cfg-lottery-limit').value=cfg['복권_1인당_일일한도']||3;
+  // 과제 수당 설정
+  if(document.getElementById('cfg-assign-reward'))document.getElementById('cfg-assign-reward').value=cfg['과제_제출_수당']||2000;
+  if(document.getElementById('cfg-assign-tax'))document.getElementById('cfg-assign-tax').checked=Number(cfg['과제_수당_세금적용'])===1;
+  // 레벨 설정
+  if(document.getElementById('cfg-lv1-name'))document.getElementById('cfg-lv1-name').value=cfg['레벨_1_이름']||'씨앗';
+  if(document.getElementById('cfg-lv2-name'))document.getElementById('cfg-lv2-name').value=cfg['레벨_2_이름']||'새싹';
+  if(document.getElementById('cfg-lv2-min'))document.getElementById('cfg-lv2-min').value=cfg['레벨_2_최소자산']||50000;
+  if(document.getElementById('cfg-lv3-name'))document.getElementById('cfg-lv3-name').value=cfg['레벨_3_이름']||'나무';
+  if(document.getElementById('cfg-lv3-min'))document.getElementById('cfg-lv3-min').value=cfg['레벨_3_최소자산']||150000;
+  if(document.getElementById('cfg-lv4-name'))document.getElementById('cfg-lv4-name').value=cfg['레벨_4_이름']||'별';
+  if(document.getElementById('cfg-lv4-min'))document.getElementById('cfg-lv4-min').value=cfg['레벨_4_최소자산']||300000;
+  if(document.getElementById('cfg-lv5-name'))document.getElementById('cfg-lv5-name').value=cfg['레벨_5_이름']||'왕';
+  if(document.getElementById('cfg-lv5-min'))document.getElementById('cfg-lv5-min').value=cfg['레벨_5_최소자산']||500000;
+  renderConfigPreview(cfg);
+}
+function renderConfigPreview(cfg){
+  const up=Number(cfg['자기평가_상_급여']||10000),mid=Number(cfg['자기평가_중_급여']||5000),dw=Number(cfg['자기평가_하_급여']||3000);
+  const eGood=Number(cfg['감정신호등_좋음_보상']||500),eMid=Number(cfg['감정신호등_보통_보상']||300),eBad=Number(cfg['감정신호등_힘듦_보상']||1000);
+  const tax=Number(cfg['세금율']||0.10),emoActive=Number(cfg['감정신호등_보상_활성'])===1;
+  document.getElementById('cfg-preview').innerHTML=`
+    <div class="card2" style="margin-bottom:8px">
+      <div style="font-weight:700;color:var(--accent2);margin-bottom:6px">✅ 자기평가</div>
+      상: <b style="color:var(--green)">${fmt(up)}원</b> → 세후: <b>${fmt(Math.round(up*(1-tax)))}원</b><br>
+      중: <b style="color:var(--gold)">${fmt(mid)}원</b> → 세후: <b>${fmt(Math.round(mid*(1-tax)))}원</b><br>
+      하: <b style="color:var(--red)">${fmt(dw)}원</b> → 세후: <b>${fmt(Math.round(dw*(1-tax)))}원</b>
+    </div>
+    <div class="card2">
+      <div style="font-weight:700;color:var(--accent2);margin-bottom:6px">🚥 감정 신호등 보상 ${emoActive?'<span style="color:var(--green)">활성</span>':'<span style="color:var(--muted)">비활성</span>'}</div>
+      🟢 좋음: <b style="color:var(--green)">${fmt(eGood)}원</b> &nbsp; 🟡 보통: <b style="color:var(--gold)">${fmt(eMid)}원</b> &nbsp; 🔴 힘듦: <b style="color:var(--red)">${fmt(eBad)}원</b>
+    </div>`;
+}
+function saveConfig(btn){wrapClick(btn,async()=>{
+  const settings={
+    '자기평가_상_급여':Number(document.getElementById('cfg-eval-up').value),
+    '자기평가_중_급여':Number(document.getElementById('cfg-eval-mid').value),
+    '자기평가_하_급여':Number(document.getElementById('cfg-eval-down').value),
+    '자기평가_세금적용':document.getElementById('cfg-eval-tax').checked?1:0,
+    '감정신호등_보상_활성':document.getElementById('cfg-emo-active').checked?1:0,
+    '감정신호등_좋음_보상':Number(document.getElementById('cfg-emo-good').value),
+    '감정신호등_보통_보상':Number(document.getElementById('cfg-emo-mid').value),
+    '감정신호등_힘듦_보상':Number(document.getElementById('cfg-emo-bad').value),
+    '세금율':Number(document.getElementById('cfg-tax-rate').value),
+    '예금_기본이자율':Number(document.getElementById('cfg-dep-rate').value),
+    '복권_가격':Number(document.getElementById('cfg-lottery-price')?document.getElementById('cfg-lottery-price').value:500),
+    '복권_1인당_일일한도':Number(document.getElementById('cfg-lottery-limit')?document.getElementById('cfg-lottery-limit').value:3),
+    '과제_제출_수당':Number(document.getElementById('cfg-assign-reward')?document.getElementById('cfg-assign-reward').value:2000),
+    '과제_수당_세금적용':document.getElementById('cfg-assign-tax')&&document.getElementById('cfg-assign-tax').checked?1:0,
+    '레벨_1_이름':document.getElementById('cfg-lv1-name')?document.getElementById('cfg-lv1-name').value:'씨앗',
+    '레벨_1_최소자산':0,
+    '레벨_2_이름':document.getElementById('cfg-lv2-name')?document.getElementById('cfg-lv2-name').value:'새싹',
+    '레벨_2_최소자산':Number(document.getElementById('cfg-lv2-min')?document.getElementById('cfg-lv2-min').value:50000),
+    '레벨_3_이름':document.getElementById('cfg-lv3-name')?document.getElementById('cfg-lv3-name').value:'나무',
+    '레벨_3_최소자산':Number(document.getElementById('cfg-lv3-min')?document.getElementById('cfg-lv3-min').value:150000),
+    '레벨_4_이름':document.getElementById('cfg-lv4-name')?document.getElementById('cfg-lv4-name').value:'별',
+    '레벨_4_최소자산':Number(document.getElementById('cfg-lv4-min')?document.getElementById('cfg-lv4-min').value:300000),
+    '레벨_5_이름':document.getElementById('cfg-lv5-name')?document.getElementById('cfg-lv5-name').value:'왕',
+    '레벨_5_최소자산':Number(document.getElementById('cfg-lv5-min')?document.getElementById('cfg-lv5-min').value:500000)
+  };
+  const res=await api('updateSettings',{settings});
+  if(res.success){G_SETTINGS=res.settings;renderConfigPreview(res.settings);showToast('설정 저장 완료 ✅','var(--green)');}
+  else showToast('저장 실패','var(--red)');
+});}
+
+// ─── 관리자 권한부여 ───
+let G_ADM_STUDENTS = [];
+function loadAdmPermPanel(){
+  // 이미 loadAdminData로 채워진 select 사용
+  // 권한 현황 렌더링
+  const students = G_ADM_STUDENTS;
+  const permList = document.getElementById('adm-perm-list');
+  if(permList){
+    const withPerm = students.filter(s=>String(s.permission||'').trim());
+    permList.innerHTML = withPerm.length
+      ? withPerm.map(s=>`
+        <div class="card2" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div>
+            <b>${s.name}</b> <span style="font-size:10px;color:var(--muted)">${s.job||'무직'}</span>
+            <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">
+              ${String(s.permission).split(',').map(p=>`<span class="badge" style="background:rgba(108,143,255,.2);color:var(--accent)">${p.trim()}</span>`).join('')}
+            </div>
+          </div>
+          <button class="btn btn-red btn-xs" onclick="doAdmRevokePerm('${s.name}',this)">해제</button>
+        </div>`).join('')
+      : '<div style="color:var(--muted);padding:10px">권한을 부여받은 학생이 없습니다.</div>';
+  }
+  // 역할표 렌더링 (data에 roleTable이 있을 때)
+  const roleEl = document.getElementById('adm-role-table');
+  if(roleEl && G_ADM_ROLE_TABLE && G_ADM_ROLE_TABLE.length){
+    const deptColors={'경제금융부':'rgba(245,200,66,.15)','교육문화부':'rgba(108,143,255,.15)','법무안전부':'rgba(231,76,60,.15)','환경정보부':'rgba(26,188,156,.15)','국정운영본부':'rgba(180,142,255,.15)'};
+    roleEl.innerHTML=`<table style="width:100%;border-collapse:collapse">
+      <thead><tr style="font-size:10px;color:var(--muted);border-bottom:1px solid var(--border)">
+        <th style="padding:4px;text-align:left">번호</th>
+        <th style="padding:4px;text-align:left">이름</th>
+        <th style="padding:4px;text-align:left">직업</th>
+        <th style="padding:4px;text-align:left">부서</th>
+      </tr></thead><tbody>
+      ${G_ADM_ROLE_TABLE.map(r=>`<tr style="border-bottom:1px dashed var(--border);font-size:10px;background:${deptColors[r.부서]||'transparent'}">
+        <td style="padding:4px;color:var(--muted)">${r.번호}</td>
+        <td style="padding:4px;font-weight:700">${r.이름}</td>
+        <td style="padding:4px;color:var(--accent2)">${r.직업}</td>
+        <td style="padding:4px;color:var(--muted)">${r.부서}</td>
+      </tr>`).join('')}
+      </tbody></table>`;
+  }
+}
+let G_ADM_ROLE_TABLE = [];
+function doAdmGrantPerm(btn){
+  const name = document.getElementById('adm-perm-sel').value;
+  if(!name) return showToast('학생을 선택해주세요','var(--red)');
+  const permChecks = ['perm-salary','perm-fine','perm-tax','perm-notice','perm-praise','perm-warning', 'perm-mart'];
+const permValues = ['월급배부','벌금징수','세금징수','공지작성','칭찬카드','경고', '마트관리'];
+  const selected = [];
+  permChecks.forEach((id,i)=>{if(document.getElementById(id)&&document.getElementById(id).checked)selected.push(permValues[i]);});
+  const permissions = selected.join(',');
+  wrapClick(btn,async()=>{
+    const res=await api('adminGrantPermission',{studentName:name,permissions});
+    showToast(res.msg,res.success?'var(--green)':'var(--red)');
+    if(res.success){
+      // 체크박스 초기화
+      permChecks.forEach(id=>{const el=document.getElementById(id);if(el)el.checked=false;});
+      loadAdminData();
+    }
+  });
+}
+function doAdmRevokePerm(name,btn){
+  if(!confirm(`${name}의 모든 권한을 해제하시겠습니까?`))return;
+  wrapClick(btn,async()=>{
+    const res=await api('adminGrantPermission',{studentName:name,permissions:''});
+    showToast(res.msg,res.success?'var(--green)':'var(--red)');
+    if(res.success)loadAdminData();
+  });
+}
+// 학생 선택 시 기존 권한 체크박스 자동 표시
+document.addEventListener('change',function(e){
+  if(e.target&&e.target.id==='adm-perm-sel'){
+    const name=e.target.value;
+    const s=G_ADM_STUDENTS.find(x=>x.name===name);
+    if(!s)return;
+    const perm=String(s.permission||'');
+    const permMap={salary:'월급배부',fine:'벌금징수',tax:'세금징수',notice:'공지작성',praise:'칭찬카드',warning:'경고', mart:'마트관리'};
+    for(const key in permMap){
+      const el=document.getElementById('perm-'+key);
+      if(el)el.checked=perm.includes(permMap[key]);
+    }
+  }
+});
+
+// ─── 학생 권한 패널 ───
+async function loadDelegatePanel(){
+  if(!ME||!ME.permission)return;
+  const perms=String(ME.permission).split(',').map(p=>p.trim()).filter(Boolean);
+  // 권한 배지 표시
+  const permColors={'월급배부':'var(--green)','벌금징수':'var(--red)','공지작성':'var(--accent)','칭찬카드':'var(--pink)','경고':'var(--orange)', '마트관리':'var(--teal)'};
+  
+  document.getElementById('delegate-permission-list').innerHTML=perms.map(p=>`<span style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:700;background:rgba(255,255,255,.08);color:${permColors[p]||'var(--text)'}">✓ ${p}</span>`).join('');
+  // 패널 표시/숨김
+  document.getElementById('delegate-salary-panel').style.display=perms.includes('월급배부')?'block':'none';
+  document.getElementById('delegate-fine-panel').style.display=perms.includes('벌금징수')?'block':'none';
+  document.getElementById('delegate-tax-panel').style.display=perms.includes('세금징수')?'block':'none'; // <== 이 줄 추가
+  document.getElementById('delegate-notice-panel').style.display=perms.includes('공지작성')?'block':'none';
+  document.getElementById('delegate-praise-panel').style.display=perms.includes('칭찬카드')?'block':'none';
+  document.getElementById('delegate-warning-panel').style.display=perms.includes('경고')?'block':'none';
+  document.getElementById('delegate-mart-panel').style.display=perms.includes('마트관리')?'block':'none';
+  if(perms.includes('마트관리')) loadMartStats(); // 사장님이면 통계 로드
+
+  // select 채우기
+  const others=ALL_STUDENTS.filter(s=>s.name!==ME.name).map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
+  const allOpts=`<option value="all">전체 학생</option>`+ALL_STUDENTS.map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
+  ['dlg-pay-sel', 'dlg-tax-sel'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=allOpts;});
+  ['dlg-fine-sel','dlg-praise-sel','dlg-warn-sel', 'dlg-mart-buyer'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<option value="">학생 선택</option>'+others;});
+  // 내 활동 내역
+  const hist=await api('getDelegatedHistory',{name:ME.name});
+  document.getElementById('delegate-history').innerHTML=(hist||[]).length
+    ? hist.map(h=>`<div style="padding:6px 0;border-bottom:1px dashed var(--border)"><span class="badge" style="background:${h.구분==='칭찬카드'?'rgba(233,30,140,.2)':'rgba(243,156,18,.2)'}">${h.구분}</span> <b>${h.대상}</b> — ${h.내용}<div style="font-size:10px;color:var(--muted)">${String(h.날짜).slice(0,16)}</div></div>`).join('')
+    : '<div style="color:var(--muted)">활동 내역 없음</div>';
+  // 받은 칭찬카드
+  const praises=await api('getPraiseCards',{name:ME.name});
+  document.getElementById('my-praise-cards').innerHTML=(praises||[]).length
+    ? praises.map(p=>`<div class="card2" style="margin-bottom:6px;border-color:rgba(233,30,140,.2)"><div style="font-size:11px;color:var(--muted)">${String(p.날짜).slice(0,10)} — <b style="color:var(--pink)">${p.보낸이}</b></div><div style="margin-top:4px">${p.메시지}</div></div>`).join('')
+    : '<div style="color:var(--muted)">받은 칭찬카드가 없습니다</div>';
+}
+function doDelegatedPay(btn){wrapClick(btn,async()=>{
+  const target=document.getElementById('dlg-pay-sel').value,amt=document.getElementById('dlg-pay-amt').value,rsn=document.getElementById('dlg-pay-rsn').value;
+  if(!amt||!rsn)return showToast('금액과 사유를 입력하세요','var(--red)');
+  if(!confirm(`${target==='all'?'전체 학생':target}에게 ${Number(amt).toLocaleString()}원 지급?`))return;
+  const res=await api('delegatedPay',{actorName:ME.name,targetName:target,amount:amt,reason:rsn});
+  showToast(res.msg,res.success?'var(--green)':'var(--red)');
+  if(res.success){document.getElementById('dlg-pay-amt').value='';document.getElementById('dlg-pay-rsn').value='';}
+});}
+function doDelegatedFine(btn){wrapClick(btn,async()=>{
+  const target=document.getElementById('dlg-fine-sel').value,amt=document.getElementById('dlg-fine-amt').value,rsn=document.getElementById('dlg-fine-rsn').value;
+  if(!target||!amt||!rsn)return showToast('학생, 금액, 사유를 모두 입력하세요','var(--red)');
+  if(!confirm(`${target}에게 ${Number(amt).toLocaleString()}원 벌금 징수?`))return;
+  const res=await api('delegatedFine',{actorName:ME.name,targetName:target,amount:amt,reason:rsn});
+  showToast(res.msg,res.success?'var(--green)':'var(--red)');
+  if(res.success){document.getElementById('dlg-fine-amt').value='';document.getElementById('dlg-fine-rsn').value='';}
+});}
+function doDelegatedNotice(btn){wrapClick(btn,async()=>{
+  const title=document.getElementById('dlg-ntc-title').value,content=document.getElementById('dlg-ntc-content').value,isUrgent=document.getElementById('dlg-ntc-urg').checked;
+  if(!title||!content)return showToast('제목과 내용을 입력하세요','var(--red)');
+  const res=await api('delegatedAddNotice',{actorName:ME.name,title,content,isUrgent});
+  showToast(res.msg,res.success?'var(--green)':'var(--red)');
+  if(res.success){document.getElementById('dlg-ntc-title').value='';document.getElementById('dlg-ntc-content').value='';}
+});}
+function doDelegatedPraise(btn){wrapClick(btn,async()=>{
+  const target=document.getElementById('dlg-praise-sel').value,msg=document.getElementById('dlg-praise-msg').value;
+  if(!target||!msg)return showToast('학생과 메시지를 입력하세요','var(--red)');
+  const res=await api('delegatedPraiseCard',{actorName:ME.name,targetName:target,message:msg});
+  showToast(res.msg,res.success?'var(--green)':'var(--red)');
+  if(res.success){document.getElementById('dlg-praise-msg').value='';loadDelegatePanel();}
+});}
+function doDelegatedWarning(btn){wrapClick(btn,async()=>{
+  const target=document.getElementById('dlg-warn-sel').value,rsn=document.getElementById('dlg-warn-rsn').value;
+  if(!target||!rsn)return showToast('학생과 사유를 입력하세요','var(--red)');
+  if(!confirm(`${target}에게 경고 처분?`))return;
+  const res=await api('delegatedWarning',{actorName:ME.name,targetName:target,reason:rsn});
+  showToast(res.msg,res.success?'var(--green)':'var(--red)');
+  if(res.success){document.getElementById('dlg-warn-rsn').value='';loadDelegatePanel();}
+});}
+
+// ─── 관리자 좌석 ───
+function renderAdmSeatGrid(seats){
+  if(!seats||!seats.length){document.getElementById('adm-re-grid').innerHTML='<div style="color:var(--muted)">좌석표 없음 — 생성기에서 만들어주세요</div>';return;}
+  let maxCol=1;seats.forEach(s=>{if(Number(s['열'])>maxCol)maxCol=Number(s['열']);});
+  const grid=document.getElementById('adm-re-grid');grid.style.gridTemplateColumns=`repeat(${maxCol},1fr)`;
+  grid.innerHTML=seats.map(s=>{const isActive=String(s['활성여부']).trim()==='O';const sName=s['이름']||'';let cls=isActive?'seat-box occupied':'seat-box empty adm-empty';const txt=isActive?(sName||`<span style="color:var(--muted);font-size:9px">빈자리</span>`):'─';return `<div class="${cls}" id="adm-seat-${s['좌석ID']}" onclick="admSeatClick('${s['좌석ID']}','${s['활성여부']}')">${txt}</div>`;}).join('');
+}
+function admSeatClick(id,isActive){
+  const now=Date.now();const last=ADM_SEAT_CLICK_TIMER[id]||0;const diff=now-last;ADM_SEAT_CLICK_TIMER[id]=now;
+  if(diff<380){
+    if(String(isActive).trim()!=='O')return;
+    const name=prompt('배정할 학생 이름:');if(!name)return;
+    api('adminSetSeat',{id,name}).then(res=>{if(res.success){showToast(`${name} 배정`,'var(--green)');loadAdminData();}});
+  }else{
+    setTimeout(()=>{if(Date.now()-ADM_SEAT_CLICK_TIMER[id]<380)return;if(!confirm(String(isActive).trim()==='O'?'이 자리를 비활성(복도)로 전환?':'이 자리를 활성화?'))return;api('adminToggleSeat',{id}).then(res=>{if(res.success){showToast('전환됨','var(--green)');loadAdminData();}});},400);}
+}
+function doAdmInitSeats(btn){wrapClick(btn,async()=>{const r=Number(document.getElementById('adm-re-row').value),c=Number(document.getElementById('adm-re-col').value);if(!r||!c||r>12||c>12)return showToast('1~12 범위 입력','var(--red)');if(!confirm(`기존 좌석표를 삭제하고 새로 ${r}×${c}를 생성?`))return;const res=await api('adminGenSeat',{rows:r,cols:c});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success)loadAdminData();});}
+function doAdmShuffle(btn){wrapClick(btn,async()=>{if(!confirm('학생들을 랜덤 배치?'))return;const res=await api('adminShuffleSeat');showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){document.querySelectorAll('.anim-shuffle').forEach(e=>e.classList.remove('anim-shuffle'));setTimeout(()=>{document.querySelectorAll('#adm-re-grid .seat-box:not(.adm-empty)').forEach((el,i)=>setTimeout(()=>el.classList.add('anim-shuffle'),i*25));loadAdminData();},100);}});}
+function doAdmApproveRe(txId,isApprove){wrapClick(null,async()=>{const res=await api('adminApproveRealEstate',{txId,isApprove});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success)loadAdminData();});}
+function doAdmPay(btn){wrapClick(btn,async()=>{const target=document.getElementById('adm-pay-sel').value,amt=document.getElementById('adm-pay-amt').value,rsn=document.getElementById('adm-pay-rsn').value,isTax=document.getElementById('adm-pay-tax').checked;if(!amt||!rsn)return showToast('금액과 사유 입력','var(--red)');const res=await api('adminPay',{target,amount:amt,reason:rsn,isTax});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){document.getElementById('adm-pay-amt').value='';document.getElementById('adm-pay-rsn').value='';loadAdminData();}});}
+function doAdmDiscipline(btn){wrapClick(btn,async()=>{const name=document.getElementById('adm-dis-sel').value,type=document.getElementById('adm-dis-type').value,amt=document.getElementById('adm-dis-amt').value,rsn=document.getElementById('adm-dis-rsn').value;if(!name||!rsn)return showToast('학생과 사유 선택','var(--red)');if(!confirm(`${name}에게 [${type}] 처분?`))return;const res=await api('adminDiscipline',{name,type,amount:amt||0,reason:rsn});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){document.getElementById('adm-dis-amt').value='';document.getElementById('adm-dis-rsn').value='';loadAdminData();}});}
+function doAdmUpdateStudent(btn){wrapClick(btn,async()=>{const name=document.getElementById('adm-std-sel').value,cash=document.getElementById('adm-std-cash').value,stock=document.getElementById('adm-std-stock').value;if(!name)return showToast('학생 선택','var(--red)');const res=await api('adminUpdateStudent',{name,cashDelta:cash||0,stockDelta:stock||0});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){document.getElementById('adm-std-cash').value='';document.getElementById('adm-std-stock').value='';loadAdminData();}});}
+function doAdmReply(dateStr,name,inputId){wrapClick(null,async()=>{const reply=document.getElementById(inputId).value;if(!reply)return showToast('답변 입력','var(--red)');const res=await api('adminReplyCall',{dateStr,name,reply});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success)loadAdminData();});}
+function doAdmUpdateStock(btn){wrapClick(btn,async()=>{const price=document.getElementById('adm-stk-price').value;if(!price)return showToast('가격 입력','var(--red)');const res=await api('adminUpdateStock',{price,title:document.getElementById('adm-stk-title').value,content:document.getElementById('adm-stk-content').value,impact:document.getElementById('adm-stk-impact').value});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){['adm-stk-price','adm-stk-title','adm-stk-content','adm-stk-impact'].forEach(id=>document.getElementById(id).value='');}});}
+function doAdmUpdateDepRate(btn){wrapClick(btn,async()=>{const rate=document.getElementById('adm-dep-rate').value;if(!rate)return showToast('이자율 입력','var(--red)');const res=await api('adminUpdateDepositRate',{rate});showToast(res.msg,res.success?'var(--green)':'var(--red)');document.getElementById('adm-dep-rate').value='';});}
+function doAdmAddNotice(btn){wrapClick(btn,async()=>{const title=document.getElementById('adm-ntc-title').value,content=document.getElementById('adm-ntc-content').value,isUrgent=document.getElementById('adm-ntc-urg').checked;if(!title||!content)return showToast('제목과 내용 입력','var(--red)');const res=await api('adminAddNotice',{title,content,isUrgent});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){document.getElementById('adm-ntc-title').value='';document.getElementById('adm-ntc-content').value='';loadAdminData();}});}
+function doAdmAddShopItem(btn){wrapClick(btn,async()=>{const name=document.getElementById('adm-item-name').value,price=document.getElementById('adm-item-price').value,stock=document.getElementById('adm-item-stock').value,emoji=document.getElementById('adm-item-emoji').value,desc=document.getElementById('adm-item-desc').value;if(!name||!price||!stock)return showToast('이름·가격·재고 입력','var(--red)');const res=await api('adminAddShopItem',{name,price,stock,emoji:emoji||'🎁',desc});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){['adm-item-name','adm-item-price','adm-item-stock','adm-item-emoji','adm-item-desc'].forEach(id=>document.getElementById(id).value='');}});}
+function doAdmAddJob(btn){wrapClick(btn,async()=>{const title=document.getElementById('adm-job-title').value,sal=document.getElementById('adm-job-sal').value,role=document.getElementById('adm-job-role').value,cnt=document.getElementById('adm-job-cnt').value;if(!title||!sal)return showToast('직업명과 급여 입력','var(--red)');const res=await api('adminAddJob',{title,role,salary:sal,count:cnt||1});showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success){['adm-job-title','adm-job-sal','adm-job-role','adm-job-cnt'].forEach(id=>document.getElementById(id).value='');}});}
+function doAdmDel(sheetName,colIdx,val){if(!confirm(`[${val}] 삭제?`))return;api('adminDeleteRow',{sheetName,colIdx,val}).then(res=>{showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success)loadAdminData();});}
+
+// ─── 관리자: 복권 목록 (★ v16: 현금 컬럼 표시) ───
+async function loadAdmLottery(btn){
+  if(btn)btn.disabled=true;
+  const data=await api('adminGetLotteryData');
+  if(btn)btn.disabled=false;
+  const list=document.getElementById('adm-lottery-list');
+  const tickets=data.tickets||[];
+  if(!tickets.length){list.innerHTML='<div style="color:var(--muted);padding:10px">등록된 복권 없음</div>';return;}
+  const totalProb=tickets.reduce((a,t)=>a+Number(t['확률']||0),0);
+  list.innerHTML=tickets.map(t=>{
+    const prob=Number(t['확률']||0);
+    const pct=totalProb>0?(prob/totalProb*100).toFixed(1):'0.0';
+    const cash=Number(t['현금']||0);
+    return `<div class="card2" style="margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <span class="badge" style="background:rgba(108,143,255,.2);color:var(--accent);margin-right:4px">${t['구분']}</span>
+          <b>${t['제목']}</b>
+          ${cash>0?`<span style="color:var(--gold);font-size:10px;margin-left:4px">💰${cash.toLocaleString()}원</span>`:''}
+          ${t['내용']?`<span style="color:var(--muted);font-size:10px;margin-left:4px">(${t['내용']})</span>`:''}
+        </div>
+        <button class="btn btn-red btn-xs" onclick="doAdmDelLottery('${t['제목']}','${t['구분']}')">삭제</button>
+      </div>
+      <div style="margin-top:5px;font-size:10px;color:var(--muted)">
+        확률: ${prob} (${pct}%)
+        <div style="background:var(--border);border-radius:3px;height:4px;margin-top:3px;overflow:hidden">
+          <div style="background:var(--gold);height:100%;width:${pct}%;border-radius:3px"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  // 총 확률 표시
+  list.insertAdjacentHTML('afterbegin',`<div style="font-size:11px;color:var(--muted);margin-bottom:10px;padding:8px;background:var(--card2);border-radius:8px">
+    📊 총 확률 합계: <b style="color:var(--gold)">${totalProb}</b> (각 항목의 당첨 비율로 사용됩니다)
+  </div>`);
+}
+function doAdmAddLottery(btn){wrapClick(btn,async()=>{
+  const 구분=document.getElementById('adm-lt-type').value;
+  const 제목=document.getElementById('adm-lt-title').value;
+  const 내용=document.getElementById('adm-lt-content').value;
+  const 확률=document.getElementById('adm-lt-prob').value;
+  const 현금=document.getElementById('adm-lt-cash').value||0;
+  if(!제목||!확률)return showToast('제목과 확률을 입력해주세요','var(--red)');
+  const res=await api('adminAddLotteryTicket',{구분,제목,내용,확률:Number(확률),현금:Number(현금)});
+  showToast(res.msg,res.success?'var(--green)':'var(--red)');
+  if(res.success){
+    ['adm-lt-title','adm-lt-content','adm-lt-prob','adm-lt-cash'].forEach(id=>document.getElementById(id).value='');
+    loadAdmLottery();
+  }
+});}
+function doAdmDelLottery(제목,구분){
+  if(!confirm(`[${제목}] 복권 항목을 삭제?`))return;
+  api('adminDeleteLotteryTicket',{제목,구분}).then(res=>{showToast(res.msg,res.success?'var(--green)':'var(--red)');if(res.success)loadAdmLottery();});
+}
+
+// ─── 과제 제출 (학생) ───
+async function loadAssignments(){
+  showLoad('과제 조회 중...');
+  const [asgs, mySubs] = await Promise.all([
+    api('getAssignments'),
+    api('getMySubmissions',{name:ME.name})
+  ]);
+  hideLoad();
+  // 설정에서 기본 수당 가져오기
+  const defaultReward = Number(G_SETTINGS['과제_제출_수당']||2000);
+  const rewardBadge = document.getElementById('assign-reward-badge');
+  if(rewardBadge) rewardBadge.textContent = `(기본 수당: ${defaultReward.toLocaleString()}원)`;
+
+  const submittedIds = new Set(mySubs.map(s=>String(s.과제ID)));
+  const el = document.getElementById('assign-list');
+  if(!asgs||!asgs.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">📝</div><p>현재 제출 가능한 과제가 없습니다</p></div>';
+  } else {
+    const typeIcons = {사진:'📷',PDF:'📄',HWP:'📝',설문:'📋',영상:'🎥',자유:'📎'};
+    el.innerHTML = asgs.map(a=>{
+      const done = submittedIds.has(String(a.과제ID));
+      const reward = Number(a.수당)||defaultReward;
+      const endLabel = a.기간종료 ? `~ ${a.기간종료}` : '기간 무제한';
+      return `<div class="card2" style="margin-bottom:10px;border-color:${done?'rgba(46,204,113,.3)':'var(--border)'}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div>
+            <span style="font-weight:700;font-size:13px">${typeIcons[a.파일유형]||'📎'} ${a.제목}</span>
+            <span class="badge" style="margin-left:6px;background:${done?'rgba(46,204,113,.2)':'rgba(245,200,66,.15)'};color:${done?'var(--green)':'var(--gold)'}">${done?'✅ 제출완료':'미제출'}</span>
+          </div>
+          <span style="color:var(--gold);font-size:11px;font-weight:700;white-space:nowrap">+${reward.toLocaleString()}원</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6">${a.내용||''}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--muted)">
+          <span>📅 ${endLabel} | 제출형식: ${a.파일유형}</span>
+          ${done
+            ? '<span style="color:var(--green);font-size:11px;font-weight:700">✅ 제출 완료</span>'
+            : `<button class="btn btn-sm btn-green" onclick="doSubmitAssignment('${a.과제ID}','${a.제목}','${a.파일유형}',this)" style="font-size:11px">📤 제출하기</button>`
+          }
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // 내 제출 내역
+  const myEl = document.getElementById('assign-my-list');
+  if(myEl){
+    myEl.innerHTML = mySubs.length
+      ? mySubs.map(s=>`<div style="padding:6px 0;border-bottom:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center">
+          <div><span style="font-size:11px;font-weight:700">${s.제목.replace('과제제출: ','')}</span><br><span style="font-size:10px;color:var(--muted)">${String(s.날짜).slice(0,16)}</span></div>
+          <span style="color:var(--green);font-weight:700;font-size:11px">✅ 완료</span>
+        </div>`).join('')
+      : '<div style="color:var(--muted);padding:10px;text-align:center">제출한 과제 없음</div>';
+  }
+}
+
+// 과제 제출 팝업 열기
+// ─── 과제 제출 팝업 ───
+function doSubmitAssignment(assignmentId, title, filetype, btn){
+  document.getElementById('asg-popup-title').textContent = `📤 ${title}`;
+  document.getElementById('asg-popup-filetype-info').textContent = `제출 형식: ${filetype}`;
+  const zone = document.getElementById('asg-file-drop-zone');
+  zone.dataset.assignmentId = assignmentId;
+  zone.dataset.title = title;
+  zone.dataset.filetype = filetype;
+  // 초기화
+  document.getElementById('asg-file-input').value = '';
+  document.getElementById('asg-selected-filename').textContent = '';
+  document.getElementById('asg-selected-filename').style.display = 'none';
+  document.getElementById('asg-submit-confirm-btn').disabled = true;
+  delete zone.dataset.fileObj; // 선택 파일 초기화
+  openPopup('asg-submit-popup');
+}
+
+// 파일 선택/드래그 처리 (Drive 업로드 버전)
+function asgHandleFile(file){
+  if(!file) return;
+  const ext = file.name.split('.').pop();
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('sv-SE').replace(/-/g,'');
+  const zone = document.getElementById('asg-file-drop-zone');
+  const filetype = zone.dataset.filetype || '자유';
+  const autoName = `${ME.name}_${filetype}_${dateStr}_1교시.${ext}`;
+  document.getElementById('asg-selected-filename').textContent = `📎 ${autoName}`;
+  zone.dataset.autoname = autoName;
+  zone.dataset.file = file.name; // 원본 파일명 저장
+  window._asgSelectedFile = file; // ★ 실제 파일 객체 저장
+  document.getElementById('asg-selected-filename').style.display = 'block';
+  document.getElementById('asg-submit-confirm-btn').disabled = false;
+}
+
+// 실제 제출 처리 (Drive 업로드 버전)
+async function doSubmitConfirm(btn){
+  const zone = document.getElementById('asg-file-drop-zone');
+  const assignmentId = zone.dataset.assignmentId;
+  const autoName = zone.dataset.autoname || '';
+  const file = window._asgSelectedFile;
+
+  if(!file) return showToast('파일을 먼저 선택하세요', 'var(--red)');
+
+  btn.disabled = true;
+  showLoad('파일 업로드 중...');
+  try {
+    // 1. FileReader로 base64 변환
+    const base64Data = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = () => reject(new Error('파일 읽기 실패'));
+      reader.readAsDataURL(file);
+    });
+
+    // 2. Google Drive 업로드
+    const upRes = await api('uploadAssignmentFile', {
+      name: ME.name,
+      assignmentId,
+      base64Data,
+      fileName: autoName || file.name,
+      mimeType: file.type || 'application/octet-stream'
+    });
+
+    if(!upRes || !upRes.success){
+      hideLoad();
+      showToast(upRes?.msg || '업로드 실패', 'var(--red)');
+      btn.disabled = false;
+      return;
+    }
+
+    // 3. 제출 기록 (Drive URL 저장)
+    const res = await api('submitAssignment', {
+      name: ME.name,
+      assignmentId,
+      memo: upRes.fileUrl
+    });
+
+    hideLoad();
+    showToast(res.msg, res.success ? 'var(--green)' : 'var(--red)');
+    if(res.success){
+      closePopup('asg-submit-popup');
+      window._asgSelectedFile = null;
+      loadHome();
+      loadAssignments();
+    }
+  } catch(e) {
+    hideLoad();
+    showToast('오류: ' + e.message, 'var(--red)');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ─── 관리자: 과제 관리 ───
+async function loadAdmAssignments(){
+  const asgs = await api('adminGetAssignments');
+  const el = document.getElementById('adm-assign-list');
+  if(!asgs||!asgs.length){
+    el.innerHTML='<div style="color:var(--muted);padding:10px">등록된 과제 없음</div>';
+    return;
+  }
+  el.innerHTML = asgs.map(a=>`
+    <div class="card2" style="margin-bottom:8px;border-color:${a.상태==='종료'?'rgba(100,100,100,.3)':'rgba(46,204,113,.2)'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px">
+        <div>
+          <b>${a.제목}</b>
+          <span class="badge" style="margin-left:5px;background:${a.상태==='활성'?'rgba(46,204,113,.2)':'rgba(100,100,100,.2)'};color:${a.상태==='활성'?'var(--green)':'var(--muted)'}">${a.상태}</span>
+        </div>
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-outline btn-xs" onclick="loadAdmAsgSubs('${a.과제ID}','${a.제목}')">제출현황</button>
+          ${a.상태==='활성'?`<button class="btn btn-red btn-xs" onclick="doAdmEndAssign('${a.과제ID}')">종료</button>`:''}
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);line-height:1.7">
+        📅 ${a.기간시작||'즉시'} ~ ${a.기간종료||'무기한'} | 📎 ${a.파일유형} | 💰 수당: ${Number(a.수당||0).toLocaleString()}원<br>
+        ${a.내용}
+      </div>
+    </div>`).join('');
+}
+
+async function loadAdmAsgSubs(id, title){
+  const subs = await api('adminGetAssignmentSubmissions',{assignmentId:id});
+  const msg = subs.length
+    ? `[${title}] 제출 현황 (${subs.length}명)\n\n` + subs.map((s,i)=>`${i+1}. ${s.이름} - ${String(s.날짜).slice(0,16)}`).join('\n')
+    : `[${title}]\n아직 제출한 학생이 없습니다.`;
+  alert(msg);
+}
+
+function doAdmEndAssign(id){
+  if(!confirm('이 과제를 종료하면 학생이 더 이상 제출할 수 없습니다. 종료할까요?'))return;
+  api('adminEndAssignment',{assignmentId:id}).then(res=>{
+    showToast(res.msg,res.success?'var(--green)':'var(--red)');
+    if(res.success) loadAdmAssignments();
+  });
+}
+
+function doAdmAddAssignment(btn){
+  wrapClick(btn,async()=>{
+    const 제목=document.getElementById('adm-asg-title').value;
+    const 내용=document.getElementById('adm-asg-content').value;
+    const 기간시작=document.getElementById('adm-asg-start').value;
+    const 기간종료=document.getElementById('adm-asg-end').value;
+    const 파일유형=document.getElementById('adm-asg-filetype').value;
+    const 수당=document.getElementById('adm-asg-reward').value||0;
+    if(!제목||!내용) return showToast('제목과 내용을 입력하세요','var(--red)');
+    
+    const res=await api('adminAddAssignment',{제목,내용,기간시작,기간종료,파일유형,수당:Number(수당),작성자:'선생님'});
+    showToast(res.msg,res.success?'var(--green)':'var(--red)');
+    
+    if(res.success){
+      ['adm-asg-title','adm-asg-content','adm-asg-start','adm-asg-end','adm-asg-reward'].forEach(id=>document.getElementById(id).value='');
+      loadAdmAssignments();
+    }
+  });
+}
+
+
+// ==========================================
+// 학급 마트 프론트엔드 함수들
+// ==========================================
+
+async function loadEcoMart() {
+  const items = await api('getMartItems');
+  const listEl = document.getElementById('mart-item-list');
+  
+  if (!items || items.length === 0) {
+    listEl.innerHTML = '<div style="grid-column:1/-1;color:var(--muted);text-align:center;padding:15px">등록된 물품이 없습니다.<br>상단에서 금액을 입력해 자율 결제해 주세요.</div>';
+    return;
+  }
+  
+  listEl.innerHTML = items.map(i => `
+    <div class="card2" style="text-align:center">
+      <div style="font-weight:700;font-size:13px;margin-bottom:4px">${i.아이템명}</div>
+      <div style="color:var(--gold);font-size:12px;margin-bottom:2px">${fmt(i.가격)}원</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px">남은 재고: ${i.재고}개</div>
+      <button class="btn btn-outline btn-xs" style="border-color:var(--teal);color:var(--teal);width:100%" onclick="setMartPay('${i.아이템명}', ${i.가격})">선택하기</button>
+    </div>
+  `).join('');
+}
+
+function setMartPay(name, price) {
+  document.getElementById('mart-pay-item').value = name;
+  document.getElementById('mart-pay-amt').value = price;
+  showToast(`${name} 선택됨! 비밀번호를 입력하세요.`, 'var(--teal)');
+}
+
+function doMartPay(btn) {
+  wrapClick(btn, async () => {
+    const item = document.getElementById('mart-pay-item').value; // 비어있으면 자율결제
+    const amt = document.getElementById('mart-pay-amt').value;
+    const pw = document.getElementById('mart-pay-pw').value;
+    
+    if (!amt || !pw) return showToast('결제 금액과 비밀번호를 입력하세요', 'var(--red)');
+    if (!confirm(`${fmt(amt)}원을 결제하시겠습니까?`)) return;
+
+    const res = await api('martPay', { name: ME.name, amount: amt, pw: pw, itemName: item });
+    
+    if (res.success) {
+      showToast('결제 완료!', 'var(--green)');
+      document.getElementById('mart-pay-item').value = '';
+      document.getElementById('mart-pay-amt').value = '';
+      document.getElementById('mart-pay-pw').value = '';
+      
+      // 내 잔액 갱신 및 마트 재고 갱신
+      loadHome(); 
+      loadEcoMart(); 
+
+      // 영수증 표시
+      const r = res.receipt;
+      document.getElementById('mart-receipt-body').innerHTML = `
+        <div style="text-align:left;display:inline-block">
+          <span style="color:var(--muted)">결제일시:</span> ${r.date}<br>
+          <span style="color:var(--muted)">가맹점(사장):</span> ${r.owner}<br>
+          <span style="color:var(--muted)">상품명:</span> <b>${r.item}</b><br>
+          <span style="color:var(--muted)">승인금액:</span> <b style="color:var(--accent2);font-size:14px">${fmt(r.amount)}원</b><br>
+          <span style="color:var(--muted)">승인번호:</span> ${r.id}
+        </div>
+      `;
+      document.getElementById('mart-receipt').style.display = 'block';
+    } else {
+      showToast(res.msg, 'var(--red)');
+    }
+  });
+}
+
+// -- 마트 사장님 전용 기능 --
+async function loadMartStats() {
+  const stats = await api('getMartStats', { name: ME.name });
+  document.getElementById('mart-stat-total').textContent = fmt(stats.total) + '원';
+  document.getElementById('mart-stat-count').textContent = fmt(stats.count) + '건';
+  
+  document.getElementById('mart-stat-history').innerHTML = stats.history.length ?
+    stats.history.map(t => `
+      <div style="padding:6px 0;border-bottom:1px dashed var(--border);display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <span style="font-weight:700">${t['대상']}</span><br>
+          <span style="font-size:9px;color:var(--muted)">${String(t['날짜']).slice(5, 16)}</span>
+        </div>
+        <span style="color:var(--green);font-weight:700">+${fmt(t['금액'])}원</span>
+      </div>
+    `).join('')
+    : '<div style="color:var(--muted);text-align:center;padding:10px">아직 결제 내역이 없습니다.</div>';
+}
+
+function doAddMartItem(btn) {
+  wrapClick(btn, async () => {
+    const name = document.getElementById('dlg-mart-item').value;
+    const price = document.getElementById('dlg-mart-price').value;
+    const stock = document.getElementById('dlg-mart-stock').value;
+    
+    if (!name || !price || !stock) return showToast('모든 항목(이름, 가격, 수량)을 입력하세요', 'var(--red)');
+    
+    const res = await api('addMartItem', { name: ME.name, itemName: name, price: price, stock: stock });
+    showToast(res.msg, res.success ? 'var(--green)' : 'var(--red)');
+    
+    if (res.success) {
+      document.getElementById('dlg-mart-item').value = '';
+      document.getElementById('dlg-mart-price').value = '';
+      document.getElementById('dlg-mart-stock').value = '';
+      loadMartStats(); // 통계 새로고침
+    }
+  });
+}
+
+
+// 관리자용 마트 물품 목록 (삭제/재고수정)
+async function loadAdmMartItems() {
+  const items = await api('getMartItems');
+  const el = document.getElementById('adm-mart-item-list');
+  if (!items || items.length === 0) {
+    el.innerHTML = '<div style="color:var(--muted);padding:8px">등록된 물품이 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = items.map(i => `
+    <div class="card2" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px">
+      <div style="flex:1">
+        <div style="font-weight:700">${i.아이템명}</div>
+        <div style="font-size:10px;color:var(--muted)">${fmt(i.가격)}원 | 재고: ${i.재고}개</div>
+      </div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <input type="number" id="adm-stock-input-${i.아이템명}" value="${i.재고}" min="0"
+               style="width:56px;padding:4px 6px;font-size:11px;margin:0">
+        <button class="btn btn-teal btn-xs" onclick="doAdmUpdateMartStock('${i.아이템명}', this)">수정</button>
+        <button class="btn btn-red btn-xs" onclick="doAdmDeleteMartItem('${i.아이템명}', this)">삭제</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// 사장님 권한 패널용 물품 목록 (삭제/재고수정)
+async function loadMartManageList() {
+  const items = await api('getMartItems');
+  const el = document.getElementById('mart-manage-list');
+  if (!items || items.length === 0) {
+    el.innerHTML = '<div style="color:var(--muted);padding:8px">등록된 물품이 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = items.map(i => `
+    <div class="card2" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px">
+      <div style="flex:1">
+        <div style="font-weight:700">${i.아이템명}</div>
+        <div style="font-size:10px;color:var(--muted)">${fmt(i.가격)}원 | 재고: ${i.재고}개</div>
+      </div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <input type="number" id="mgr-stock-input-${i.아이템명}" value="${i.재고}" min="0"
+               style="width:56px;padding:4px 6px;font-size:11px;margin:0">
+        <button class="btn btn-teal btn-xs" onclick="doMgrUpdateStock('${i.아이템명}', this)">수정</button>
+        <button class="btn btn-red btn-xs" onclick="doMgrDeleteMartItem('${i.아이템명}', this)">삭제</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// 관리자 - 마트 재고 수정
+function doAdmUpdateMartStock(itemName, btn) {
+  wrapClick(btn, async () => {
+    const newStock = document.getElementById(`adm-stock-input-${itemName}`).value;
+    if (newStock === '' || Number(newStock) < 0) return showToast('수량을 올바르게 입력하세요', 'var(--red)');
+    const res = await api('updateMartStock', { itemName: itemName, newStock: newStock });
+    showToast(res.msg, res.success ? 'var(--green)' : 'var(--red)');
+    if (res.success) loadAdmMartItems();
+  });
+}
+
+// 관리자 - 마트 물품 삭제
+function doAdmDeleteMartItem(itemName, btn) {
+  wrapClick(btn, async () => {
+    if (!confirm(`"${itemName}" 물품을 삭제하시겠습니까?`)) return;
+    const res = await api('deleteMartItem', { itemName: itemName });
+    showToast(res.msg, res.success ? 'var(--green)' : 'var(--red)');
+    if (res.success) loadAdmMartItems();
+  });
+}
+
+// 사장님 - 마트 재고 수정
+function doMgrUpdateStock(itemName, btn) {
+  wrapClick(btn, async () => {
+    const newStock = document.getElementById(`mgr-stock-input-${itemName}`).value;
+    if (newStock === '' || Number(newStock) < 0) return showToast('수량을 올바르게 입력하세요', 'var(--red)');
+    const res = await api('updateMartStock', { name: ME.name, itemName: itemName, newStock: newStock });
+    showToast(res.msg, res.success ? 'var(--green)' : 'var(--red)');
+    if (res.success) { loadMartManageList(); loadEcoMart(); }
+  });
+}
+
+// 사장님 - 마트 물품 삭제
+function doMgrDeleteMartItem(itemName, btn) {
+  wrapClick(btn, async () => {
+    if (!confirm(`"${itemName}" 물품을 삭제하시겠습니까?`)) return;
+    const res = await api('deleteMartItem', { name: ME.name, itemName: itemName });
+    showToast(res.msg, res.success ? 'var(--green)' : 'var(--red)');
+    if (res.success) { loadMartManageList(); loadEcoMart(); }
+  });
+}
+
+
+</script>
+</body>
+</html>

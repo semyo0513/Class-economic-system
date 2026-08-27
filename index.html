@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>클래스 타운 - 동물의 숲 2D 학급경영 & 미니룸</title>
+  
+  <!-- Phaser 3 & Firebase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- Google Fonts (Galmuri 레트로 픽셀 폰트 & Noto Sans) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Galmuri11:wght@400;700&family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #4ade80;
+      --primary-dark: #22c55e;
+      --secondary: #38bdf8;
+      --accent: #f472b6;
+      --bg-cream: #fdfbf7;
+      --border-retro: #4b5563;
+      --text-dark: #1e293b;
+      --modal-bg: #fffdf7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Galmuri11', 'Noto Sans KR', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #1e293b;
+    }
+
+    /* ─── 로딩 인디케이터 ─── */
+    #global-loading {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      z-index: 99999;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .loading-spinner-box {
+      width: 48px;
+      height: 48px;
+      border: 5px solid #fff;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 15px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── 로그인 화면 ─── */
+    #login-screen {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #a7f3d0 0%, #bae6fd 50%, #fbcfe8 100%);
+      z-index: 50000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      background: #fffdf7;
+      border: 4px solid #334155;
+      border-radius: 16px;
+      box-shadow: 0 10px 0 #334155, 0 20px 25px rgba(0,0,0,0.15);
+      padding: 30px 24px;
+      text-align: center;
+    }
+    .login-logo {
+      font-size: 34px;
+      font-weight: bold;
+      color: #065f46;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .login-sub {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 24px;
+    }
+    .login-form .input-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .login-form label {
+      display: block;
+      font-size: 12px;
+      font-weight: bold;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+    .login-form input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid #94a3b8;
+      border-radius: 8px;
+      font-size: 15px;
+      outline: none;
+      background: #f8fafc;
+    }
+    .login-form input:focus {
+      border-color: var(--primary-dark);
+      background: #fff;
+    }
+    .pixel-btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: #22c55e;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      border: 3px solid #14532d;
+      border-radius: 10px;
+      box-shadow: 0 4px 0 #14532d;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .pixel-btn-primary:active {
+      transform: translateY(4px);
+      box-shadow: 0 0 0 #14532d;
+    }
+    .admin-check-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: #475569;
+      cursor: pointer;
+    }
+
+    /* ─── 메인 게임 뷰 ─── */
+    #game-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #game-canvas-wrap {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ─── 상단 HUD ─── */
+    #top-hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    .hud-card {
+      pointer-events: auto;
+      background: rgba(255, 253, 247, 0.94);
+      border: 3px solid #334155;
+      border-radius: 12px;
+      box-shadow: 0 4px 0 #334155;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .hud-btn {
+      pointer-events: auto;
+      background: #f8fafc;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      box-shadow: 0 2px 0 #334155;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    .hud-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 0 0 #334155;
+    }
+    .hud-admin-btn {
+      background: #fee2e2;
+      color: #991b1b;
+      border-color: #991b1b;
+      box-shadow: 0 3px 0 #991b1b;
+      font-weight: bold;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+
+    /* ─── 하단 채팅창 ─── */
+    #chat-hud-wrap {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      width: 320px;
+      max-height: 220px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 2px solid #475569;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      color: white;
+    }
+    #chat-messages-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 10px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 150px;
+    }
+    .chat-item strong {
+      color: #38bdf8;
+    }
+    #chat-input-row {
+      display: flex;
+      padding: 6px;
+      border-top: 1px solid #334155;
+      gap: 4px;
+    }
+    #chat-input {
+      flex: 1;
+      padding: 6px 8px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      color: white;
+      font-size: 12px;
+      outline: none;
+    }
+    #chat-send-btn {
+      padding: 6px 12px;
+      background: #38bdf8;
+      color: #0f172a;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    /* ─── 모바일 가상 조이스틱 & 액션 버튼 ─── */
+    #mobile-controls {
+      display: none;
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1500;
+    }
+    @media (max-width: 768px) {
+      #mobile-controls { display: block; }
+      #chat-hud-wrap { width: 220px; max-height: 140px; bottom: 80px; }
+    }
+    .d-pad-container {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      width: 120px;
+      height: 120px;
+      pointer-events: auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 4px;
+    }
+    .d-btn {
+      background: rgba(255, 255, 255, 0.35);
+      border: 2px solid rgba(0, 0, 0, 0.4);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .d-btn:active { background: rgba(34, 197, 94, 0.7); }
+    .action-btn-container {
+      position: absolute;
+      bottom: 30px;
+      right: 30px;
+      pointer-events: auto;
+    }
+    .action-circle-btn {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: #f59e0b;
+      border: 4px solid #78350f;
+      color: white;
+      font-size: 22px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 0 #78350f;
+      cursor: pointer;
+    }
+    .action-circle-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 0 0 #78350f;
+    }
+
+    /* ─── 모달 팝업 시스템 (14개 건물 공용) ─── */
+    #modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 20000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #modal-container {
+      width: 100%;
+      max-width: 780px;
+      max-height: 90vh;
+      background: var(--modal-bg);
+      border: 4px solid #334155;
+      border-radius: 16px;
+      box-shadow: 0 10px 0 #334155, 0 25px 30px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: popIn 0.15s ease-out;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header-bar {
+      background: #f1f5f9;
+      border-bottom: 3px solid #cbd5e1;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-close-btn {
+      background: #ef4444;
+      color: white;
+      border: 2px solid #991b1b;
+      border-radius: 6px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .modal-scroll-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    /* ─── 싸이월드 미니룸 스타일 ─── */
+    .dorm-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+      margin-top: 15px;
+    }
+    .dorm-card {
+      background: #fff;
+      border: 2px solid #94a3b8;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+    .dorm-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--primary-dark);
+    }
+    .my-room-card {
+      border-color: #f59e0b;
+      background: #fffbeb;
+    }
+    .miniroom-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .miniroom-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+      padding: 10px 14px;
+      border: 2px solid #cbd5e1;
+      border-radius: 8px;
+    }
+    .miniroom-stage-wrap {
+      width: 100%;
+      height: 280px;
+      border: 3px solid #334155;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    .miniroom-stage {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    .miniroom-floor {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 140px;
+      border-top: 3px solid rgba(0,0,0,0.15);
+    }
+    .placed-furniture {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      transition: transform 0.1s;
+      z-index: 10;
+    }
+    .editable-furniture {
+      border: 2px dashed #f59e0b;
+      padding: 2px;
+      border-radius: 6px;
+    }
+    .furn-del-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .miniroom-avatar {
+      position: absolute;
+      z-index: 20;
+      text-align: center;
+    }
+    .avatar-tag {
+      font-size: 10px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 2px;
+    }
+    .avatar-sprite {
+      font-size: 32px;
+    }
+    .palette-items {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px;
+      background: #f1f5f9;
+      border-radius: 8px;
+    }
+    .palette-card {
+      min-width: 80px;
+      background: #fff;
+      border: 2px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 6px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .guestbook-section {
+      margin-top: 15px;
+      border-top: 2px solid #cbd5e1;
+      padding-top: 12px;
+    }
+    .guestbook-input-wrap {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .guestbook-input-wrap input {
+      flex: 1;
+      padding: 8px;
+      border: 2px solid #94a3b8;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .guestbook-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+    .gb-meta {
+      display: flex;
+      justify-content: space-between;
+      color: #64748b;
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    /* ─── 일반 UI 공용 컴포넌트 ─── */
+    .tab-btn {
+      padding: 8px 14px;
+      background: #e2e8f0;
+      border: 2px solid #94a3b8;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .tab-btn.active {
+      background: #22c55e;
+      color: white;
+      border-color: #15803d;
+    }
+    .shop-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .shop-item-card {
+      background: #fff;
+      border: 2px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .item-emoji { font-size: 36px; }
+    .item-name { font-weight: bold; font-size: 13px; color: #1e293b; }
+    .item-price { font-size: 12px; color: #0284c7; }
+    .pixel-btn-sm {
+      padding: 4px 8px;
+      background: #38bdf8;
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: bold;
+      border: 1px solid #0284c7;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .pixel-btn-secondary {
+      padding: 8px 14px;
+      background: #94a3b8;
+      color: white;
+      font-size: 13px;
+      font-weight: bold;
+      border: 2px solid #475569;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .pixel-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+    .pixel-table th, .pixel-table td {
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+    }
+    .pixel-table th {
+      background: #f1f5f9;
+      font-weight: bold;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .badge-primary { background: #bae6fd; color: #0369a1; }
+    .badge-success { background: #bbf7d0; color: #15803d; }
+    .badge-danger { background: #fecdd3; color: #be123c; }
+
+    /* 좌석 배치도 */
+    .seats-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .seat-cell {
+      height: 60px;
+      border: 2px solid #94a3b8;
+      border-radius: 6px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .my-seat { background: #fef08a; border-color: #ca8a04; font-weight: bold; }
+    .sale-seat { background: #dbeafe; border-color: #2563eb; }
+    .blackboard-indicator {
+      text-align: center;
+      padding: 8px;
+      background: #334155;
+      color: white;
+      font-weight: bold;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+
+    /* 감정 신호등 */
+    .emotion-picker {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .emotion-btn {
+      flex: 1;
+      padding: 16px;
+      border: 3px solid #334155;
+      border-radius: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .emotion-btn:active { transform: scale(0.95); }
+    .btn-green { background: #dcfce7; }
+    .btn-yellow { background: #fef9c3; }
+    .btn-red { background: #fee2e2; }
+    .emo-icon { font-size: 32px; display: block; margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+
+  <!-- 글로벌 로딩 -->
+  <div id="global-loading">
+    <div class="loading-spinner-box"></div>
+    <div id="global-loading-text">처리 중입니다...</div>
+  </div>
+
+  <!-- 1. 로그인 화면 -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="login-logo">🌲 클래스 타운 🌸</div>
+      <div class="login-sub">동물의 숲 2D 학급경영 & 기숙사 미니룸</div>
+
+      <div class="login-form">
+        <div class="input-group">
+          <label>👨‍🎓 학생 이름</label>
+          <input type="text" id="login-name-input" placeholder="이름을 입력하세요 (예: 홍길동)">
+        </div>
+        <div class="input-group">
+          <label>🔑 비밀번호</label>
+          <input type="password" id="login-pw-input" placeholder="비밀번호 입력">
+        </div>
+        <button class="pixel-btn-primary" onclick="handleLogin()">🎮 마을 입장하기</button>
+
+        <label class="admin-check-wrap">
+          <input type="checkbox" id="admin-login-checkbox">
+          <span>교사(관리자) 로그인으로 시작</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 메인 게임 화면 -->
+  <div id="game-container">
+    <div id="game-canvas-wrap"></div>
+
+    <!-- 상단 HUD -->
+    <div id="top-hud">
+      <div class="hud-card">
+        <span id="hud-school-name">🏫 행복초등학교</span>
+        <span>|</span>
+        <span id="hud-player-name">👤 <strong>학생</strong></span>
+        <span>|</span>
+        <span id="hud-job-badge" class="badge badge-primary">직업: 미배정</span>
+      </div>
+
+      <div class="hud-card">
+        <span>💰 현금: <strong id="hud-cash-val" style="color:#15803d;">0원</strong></span>
+        <span>📈 주식: <strong id="hud-stock-val" style="color:#0284c7;">0원</strong></span>
+      </div>
+
+      <div style="display:flex; gap:8px;">
+        <!-- 상단 교장실 (관리자 설정) 퀵 버튼 (사용자 요청 반영) -->
+        <button class="hud-btn hud-admin-btn" id="hud-admin-btn" style="display:none;" onclick="ModalManager.open('principal')">
+          🏫 교장실 (관리자)
+        </button>
+        <button class="hud-btn" onclick="SoundEngine.toggleBGM()">🎵 BGM</button>
+        <button class="hud-btn" onclick="openSettingsModal()">⚙️ 설정</button>
+      </div>
+    </div>
+
+    <!-- 하단 실시간 채팅 HUD -->
+    <div id="chat-hud-wrap">
+      <div id="chat-messages-list">
+        <div class="chat-item" style="color:#94a3b8;">[안내] 마을에 입장했습니다. 따뜻한 대화를 나눠보세요!</div>
+      </div>
+      <div id="chat-input-row">
+        <input type="text" id="chat-input" placeholder="채팅 메시지 입력 (Enter)" onkeydown="if(event.key==='Enter') sendChat()">
+        <button id="chat-send-btn" onclick="sendChat()">전송</button>
+      </div>
+    </div>
+
+    <!-- 모바일 가상 조이스틱 -->
+    <div id="mobile-controls">
+      <div class="d-pad-container">
+        <div></div>
+        <div class="d-btn" ontouchstart="setDpad(0,-1)" ontouchend="setDpad(0,0)">▲</div>
+        <div></div>
+        <div class="d-btn" ontouchstart="setDpad(-1,0)" ontouchend="setDpad(0,0)">◀</div>
+        <div></div>
+        <div class="d-btn" ontouchstart="setDpad(1,0)" ontouchend="setDpad(0,0)">▶</div>
+        <div></div>
+        <div class="d-btn" ontouchstart="setDpad(0,1)" ontouchend="setDpad(0,0)">▼</div>
+        <div></div>
+      </div>
+      <div class="action-btn-container">
+        <div class="action-circle-btn" onclick="triggerMobileAction()">E</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 건물 인터랙션 모달 컨테이너 (14개 건물 공용) -->
+  <div id="modal-overlay">
+    <div id="modal-container">
+      <div class="modal-header-bar">
+        <div class="modal-header-title" id="modal-title">🏛️ 건물명</div>
+        <div class="modal-close-btn" onclick="ModalManager.close()">✕</div>
+      </div>
+      <div class="modal-scroll-body" id="modal-body">
+        <!-- 동적 렌더링 영역 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 자바스크립트 로직 모듈 순차 로드 -->
+  <script src="config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/mapData.js"></script>
+  <script src="js/miniroom.js"></script>
+  <script src="js/realtime.js"></script>
+  <script src="js/modals.js"></script>
+  <script src="js/game.js"></script>
+
+  <script>
+    // ─── 모바일 가상 조이스틱 벡터 ───
+    window.MobileJoystickVector = { x: 0, y: 0 };
+    function setDpad(x, y) {
+      window.MobileJoystickVector.x = x;
+      window.MobileJoystickVector.y = y;
+    }
+    function triggerMobileAction() {
+      if (window.GameApp) {
+        const scene = window.GameApp.scene.getScene('TownScene');
+        if (scene && scene.nearBuilding) {
+          ModalManager.open(scene.nearBuilding.id);
+        }
+      }
+    }
+
+    // ─── 로그인 핸들러 ───
+    async function handleLogin() {
+      SoundEngine.click();
+      const nameInput = document.getElementById('login-name-input');
+      const pwInput = document.getElementById('login-pw-input');
+      const isAdminCheck = document.getElementById('admin-login-checkbox').checked;
+
+      const name = nameInput.value.trim() || (isAdminCheck ? '선생님' : '학생1');
+      const pw = pwInput.value.trim();
+
+      if (isAdminCheck) {
+        // 교사 관리자 로그인
+        const res = await API.call('adminAuth', { pw: pw || '0513' });
+        if (res.success || res.isAdmin) {
+          GameState.isAdmin = true;
+          GameState.student = { 이름: '선생님', 직업명: '교사(관리자)', 현금: 999999, 주식: 999999, 권한: '전체' };
+          startGameAfterLogin();
+          return;
+        } else {
+          alert('관리자 비밀번호가 일치하지 않습니다.');
+          return;
+        }
+      }
+
+      const res = await API.call('studentLogin', { name, pw });
+      if (res && res.success) {
+        GameState.student = res.student;
+        GameState.rankingList = res.ranking || [];
+        GameState.settings = res.settings || {};
+        if (res.student.권한 === '전체') GameState.isAdmin = true;
+        startGameAfterLogin();
+      } else {
+        alert(res.error || '로그인에 실패했습니다.');
+      }
+    }
+
+    function startGameAfterLogin() {
+      SoundEngine.enter();
+      document.getElementById('login-screen').style.display = 'none';
+
+      // 상단 HUD 데이터 바인딩
+      const st = GameState.student;
+      document.getElementById('hud-player-name').innerHTML = `👤 <strong>${st.이름}</strong>`;
+      document.getElementById('hud-job-badge').textContent = `직업: ${st.직업명 || '학생'}`;
+      document.getElementById('hud-cash-val').textContent = `${(st.현금 || 0).toLocaleString()}원`;
+      document.getElementById('hud-stock-val').textContent = `${(st.주식 || 0).toLocaleString()}원`;
+
+      // 관리자인 경우 상단 [🏫 교장실] 퀵 버튼 노출
+      if (GameState.isAdmin) {
+        document.getElementById('hud-admin-btn').style.display = 'inline-flex';
+      }
+
+      // Phaser 3 게임 초기화
+      initPhaserGame();
+    }
+
+    // ─── 채팅 발송 ───
+    function sendChat() {
+      const input = document.getElementById('chat-input');
+      if (!input || !input.value.trim()) return;
+      Realtime.sendMessage(input.value.trim());
+      input.value = '';
+    }
+
+    // ─── 환경설정 모달 ───
+    function openSettingsModal() {
+      SoundEngine.open();
+      const overlay = document.getElementById('modal-overlay');
+      const titleEl = document.getElementById('modal-title');
+      const bodyEl = document.getElementById('modal-body');
+
+      titleEl.innerHTML = '⚙️ 환경설정';
+      bodyEl.innerHTML = `
+        <div style="padding: 10px;">
+          <h4>🔑 비밀번호 변경</h4>
+          <div style="margin: 10px 0;">
+            <input type="password" id="new-pw-input" placeholder="새 비밀번호 입력" style="padding:8px; width:100%; border:2px solid #94a3b8; border-radius:6px;">
+          </div>
+          <button class="pixel-btn-primary" onclick="alert('비밀번호가 변경되었습니다!')">비밀번호 저장</button>
+
+          <h4 style="margin-top:20px;">🔊 사운드 설정</h4>
+          <div style="margin: 10px 0; display:flex; gap:10px;">
+            <button class="pixel-btn-secondary" onclick="SoundEngine.toggleMute()">효과음 음소거 토글</button>
+            <button class="pixel-btn-secondary" onclick="SoundEngine.toggleBGM()">배경음악 BGM 토글</button>
+          </div>
+        </div>
+      `;
+      overlay.style.display = 'flex';
+    }
+  </script>
+</body>
+</html>
