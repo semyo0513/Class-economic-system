@@ -1,11 +1,13 @@
 // ============================================================
 // 싸이월드풍 미니룸 & 하우징 시스템 (js/miniroom.js)
-// 방 꾸미기, 가구 인벤토리 수량 체크, 친구 방 방문, 방명록, 좋아요
+// 가구 터치/마우스 드래그 & 드롭 이동, 인벤토리 수량 체크, 방명록, 좋아요
 // ============================================================
 
 const MiniroomSystem = (() => {
   let currentRoomOwner = null;
   let isEditing = false;
+  let draggingItemIdx = null;
+  let dragOffset = { x: 0, y: 0 };
 
   // 기본 방 템플릿
   const DEFAULT_ROOM = {
@@ -22,11 +24,11 @@ const MiniroomSystem = (() => {
       'pet_shiba_dog': 1
     },
     items: [
-      { id: 'fn_cozy_bed', x: 2, y: 3 },
-      { id: 'fn_gaming_desk', x: 6, y: 3 },
-      { id: 'fn_plant_pot', x: 1, y: 5 },
-      { id: 'fn_teddy_bear', x: 4, y: 5 },
-      { id: 'pet_shiba_dog', x: 7, y: 6 }
+      { id: 'fn_cozy_bed', x: 80, y: 80 },
+      { id: 'fn_gaming_desk', x: 220, y: 80 },
+      { id: 'fn_plant_pot', x: 40, y: 160 },
+      { id: 'fn_teddy_bear', x: 150, y: 170 },
+      { id: 'pet_shiba_dog', x: 260, y: 190 }
     ],
     guestbook: [
       { author: '선생님', msg: '방이 정말 아늑하고 멋지구나! 좋은 하루 보내렴 😊', date: '2026-08-28 09:00' }
@@ -41,6 +43,13 @@ const MiniroomSystem = (() => {
       try {
         const parsed = JSON.parse(local);
         if (!parsed.inventory) parsed.inventory = { ...DEFAULT_ROOM.inventory };
+        // 기존 그리드 좌표(x: 1~8)를 픽셀 좌표(px)로 마이그레이션
+        if (parsed.items) {
+          parsed.items.forEach(it => {
+            if (it.x < 15) it.x = it.x * 40;
+            if (it.y < 15) it.y = it.y * 30;
+          });
+        }
         return parsed;
       } catch (_) {}
     }
@@ -72,7 +81,7 @@ const MiniroomSystem = (() => {
   async function renderDormitoryList(container) {
     const me = GameState.student ? (GameState.student.name || GameState.student.이름 || '나') : '나';
     
-    // 시트에서 미니룸 데이터 가져오기 시도
+    // 시트에서 미니룸 데이터 가져오기
     const cloudRes = await API.call('getRoomData', { name: me }, true);
     if (cloudRes && cloudRes.success && cloudRes.roomData) {
       localStorage.setItem(`classbank_room_${me}`, JSON.stringify(cloudRes.roomData));
@@ -166,19 +175,24 @@ const MiniroomSystem = (() => {
           `}
         </div>
 
+        <!-- 안내 문구 (편집 모드 시) -->
+        <div id="drag-guide-msg" style="display:none; font-size:12px; color:#b45309; background:#fef3c7; padding:6px 10px; border-radius:6px; text-align:center;">
+          💡 가구를 터치하거나 마우스로 드래그하여 원하는 위치로 자유롭게 이동하세요!
+        </div>
+
         <!-- 미니룸 뷰어 스테이지 -->
         <div class="miniroom-stage-wrap">
-          <div class="miniroom-stage" id="miniroom-stage" style="background-color: ${wpItem.color || '#ffd1dc'};">
+          <div class="miniroom-stage" id="miniroom-stage" style="background-color: ${wpItem.color || '#ffd1dc'};" onmousemove="MiniroomSystem.onStageMouseMove(event)" onmouseup="MiniroomSystem.onStageMouseUp(event)" ontouchmove="MiniroomSystem.onStageTouchMove(event)" ontouchend="MiniroomSystem.onStageTouchEnd(event)">
             <!-- 바닥 레이어 -->
-            <div class="miniroom-floor" style="background-color: ${flItem.color || '#d4a373'};"></div>
+            <div class="miniroom-floor" style="background-color: ${flItem.color || '#d4a373'}; pointer-events:none;"></div>
 
-            <!-- 배치된 가구 오브젝트들 -->
+            <!-- 배치된 가구 오브젝트 레이어 -->
             <div class="miniroom-objects-layer" id="miniroom-objects-layer">
               ${renderPlacedObjects(room.items || [])}
             </div>
 
             <!-- 주인 아바타 -->
-            <div class="miniroom-avatar" style="left: 140px; top: 120px;">
+            <div class="miniroom-avatar" style="left: 140px; top: 115px; pointer-events:none;">
               <div class="avatar-tag">${ownerName}</div>
               <div class="avatar-sprite">🚶‍♂️</div>
             </div>
@@ -188,7 +202,7 @@ const MiniroomSystem = (() => {
         <!-- 방 꾸미기 인벤토리 팔레트 (편집 모드 시 노출) -->
         <div class="miniroom-edit-palette" id="miniroom-edit-palette" style="display: none; background:#f8fafc; border:2px solid #cbd5e1; border-radius:8px; padding:10px;">
           <div class="palette-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span style="font-size:12px; font-weight:bold;">📦 보유 중인 가구 (클릭하여 배치 / 남은 수량 표시)</span>
+            <span style="font-size:12px; font-weight:bold;">📦 보유 중인 가구 (클릭하여 방에 추가)</span>
             <button class="pixel-btn-sm" onclick="MiniroomSystem.saveLayout()">💾 저장 완료</button>
           </div>
           <div class="palette-items" id="palette-items-list">
@@ -205,7 +219,7 @@ const MiniroomSystem = (() => {
             <input type="text" id="guestbook-msg-input" placeholder="친구에게 따뜻한 한마디를 남겨주세요!" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;" onkeydown="if(event.key==='Enter') MiniroomSystem.addGuestbook()">
             <button class="pixel-btn-primary" style="width:auto; padding:8px 16px;" onclick="MiniroomSystem.addGuestbook()">등록</button>
           </div>
-          <div class="guestbook-list" id="guestbook-list" style="max-height:150px; overflow-y:auto;">
+          <div class="guestbook-list" id="guestbook-list" style="max-height:140px; overflow-y:auto;">
             ${renderGuestbookList(room.guestbook || [])}
           </div>
         </div>
@@ -215,18 +229,19 @@ const MiniroomSystem = (() => {
     modalBody.innerHTML = html;
   }
 
-  // 배치된 가구 렌더링
+  // 배치된 가구 렌더링 (터치 & 마우스 드래그 리스너 부착)
   function renderPlacedObjects(items) {
     return items.map((it, idx) => {
       const def = CONFIG.FURNITURE_CATALOG.find(f => f.id === it.id);
       if (!def) return '';
-      const left = it.x * 40;
-      const top = it.y * 30;
+      const left = it.x || 100;
+      const top = it.y || 100;
       return `
         <div class="placed-furniture ${isEditing ? 'editable-furniture' : ''}"
              id="furn_${idx}"
-             style="left: ${left}px; top: ${top}px; font-size: ${def.type === 'prop' ? '32px' : '42px'};"
-             onclick="MiniroomSystem.onFurnitureClick(${idx})"
+             style="left: ${left}px; top: ${top}px; font-size: ${def.type === 'prop' ? '32px' : '42px'}; touch-action: none;"
+             onmousedown="MiniroomSystem.startDrag(event, ${idx})"
+             ontouchstart="MiniroomSystem.startTouchDrag(event, ${idx})"
              title="${def.name}">
           ${def.emoji}
           ${isEditing ? `<span class="furn-del-btn" onclick="event.stopPropagation(); MiniroomSystem.removeFurniture(${idx})">❌</span>` : ''}
@@ -235,7 +250,7 @@ const MiniroomSystem = (() => {
     }).join('');
   }
 
-  // 가구 팔레트 렌더링 (보유 수량 및 남은 수량 체크)
+  // 가구 팔레트 렌더링
   function renderPaletteItems(room) {
     const inv = room.inventory || {};
     const placedCounts = {};
@@ -262,6 +277,89 @@ const MiniroomSystem = (() => {
         </div>
       `;
     }).join('');
+  }
+
+  // 터치 & 마우스 드래그 로직
+  function startDrag(e, idx) {
+    if (!isEditing) return;
+    e.preventDefault();
+    draggingItemIdx = idx;
+    const el = document.getElementById(`furn_${idx}`);
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      dragOffset.x = e.clientX - rect.left - rect.width / 2;
+      dragOffset.y = e.clientY - rect.top - rect.height / 2;
+    }
+  }
+
+  function startTouchDrag(e, idx) {
+    if (!isEditing) return;
+    if (e.touches && e.touches[0]) {
+      draggingItemIdx = idx;
+      const touch = e.touches[0];
+      const el = document.getElementById(`furn_${idx}`);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        dragOffset.x = touch.clientX - rect.left - rect.width / 2;
+        dragOffset.y = touch.clientY - rect.top - rect.height / 2;
+      }
+    }
+  }
+
+  function onStageMouseMove(e) {
+    if (draggingItemIdx === null) return;
+    moveItemTo(e.clientX, e.clientY);
+  }
+
+  function onStageTouchMove(e) {
+    if (draggingItemIdx === null) return;
+    if (e.touches && e.touches[0]) {
+      e.preventDefault();
+      moveItemTo(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }
+
+  function moveItemTo(clientX, clientY) {
+    const stage = document.getElementById('miniroom-stage');
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    let x = clientX - rect.left - dragOffset.x;
+    let y = clientY - rect.top - dragOffset.y;
+
+    // 스테이지 경계 제한
+    x = Math.max(30, Math.min(rect.width - 30, x));
+    y = Math.max(30, Math.min(rect.height - 30, y));
+
+    const el = document.getElementById(`furn_${draggingItemIdx}`);
+    if (el) {
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+    }
+  }
+
+  function onStageMouseUp(e) {
+    finishDrag();
+  }
+
+  function onStageTouchEnd(e) {
+    finishDrag();
+  }
+
+  function finishDrag() {
+    if (draggingItemIdx === null) return;
+    const el = document.getElementById(`furn_${draggingItemIdx}`);
+    if (el) {
+      const x = parseFloat(el.style.left) || 100;
+      const y = parseFloat(el.style.top) || 100;
+      const room = getRoomData(currentRoomOwner);
+      if (room.items && room.items[draggingItemIdx]) {
+        room.items[draggingItemIdx].x = Math.round(x);
+        room.items[draggingItemIdx].y = Math.round(y);
+        saveRoomData(currentRoomOwner, room);
+        SoundEngine.snap();
+      }
+    }
+    draggingItemIdx = null;
   }
 
   // 방명록 목록 렌더링
@@ -334,7 +432,10 @@ const MiniroomSystem = (() => {
     SoundEngine.click();
     const palette = document.getElementById('miniroom-edit-palette');
     const toggleBtn = document.getElementById('edit-room-toggle-btn');
+    const dragGuide = document.getElementById('drag-guide-msg');
+
     if (palette) palette.style.display = isEditing ? 'block' : 'none';
+    if (dragGuide) dragGuide.style.display = isEditing ? 'block' : 'none';
     if (toggleBtn) toggleBtn.textContent = isEditing ? '✅ 꾸미기 완료' : '🎨 방 꾸미기';
 
     const layer = document.getElementById('miniroom-objects-layer');
@@ -345,7 +446,7 @@ const MiniroomSystem = (() => {
     if (palList) palList.innerHTML = renderPaletteItems(room);
   }
 
-  // 가구 추가 (인벤토리 보유 수량 검증)
+  // 가구 추가
   function addFurnitureToRoom(furnitureId) {
     if (!isEditing) return;
     const def = CONFIG.FURNITURE_CATALOG.find(f => f.id === furnitureId);
@@ -382,8 +483,8 @@ const MiniroomSystem = (() => {
       return;
     }
 
-    const newX = 2 + (room.items.length % 6);
-    const newY = 3 + (Math.floor(room.items.length / 6) % 4);
+    const newX = 80 + (room.items.length % 5) * 45;
+    const newY = 100 + (Math.floor(room.items.length / 5) % 3) * 40;
     room.items.push({ id: def.id, x: newX, y: newY });
 
     SoundEngine.snap();
@@ -441,17 +542,11 @@ const MiniroomSystem = (() => {
     addGuestbook,
     likeRoom,
     saveLayout,
-    onFurnitureClick: (idx) => {
-      if (isEditing) {
-        const room = getRoomData(currentRoomOwner);
-        if (room.items && room.items[idx]) {
-          room.items[idx].x = (room.items[idx].x + 1) % 9;
-          saveRoomData(currentRoomOwner, room);
-          SoundEngine.snap();
-          const layer = document.getElementById('miniroom-objects-layer');
-          if (layer) layer.innerHTML = renderPlacedObjects(room.items);
-        }
-      }
-    }
+    startDrag,
+    startTouchDrag,
+    onStageMouseMove,
+    onStageTouchMove,
+    onStageMouseUp,
+    onStageTouchEnd
   };
 })();

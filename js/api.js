@@ -120,6 +120,19 @@ const API = (() => {
             { 직업명: '우체부', 급여: 6500, 모집인원: 2, 현재인원: 2, 역할: '편지 및 칭찬카드 배달' }
           ]
         };
+      case 'getInventory':
+        return {
+          success: true,
+          inventory: [
+            { 아이템명: '자리 우선 선택권', 설명: '원하는 자리를 먼저 고를 수 있는 티켓', 상태: '보유' },
+            { 아이템명: '숙제 1회 면제권', 설명: '기본 과제 1회 면제 쿠폰', 상태: '보유' },
+            { 아이템명: '간식 교환권', 설명: '학급 마트 맛있는 간식 교환 티켓', 상태: '보유' }
+          ]
+        };
+      case 'useItem':
+        return { success: true, msg: `아이템을 성공적으로 사용했습니다!` };
+      case 'logEmotion':
+        return { success: true, msg: `오늘의 기분 [${payload.emotion}] 등록 완료! +500원 보상이 지급되었습니다.` };
       case 'getMarketItems':
         return {
           success: true,
