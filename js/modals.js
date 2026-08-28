@@ -180,24 +180,24 @@ const ModalManager = (() => {
         break;
       }
 
-      // 3. 다종목 실시간 네이버 증권시장
+      // 3. 다종목 실시간 증권시장
       case 'stock': {
         const shortSchool = schoolName.replace('초등학교', '초').replace('학교', '');
         const stockList = [
-          { code: '005930', name: '삼성전자', icon: '📱', price: 74500, changeRate: '+1.20%' },
-          { code: '035720', name: '카카오', icon: '🟡', price: 42800, changeRate: '-0.70%' },
-          { code: '035420', name: 'NAVER', icon: '🟢', price: 172000, changeRate: '+2.10%' },
-          { code: '086520', name: '에코프로', icon: '🔋', price: 92000, changeRate: '+4.50%' },
-          { code: '005380', name: '현대차', icon: '🚗', price: 245000, changeRate: '+0.80%' },
-          { code: 'CLASS', name: `${shortSchool} 협동조합`, icon: '🏫', price: 1200, changeRate: '+2.50%' }
+          { code: '005930', name: '삼성전자', icon: '📱', price: 0, changeRate: '...' },
+          { code: '035720', name: '카카오', icon: '🟡', price: 0, changeRate: '...' },
+          { code: '035420', name: 'NAVER', icon: '🟢', price: 0, changeRate: '...' },
+          { code: '086520', name: '에코프로', icon: '🔋', price: 0, changeRate: '...' },
+          { code: '005380', name: '현대차', icon: '🚗', price: 0, changeRate: '...' },
+          { code: 'CLASS', name: `${shortSchool} 협동조합`, icon: '🏫', price: 0, changeRate: '...' }
         ];
 
         container.innerHTML = `
           <div class="stock-panel">
             <div style="background:#f0fdf4; border:2px solid #86efac; padding:10px 14px; border-radius:10px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <span style="font-size:14px; font-weight:bold; color:#166534;">📈 실시간 네이버 증권 거래소</span>
-                <span style="font-size:11px; color:#15803d; margin-left:6px;" id="stock-mode-badge">(실제 네이버 증시 시세 실시간 연동)</span>
+                <span style="font-size:14px; font-weight:bold; color:#166534;">📈 실시간 증권 거래소</span>
+                <span style="font-size:11px; color:#15803d; margin-left:6px;" id="stock-mode-badge">(구글 & 야후 금융 실시간 연동)</span>
               </div>
               <div style="font-size:12px; color:#166534;">
                 💰 내 현금: <strong id="stock-my-cash-val">${myCash.toLocaleString()}원</strong>
@@ -218,7 +218,7 @@ const ModalManager = (() => {
               <div>
                 <div style="font-size:13px; color:#64748b;" id="stock-active-name">📱 삼성전자 (005930)</div>
                 <div style="display:flex; align-items:baseline; gap:8px;">
-                  <div style="font-size:24px; font-weight:900; color:#ef4444;" id="stock-active-price">시세 불러오는 중...</div>
+                  <div style="font-size:24px; font-weight:900; color:#ef4444;" id="stock-active-price">실시간 시세 조회 중...</div>
                   <div style="font-size:13px; font-weight:bold; color:#ef4444;" id="stock-active-rate">...</div>
                 </div>
               </div>
@@ -274,8 +274,8 @@ const ModalManager = (() => {
             const wrap = document.getElementById('stock-tab-buttons-wrap');
             if (wrap) {
               wrap.innerHTML = data.stocks.map((s, i) => `
-                <button class="tab-btn stock-code-tab ${i === 0 ? 'active' : ''}" id="stock-tab-${s.code}" onclick="ModalManager.switchStockCode('${s.code}')" style="padding:6px 10px; font-size:12px;">
-                  ${s.icon} ${s.name}
+                <button class="tab-btn stock-code-tab ${s.code === ModalManager.activeMultiStockCode ? 'active' : ''}" id="stock-tab-${s.code}" onclick="ModalManager.switchStockCode('${s.code}')" style="padding:6px 10px; font-size:12px;">
+                  ${s.icon || '📈'} ${s.name}
                 </button>
               `).join('');
             }
@@ -1152,10 +1152,10 @@ const ModalManager = (() => {
     buyHairDye: async (id, color, price, name) => {
       if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하여 머리를 염색하시겠습니까?`)) return;
       const st = GameState.student;
-      const myName = st ? (st.name || st.이름) : '나';
+      const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
 
       API.showLoading('헤어 살롱 염색 중...');
-      const buyRes = await API.call('buyFashionItem', { name: myName, itemName: name, price: price, category: '헤어', prop: color });
+      const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '헤어', prop: color });
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
@@ -1182,11 +1182,11 @@ const ModalManager = (() => {
     buyCostume: async (id, price, name) => {
       if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하여 착용하시겠습니까?`)) return;
       const st = GameState.student;
-      const myName = st ? (st.name || st.이름) : '나';
+      const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const cType = id.replace('costume_', '');
 
       API.showLoading('의상 착용 중...');
-      const buyRes = await API.call('buyFashionItem', { name: myName, itemName: name, price: price, category: '의상', prop: cType });
+      const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '의상', prop: cType });
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
@@ -1213,11 +1213,11 @@ const ModalManager = (() => {
     buyHat: async (id, price, name) => {
       if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하여 장착하시겠습니까?`)) return;
       const st = GameState.student;
-      const myName = st ? (st.name || st.이름) : '나';
+      const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const hType = id.replace('hat_', '');
 
       API.showLoading('액세서리 장착 중...');
-      const buyRes = await API.call('buyFashionItem', { name: myName, itemName: name, price: price, category: '모자', prop: hType });
+      const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '모자', prop: hType });
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
@@ -1244,11 +1244,11 @@ const ModalManager = (() => {
     buyAura: async (id, price, name) => {
       if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?`)) return;
       const st = GameState.student;
-      const myName = st ? (st.name || st.이름) : '나';
+      const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const aType = id.replace('aura_', '');
 
       API.showLoading('특수 오라 발동 중...');
-      const buyRes = await API.call('buyFashionItem', { name: myName, itemName: name, price: price, category: '오라', prop: aType });
+      const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '오라', prop: aType });
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
@@ -1275,10 +1275,10 @@ const ModalManager = (() => {
     buyFurniture: async (id, price, name) => {
       if (!confirm(`[${name}] 가구를 ${price.toLocaleString()}원에 구매하시겠습니까?`)) return;
       const st = GameState.student;
-      const myName = st ? (st.name || st.이름) : '나';
+      const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
 
       API.showLoading('가구 구매 중...');
-      const buyRes = await API.call('buyFashionItem', { name: myName, itemName: name, price: price, category: '가구', prop: id });
+      const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '가구', prop: id });
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
@@ -1325,7 +1325,7 @@ const ModalManager = (() => {
     updateMultiStockUI: () => {
       const code = ModalManager.activeMultiStockCode || '005930';
       const stocks = ModalManager.multiStockCache || [];
-      const curStock = stocks.find(s => s.code === code) || stocks[0] || { name: '삼성전자', code: '005930', price: 60000, changeRate: '+0.00%' };
+      const curStock = stocks.find(s => s.code === code) || stocks[0] || { name: '삼성전자', code: '005930', price: 0, changeRate: '...' };
       const holdings = ModalManager.multiStockHoldings || {};
       const myQty = holdings[code] || holdings[curStock.name] || 0;
 
@@ -1336,18 +1336,26 @@ const ModalManager = (() => {
       const evalEl = document.getElementById('stock-active-eval');
 
       if (nameEl) nameEl.textContent = `${curStock.icon || '📈'} ${curStock.name} (${curStock.code})`;
-      if (priceEl) priceEl.textContent = `${(curStock.price || 0).toLocaleString()}원`;
+      if (priceEl) {
+        if (!curStock.price || curStock.price === 0) {
+          priceEl.textContent = '실시간 시세 조회 중...';
+          priceEl.style.color = '#64748b';
+        } else {
+          priceEl.textContent = `${curStock.price.toLocaleString()}원`;
+          const isUp = (curStock.changeRate || '').includes('+');
+          priceEl.style.color = isUp ? '#ef4444' : '#3b82f6';
+        }
+      }
       if (rateEl) {
         const isUp = (curStock.changeRate || '').includes('+');
         rateEl.textContent = curStock.changeRate || '0.00%';
         rateEl.style.color = isUp ? '#ef4444' : '#3b82f6';
-        if (priceEl) priceEl.style.color = isUp ? '#ef4444' : '#3b82f6';
       }
       if (holdEl) holdEl.textContent = `${myQty.toLocaleString()}주`;
       if (evalEl) evalEl.textContent = `${(myQty * (curStock.price || 0)).toLocaleString()}원`;
 
       const cvs = document.getElementById('stock-chart-canvas');
-      if (cvs && curStock.price) {
+      if (cvs && curStock.price && curStock.price > 0) {
         const ctx = cvs.getContext('2d');
         const W = cvs.width, H = cvs.height, padding = 25;
         const p = curStock.price;

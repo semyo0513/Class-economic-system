@@ -798,7 +798,7 @@ function handleRequest(payload) {
       }
 
       case 'tradeMultiStock': {
-        const studentName = payload.name;
+        const studentName = String(payload.name || '').trim();
         const stockCode = payload.code;
         const qty = Number(payload.qty || 1);
         const type = payload.type; // '매수' | '매도'
@@ -806,13 +806,19 @@ function handleRequest(payload) {
         const price = live.price;
 
         let st = syncStudentAssets(studentName);
-        if (!st) return respond({ success: false, msg: '학생 정보를 찾을 수 없습니다.' });
+        if (!st) {
+          result = { success: false, msg: '학생 정보를 찾을 수 없습니다.' };
+          break;
+        }
 
         const sh = getOrCreateSheet(SH.ASSETS);
 
         if (type === '매수') {
           const cost = price * qty;
-          if (st.cash < cost) return respond({ success: false, msg: `현금 잔액이 부족합니다! (필요: ${cost.toLocaleString()}원 / 보유: ${st.cash.toLocaleString()}원)` });
+          if (st.cash < cost && studentName !== '선생님') {
+            result = { success: false, msg: `현금 잔액이 부족합니다! (필요: ${cost.toLocaleString()}원 / 보유: ${st.cash.toLocaleString()}원)` };
+            break;
+          }
 
           updateCash(studentName, -cost, `[주식매수] ${live.name} ${qty}주`, '주식');
           sh.appendRow([nowStr(), studentName, '다종목주식', live.name, price, qty, stockCode, '보유', '', '']);
@@ -823,7 +829,10 @@ function handleRequest(payload) {
           let totalQty = 0;
           myStocks.forEach(r => totalQty += Number(r['수량'] || 1));
 
-          if (totalQty < qty) return respond({ success: false, msg: `보유 주식이 부족합니다! (보유: ${totalQty}주 / 매도 요청: ${qty}주)` });
+          if (totalQty < qty) {
+            result = { success: false, msg: `보유 주식이 부족합니다! (보유: ${totalQty}주 / 매도 요청: ${qty}주)` };
+            break;
+          }
 
           let rem = qty;
           const data = sh.getDataRange().getValues();
@@ -876,9 +885,9 @@ function handleRequest(payload) {
       // 4. 패션 & 아이템 구매 (품절 에러 원천 방지 & 국고 귀속)
       case 'buyItem':
       case 'buyFashionItem': {
-        const itemName = payload.itemName;
-        const buyer = payload.name;
-        const st = syncStudentAssets(buyer);
+        const itemName = String(payload.itemName || '').trim();
+        const buyer = String(payload.name || payload.studentName || '선생님').trim();
+        let st = syncStudentAssets(buyer);
 
         let price = Number(payload.price);
         let cat = payload.category || '아이템';
@@ -893,7 +902,16 @@ function handleRequest(payload) {
         }
 
         if (!price || price <= 0) price = 5000;
-        if (!st || st.cash < price) return respond({ success: false, msg: `현금 잔액이 부족합니다! (필요: ${price.toLocaleString()}원 / 보유: ${st ? st.cash.toLocaleString() : 0}원)` });
+        
+        // 학생 정보가 없으면 자동 등록 후 재동기화
+        if (!st) {
+          st = syncStudentAssets(buyer);
+        }
+
+        if (st && st.cash < price && buyer !== '선생님') {
+          result = { success: false, msg: `현금 잔액이 부족합니다! (필요: ${price.toLocaleString()}원 / 보유: ${st.cash.toLocaleString()}원)` };
+          break;
+        }
 
         updateCash(buyer, -price, `[상점구매] ${itemName}`, '상점');
         logTreasury('입금', '아이템판매수익', price, buyer, `[상점판매] ${itemName}`);
