@@ -710,6 +710,18 @@ function handleRequest(params) {
         break;
       }
 
+      case 'adminAddNotice': {
+        const title = payload.title || '새 공지사항';
+        const content = payload.content || '';
+        const isUrgent = payload.isUrgent ? '긴급' : '일반';
+        const id = 'NOTI' + Date.now().toString().slice(-6);
+        getOrCreateSheet(SH.LEARNING).appendRow([
+          nowStr(), '공지', id, title, content, 'all', '', '선생님', '활성', isUrgent
+        ]);
+        result = { success: true, msg: '공지사항이 성공적으로 등록되었습니다!' };
+        break;
+      }
+
       case 'getAssignments': {
         const rows = sheetToObj(getOrCreateSheet(SH.ASSIGNMENT)).reverse();
         result = { success: true, assignments: rows };
@@ -721,6 +733,79 @@ function handleRequest(params) {
           nowStr(), payload.name, '과제제출', payload.assignmentId, '', '', 0, '제출완료', payload.memo || '', ''
         ]);
         result = { success: true, msg: '과제가 정상적으로 제출되었습니다!' };
+        break;
+      }
+
+      // 13. [관리 & 상호작용 코어] 월급배부, 벌금징수, 경고, 칭찬카드, 마트관리
+      case 'adminPaySalaries': {
+        const amount = Number(payload.amount || 5000);
+        const students = getStudentsWithAssets();
+        let count = 0;
+        students.forEach(st => {
+          if (st.name !== '선생님') {
+            updateCash(st.name, amount, '월급(기본급) 일괄 배부', '월급');
+            count++;
+          }
+        });
+        result = { success: true, msg: `전체 ${count}명의 학생에게 월급 ${amount.toLocaleString()}원이 배부되었습니다.` };
+        break;
+      }
+
+      case 'adminFineStudent': {
+        const target = payload.targetName;
+        const fine = Number(payload.amount || 1000);
+        const reason = payload.reason || '학급 규칙 위반';
+        updateCash(target, -fine, `[벌금징수] ${reason}`, '벌금');
+        getOrCreateSheet(SH.ACTIVITY).appendRow([
+          nowStr(), '선생님', '벌금징수', fine, target, '', 0, '완료', `[벌금 고지] ${reason} (-${fine.toLocaleString()}원)`, ''
+        ]);
+        result = { success: true, msg: `${target} 학생에게 벌금 ${fine.toLocaleString()}원이 징수되었습니다.` };
+        break;
+      }
+
+      case 'adminWarnStudent': {
+        const target = payload.targetName;
+        const reason = payload.reason || '경고 주의 조치';
+        getOrCreateSheet(SH.ACTIVITY).appendRow([
+          nowStr(), '선생님', '경고장', '경고', target, '', 0, '완료', `⚠️ [선생님 경고장] ${reason}`, ''
+        ]);
+        result = { success: true, msg: `${target} 학생에게 경고장이 전달되었습니다.` };
+        break;
+      }
+
+      case 'sendPraiseCard': {
+        const from = payload.fromName || '익명';
+        const to = payload.targetName;
+        const msg = payload.message || '너를 칭찬해!';
+        const bonus = Number(payload.bonus || 500);
+        if (bonus > 0) {
+          updateCash(to, bonus, `[칭찬카드 보너스] from ${from}`, '칭찬보상');
+        }
+        getOrCreateSheet(SH.ACTIVITY).appendRow([
+          nowStr(), from, '칭찬카드', bonus, to, '', 0, '완료', `💌 [칭찬카드] "${msg}" ${bonus > 0 ? `(+${bonus.toLocaleString()}원)` : ''}`, ''
+        ]);
+        result = { success: true, msg: `${to} 학생에게 칭찬카드가 전달되었습니다!` };
+        break;
+      }
+
+      case 'addMartItem': {
+        const itemName = payload.itemName;
+        const price = Number(payload.price || 1000);
+        const stock = Number(payload.stock || 10);
+        const desc = payload.desc || '학급마트 간식';
+        getOrCreateSheet(SH.ASSETS).appendRow([
+          nowStr(), payload.ownerName || '선생님', '마트물품', itemName, price, stock, '', '판매중', '', desc
+        ]);
+        result = { success: true, msg: `[${itemName}] 마트 물품이 등록되었습니다!` };
+        break;
+      }
+
+      case 'updateCash': {
+        const name = payload.name;
+        const delta = Number(payload.delta || 0);
+        const reason = payload.reason || '관리자 조정';
+        updateCash(name, delta, reason, '관리자조정');
+        result = { success: true, msg: `${name} 학생의 잔액이 조정되었습니다.` };
         break;
       }
 

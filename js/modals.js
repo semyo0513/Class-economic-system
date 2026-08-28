@@ -1,11 +1,28 @@
 // ============================================================
-// 14개 건물 모달 UI & 인벤토리/장착 & 우편함 & 간편모드 & 놀이기구 연출 (js/modals.js)
+// 14개 건물 모달 UI & 인벤토리/장착 & 우편함 & 간편모드 & 놀이기구 스릴/운세 연출 (js/modals.js)
 // ============================================================
 
 const ModalManager = (() => {
   let activeModalId = null;
   let currentLotteryTxId = null;
   let isScratchFinished = false;
+
+  // 행운의 운세 & 따뜻한 응원 글귀 데이터베이스
+  const FORTUNES = [
+    '🍀 오늘은 뜻밖의 행운과 횡재수가 따르는 날입니다! 복권을 긁어보세요.',
+    '📈 주식 투자에서 대박 호재를 만나 자산이 불어날 예감입니다!',
+    '🌟 친구들과 협동하면 큰 칭찬과 보상을 받게 될 멋진 하루입니다.',
+    '💡 평소 생각지 못한 기발한 아이디어로 학급에서 인정받을 거예요!',
+    '🎁 잡화점에서 마음에 쏙 드는 보물 아이템을 발견할 운세입니다.'
+  ];
+
+  const CHEER_MSGS = [
+    '✨ "오늘도 최선을 다하는 네가 가장 빛나!"',
+    '🌈 "작은 성공들이 모여 위대한 네가 될 거야!"',
+    '💖 "너의 따뜻한 미소가 우리 반을 행복하게 만들어!"',
+    '🚀 "실패를 두려워하지 마, 넌 이미 충분히 멋지니까!"',
+    '🌸 "언제나 너를 응원해! 오늘도 힘차고 즐거운 하루 보내렴!"'
+  ];
 
   function open(buildingId, extraData) {
     activeModalId = buildingId;
@@ -41,7 +58,7 @@ const ModalManager = (() => {
       return;
     }
 
-    // 4. 놀이기구 탑승 애니메이션 모달
+    // 4. 놀이기구 탑승 애니메이션 & 스릴/운세 모달
     if (buildingId === 'ride_modal') {
       titleEl.innerHTML = `${extraData.emoji || '🎠'} ${extraData.name}`;
       overlay.style.display = 'flex';
@@ -82,7 +99,13 @@ const ModalManager = (() => {
     overlay.style.display = 'flex';
     bodyEl.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;">데이터를 불러오는 중입니다...</div>';
 
-    renderBuildingContent(buildingId, bodyEl);
+    // 안전한 렌더링 호출
+    try {
+      renderBuildingContent(buildingId, bodyEl);
+    } catch (err) {
+      console.error('[Render Modal Error]', err);
+      bodyEl.innerHTML = `<div style="padding:20px; text-align:center;">오류가 발생하여 기본 화면을 로드합니다.</div>`;
+    }
   }
 
   function close() {
@@ -150,10 +173,7 @@ const ModalManager = (() => {
     const st = GameState.student;
     const me = st ? (st.name || st.이름 || '나') : '나';
 
-    API.showLoading('우편함을 확인하는 중...');
     const res = await API.call('getMailbox', { name: me });
-    API.hideLoading();
-
     const mails = Array.isArray(res) ? res : (res.mails || []);
 
     container.innerHTML = `
@@ -174,7 +194,7 @@ const ModalManager = (() => {
                 <span class="badge badge-primary">${m.카테고리 || '우편'}</span>
               </div>
               <div style="font-weight:bold; font-size:13px; color:#1e293b; margin-bottom:4px;">
-                보낸사람: ${m.이름 || '익명'}
+                보낸사람: ${m.이름 || '선생님'}
               </div>
               <div style="font-size:12px; color:#334155; line-height:1.5;">
                 ${m.메세지 || m.내용 || '내용 없음'}
@@ -191,10 +211,7 @@ const ModalManager = (() => {
     const st = GameState.student;
     const me = st ? (st.name || st.이름 || '나') : '나';
 
-    API.showLoading('가방을 여는 중...');
     const res = await API.call('getInventory', { name: me });
-    API.hideLoading();
-
     const inv = Array.isArray(res) ? res : (res.inventory || []);
     if (!GameState.equippedItems) GameState.equippedItems = {};
 
@@ -206,7 +223,6 @@ const ModalManager = (() => {
           <button class="tab-btn" onclick="ModalManager.switchInvenTab('furns')">🛋️ 미니룸 가구</button>
         </div>
 
-        <!-- 1. 캐릭터 장착 탭 -->
         <div id="inven-tab-equips">
           <div style="background:#fffbeb; border:2px solid #fde68a; padding:10px; border-radius:8px; margin-bottom:10px; font-size:12px; color:#b45309;">
             💡 장착한 아이템은 즉시 캐릭터의 이동속도, 크기, 오라 이펙트에 실시간으로 적용됩니다!
@@ -237,7 +253,6 @@ const ModalManager = (() => {
           </div>
         </div>
 
-        <!-- 2. 쿠폰 탭 -->
         <div id="inven-tab-coupons" style="display:none;">
           <div class="shop-grid">
             ${inv.filter(i => i.카테고리 !== '캐릭터아이템').length === 0 ? `
@@ -255,7 +270,6 @@ const ModalManager = (() => {
           </div>
         </div>
 
-        <!-- 3. 가구 탭 -->
         <div id="inven-tab-furns" style="display:none;">
           <div class="shop-grid">
             ${CONFIG.FURNITURE_CATALOG.map(f => `
@@ -271,19 +285,38 @@ const ModalManager = (() => {
     `;
   }
 
-  // ─── [놀이기구 화려한 캔버스 연출 모달] ───
+  // ─── [놀이기구 화려한 캔버스 연출 & 스릴/운세/응원글귀] ───
   function renderRideModal(container, data) {
     SoundEngine.fanfare();
+    const thrillScore = Math.floor(Math.random() * 21) + 80; // 80~100점 스릴 점수
+    const randFortune = FORTUNES[Math.floor(Math.random() * FORTUNES.length)];
+    const randCheer = CHEER_MSGS[Math.floor(Math.random() * CHEER_MSGS.length)];
+
     container.innerHTML = `
       <div class="ride-modal-wrap" style="text-align:center;">
-        <div style="font-size:14px; font-weight:bold; color:#1e293b; margin-bottom:8px;">
+        <div style="font-size:15px; font-weight:bold; color:#1e293b; margin-bottom:6px;">
           ${data.rideTitle || data.name}에 탑승했습니다! 🎈✨
         </div>
-        <div style="position:relative; display:inline-block; border:3px solid #334155; border-radius:12px; overflow:hidden; box-shadow:0 8px 16px rgba(0,0,0,0.2);">
-          <canvas id="ride-canvas" width="400" height="220" style="display:block; background:#0f172a;"></canvas>
+
+        <div style="display:flex; justify-content:center; gap:8px; margin-bottom:10px;">
+          <div style="background:#fee2e2; border:1px solid #f87171; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:bold; color:#991b1b;">
+            🔥 스릴 만족도: <strong>${thrillScore}점 / 100점</strong>
+          </div>
+          <div style="background:#ecfdf5; border:1px solid #34d399; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:bold; color:#065f46;">
+            💰 보너스 용돈: <strong>+100원 지급</strong>
+          </div>
         </div>
-        <div id="ride-status-msg" style="margin-top:10px; font-weight:bold; font-size:14px; color:#15803d;">
-          🎉 즐겁게 탑승 중! 스릴 만족도 보상 +100원이 지급되었습니다!
+
+        <div style="position:relative; display:inline-block; border:3px solid #334155; border-radius:12px; overflow:hidden; box-shadow:0 8px 16px rgba(0,0,0,0.2);">
+          <canvas id="ride-canvas" width="400" height="200" style="display:block; background:#0f172a;"></canvas>
+        </div>
+
+        <div style="margin-top:12px; background:#fffbeb; border:2px solid #fde68a; padding:10px 14px; border-radius:8px; text-align:left;">
+          <div style="font-size:12px; font-weight:bold; color:#b45309; margin-bottom:4px;">🔮 오늘의 포춘 쿠키 & 운세</div>
+          <div style="font-size:12px; color:#78350f; line-height:1.5; margin-bottom:8px;">${randFortune}</div>
+          <div style="font-size:12px; font-weight:bold; color:#0369a1; border-top:1px dashed #cbd5e1; padding-top:6px;">
+            💌 오늘의 응원: ${randCheer}
+          </div>
         </div>
       </div>
     `;
@@ -291,10 +324,9 @@ const ModalManager = (() => {
     // 보상금 지급
     const st = GameState.student;
     if (st) {
-      API.call('logEmotion', { name: st.name || st.이름, emotion: '🟢 좋음', message: `[놀이기구] ${data.name} 탑승 즐거움` });
+      API.call('logEmotion', { name: st.name || st.이름, emotion: '🟢 좋음', message: `[놀이기구] ${data.name} 스릴만족(${thrillScore}점)` }, true);
     }
 
-    // Canvas 회전/파티클 애니메이션
     setTimeout(() => {
       const cvs = document.getElementById('ride-canvas');
       if (!cvs) return;
@@ -303,28 +335,26 @@ const ModalManager = (() => {
 
       function drawRide() {
         if (!document.getElementById('ride-canvas')) return;
-        ctx.clearRect(0, 0, 400, 220);
+        ctx.clearRect(0, 0, 400, 200);
 
-        // 밤하늘 별
         ctx.fillStyle = '#f8fafc';
         for (let i = 0; i < 20; i++) {
           ctx.fillRect((i * 37) % 400, (i * 23) % 180, 2, 2);
         }
 
-        // 회전하는 중앙 빛
         ctx.save();
-        ctx.translate(200, 110);
+        ctx.translate(200, 100);
         ctx.rotate(angle);
         for (let i = 0; i < 8; i++) {
           ctx.strokeStyle = data.rideColor || '#f43f5e';
           ctx.lineWidth = 3;
           ctx.beginPath();
           ctx.moveTo(0, 0);
-          ctx.lineTo(Math.cos(i * Math.PI / 4) * 80, Math.sin(i * Math.PI / 4) * 80);
+          ctx.lineTo(Math.cos(i * Math.PI / 4) * 75, Math.sin(i * Math.PI / 4) * 75);
           ctx.stroke();
 
-          ctx.font = '24px sans-serif';
-          ctx.fillText(data.emoji || '🎠', Math.cos(i * Math.PI / 4) * 75, Math.sin(i * Math.PI / 4) * 75);
+          ctx.font = '22px sans-serif';
+          ctx.fillText(data.emoji || '🎠', Math.cos(i * Math.PI / 4) * 70, Math.sin(i * Math.PI / 4) * 70);
         }
         ctx.restore();
 
@@ -471,32 +501,178 @@ const ModalManager = (() => {
         break;
       }
 
-      // 부동산 좌석 & 구매 요청
-      case 'realestate': {
-        const data = await API.call('getRealEstateData', { name: me });
-        const seats = data.seats || [];
+      // 잡화점
+      case 'shop': {
+        const data = await API.call('getShopItems', { name: me });
+        const items = Array.isArray(data) ? data : (data.items || []);
+        const furns = CONFIG.FURNITURE_CATALOG;
+
         container.innerHTML = `
-          <div class="realestate-panel">
-            <div class="blackboard-indicator">🪧 [ 칠 판 ] (교탁 앞)</div>
-            <div style="font-size:12px; color:#475569; margin-bottom:10px; text-align:center;">
-              💡 다른 친구가 앉아있는 좌석을 클릭하면 <strong>좌석 양도/구매 요청</strong>을 보낼 수 있습니다!
+          <div class="shop-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
+            <button class="tab-btn active" onclick="ModalManager.switchShopTab('furn')">🛋️ 미니룸 가구</button>
+            <button class="tab-btn" onclick="ModalManager.switchShopTab('item')">🎒 캐릭터 장착템 & 쿠폰</button>
+          </div>
+
+          <div id="shop-tab-furn" class="shop-grid">
+            ${furns.map(f => `
+              <div class="shop-item-card">
+                <div class="item-emoji">${f.emoji}</div>
+                <div class="item-name">${f.name}</div>
+                <div class="item-price">💰 ${f.price.toLocaleString()}원</div>
+                <button class="pixel-btn-primary" onclick="ModalManager.buyFurniture('${f.id}', ${f.price}, '${f.name}')">구매하기</button>
+              </div>
+            `).join('')}
+          </div>
+
+          <div id="shop-tab-item" class="shop-grid" style="display:none;">
+            ${items.length === 0 ? '<div style="padding:20px;">등록된 상점 아이템이 없습니다.</div>' : items.map(it => `
+              <div class="shop-item-card">
+                <div class="item-name">${it.아이템명 || it.itemName || it.이름}</div>
+                <div class="item-desc">${it.설명 || it.desc || ''}</div>
+                <div class="item-price">💰 ${(it.금액 || it.가격 || 0).toLocaleString()}원 (재고: ${it.수량 || it.재고 || 1}개)</div>
+                <button class="pixel-btn-primary" onclick="ModalManager.buyItem('${it.아이템명 || it.itemName || it.이름}', ${it.금액 || it.가격 || 0})">구매하기</button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        break;
+      }
+
+      // 학급마트
+      case 'mart': {
+        const martData = await API.call('getMartItems');
+        const items = Array.isArray(martData) ? martData : (martData.items || []);
+
+        container.innerHTML = `
+          <div class="mart-panel">
+            <div style="background:#ecfdf5; border:2px solid #a7f3d0; padding:12px; border-radius:8px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h3 style="color:#065f46; font-size:16px;">🛒 학급 마트 제로페이 간편결제</h3>
+                <p style="font-size:12px; color:#047857;">구매할 상품을 선택하거나, 직접 금액을 입력하여 결제하세요.</p>
+              </div>
+              <button class="pixel-btn-sm" onclick="ModalManager.openAddMartItemModal()">➕ 물품 등록(관리)</button>
             </div>
-            <div class="seats-grid">
-              ${seats.map(s => `
-                <div class="seat-cell ${s.owner === me ? 'my-seat' : (s.isForSale ? 'sale-seat' : 'occupied-seat')}"
-                     onclick="ModalManager.handleSeatClick('${s.id}', '${s.owner || ''}', ${s.isForSale}, ${s.price || 5000})">
-                  <div class="seat-id">${s.id}</div>
-                  <div class="seat-owner">${s.owner || '(빈자리)'}</div>
-                  <div class="seat-price">${s.isForSale ? `매물 ${(s.price).toLocaleString()}원` : ''}</div>
+
+            <h4 style="margin-bottom:8px;">🛍️ 판매 중인 마트 물품</h4>
+            <div class="shop-grid" style="margin-bottom:16px;">
+              ${items.length === 0 ? '<div style="padding:10px; color:#64748b;">현재 등록된 상품이 없습니다. 아래 자율 결제를 이용하세요.</div>' : items.map(it => `
+                <div class="shop-item-card">
+                  <div class="item-emoji">🍎</div>
+                  <div class="item-name">${it.아이템명 || it.name}</div>
+                  <div class="item-price">${(it.가격 || it.금액 || 0).toLocaleString()}원 (재고: ${it.재고 || it.수량 || 1}개)</div>
+                  <button class="pixel-btn-primary" onclick="ModalManager.openMartPayModal('${it.아이템명 || it.name}', ${it.가격 || it.금액 || 0})">구매 결제</button>
                 </div>
               `).join('')}
+            </div>
+
+            <div style="background:#f8fafc; border:2px solid #cbd5e1; padding:14px; border-radius:8px;">
+              <h4 style="margin-bottom:6px;">💳 자율 금액 결제</h4>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="custom-mart-item" placeholder="물품명 (예: 초코파이)" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+                <input type="number" id="custom-mart-amt" placeholder="금액(원)" style="width:120px; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+                <button class="pixel-btn-primary" style="width:auto; padding:8px 16px;" onclick="ModalManager.handleCustomMartPay()">결제하기</button>
+              </div>
             </div>
           </div>
         `;
         break;
       }
 
-      // 교장실 관리자 패널
+      // 학교 본관 LMS
+      case 'school': {
+        const noticesRes = await API.call('getNotices');
+        const notices = Array.isArray(noticesRes) ? noticesRes : (noticesRes.notices || []);
+        const assignsRes = await API.call('getAssignments');
+        const assigns = Array.isArray(assignsRes) ? assignsRes : (assignsRes.assignments || []);
+        const mealData = await API.call('getMeal');
+        const ttData = await API.call('getTimetable');
+
+        container.innerHTML = `
+          <div class="school-lms-wrap">
+            <div class="lms-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+              <button class="tab-btn active" onclick="ModalManager.switchLmsTab('notice')">📢 공지사항 (${notices.length})</button>
+              <button class="tab-btn" onclick="ModalManager.switchLmsTab('assign')">📝 과제 & 숙제 (${assigns.length})</button>
+              <button class="tab-btn" onclick="ModalManager.switchLmsTab('meal')">🍱 오늘의 급식</button>
+              <button class="tab-btn" onclick="ModalManager.switchLmsTab('tt')">⏰ 시간표</button>
+            </div>
+
+            <div id="lms-tab-notice" class="lms-content-tab">
+              <div style="margin-bottom:10px; display:flex; justify-content:flex-end;">
+                <button class="pixel-btn-sm" onclick="ModalManager.openNoticeWriteModal()">✍️ 새 공지 작성</button>
+              </div>
+              <div class="notice-cards" style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto;">
+                ${notices.length === 0 ? '<div style="padding:20px; text-align:center;">등록된 공지사항이 없습니다.</div>' : notices.map(n => `
+                  <div class="notice-card" style="background:#fff; border:2px solid #cbd5e1; border-radius:8px; padding:12px;">
+                    <div class="nc-date" style="font-size:11px; color:#64748b; margin-bottom:4px;">${n.일시 || n.날짜 || ''} ${n.중요도 === '긴급' ? '<span class="badge badge-danger">긴급</span>' : ''}</div>
+                    <div class="nc-title" style="font-weight:bold; font-size:14px; margin-bottom:4px;">${n.제목}</div>
+                    <div class="nc-content" style="font-size:12px; color:#334155; line-height:1.5;">${n.내용}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div id="lms-tab-assign" class="lms-content-tab" style="display:none;">
+              <div class="table-wrap" style="max-height:300px; overflow-y:auto;">
+                <table class="pixel-table">
+                  <thead><tr><th>과제명</th><th>내용</th><th>마감일</th><th>수당</th><th>제출</th></tr></thead>
+                  <tbody>
+                    ${assigns.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding:15px;">등록된 과제가 없습니다.</td></tr>' : assigns.map(a => `
+                      <tr>
+                        <td><strong>${a.제목 || a.과제ID}</strong></td>
+                        <td>${a.내용 || '-'}</td>
+                        <td>${a.기간종료 || '-'}</td>
+                        <td>💰 ${(a.수당 || 0).toLocaleString()}원</td>
+                        <td><button class="pixel-btn-sm" onclick="ModalManager.submitAssignmentModal('${a.과제ID}', '${a.제목}')">제출</button></td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="lms-tab-meal" class="lms-content-tab" style="display:none;">
+              <div class="meal-box" style="background:#fffbeb; border:2px solid #fde68a; padding:16px; border-radius:10px;">
+                <h3 style="color:#b45309; margin-bottom:8px;">🍱 오늘의 영양 급식 식단</h3>
+                <div class="meal-content" style="font-size:14px; line-height:1.7;">${mealData.meal || '찰보리밥, 한우소고기미역국, 돈육간장불고기, 상추쌈/쌈장, 배추김치, 멜론'}</div>
+              </div>
+            </div>
+
+            <div id="lms-tab-tt" class="lms-content-tab" style="display:none;">
+              <div class="timetable-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+                ${(Array.isArray(ttData) ? ttData : (ttData.timetable || ['1교시: 국어', '2교시: 수학', '3교시: 사회', '4교시: 과학', '5교시: 체육', '6교시: 미술'])).map(t => `
+                  <div class="tt-cell" style="background:#fff; border:2px solid #cbd5e1; padding:12px; border-radius:8px; text-align:center; font-weight:bold;">${t}</div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+        break;
+      }
+
+      // 우체국
+      case 'postoffice': {
+        container.innerHTML = `
+          <div class="post-panel">
+            <h3>📮 친구에게 용돈 송금하기</h3>
+            <div class="input-group" style="display:flex; gap:8px; margin:12px 0;">
+              <input type="text" id="transfer-target" placeholder="받는 친구 이름" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+              <input type="number" id="transfer-amount" placeholder="송금할 금액" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+              <button class="pixel-btn-primary" style="width:auto; padding:8px 16px;" onclick="ModalManager.handleTransfer()">송금하기</button>
+            </div>
+            <h4 style="margin-top:20px;">💌 칭찬 카드 보내기 (보너스 장학금 동봉)</h4>
+            <div class="form-group" style="margin-top:8px;">
+              <input type="text" id="praise-target" placeholder="칭찬할 친구 이름" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px; margin-bottom:6px;">
+              <textarea id="praise-msg" placeholder="친구를 칭찬하는 따뜻한 메시지를 적어주세요." style="width:100%; height:60px; padding:8px; border:2px solid #94a3b8; border-radius:6px; margin-bottom:6px;"></textarea>
+              <input type="number" id="praise-bonus" placeholder="동봉할 칭찬 보너스 금액(원) (기본 500원)" value="500" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px; margin-bottom:8px;">
+              <button class="pixel-btn-secondary" onclick="ModalManager.sendPraise()">칭찬카드 발송</button>
+            </div>
+          </div>
+        `;
+        break;
+      }
+
+      // 시청 & 교장실 관리자 패널
+      case 'cityhall':
       case 'principal':
       case 'admin_quick': {
         const allData = await API.call('adminGetAllData');
@@ -505,8 +681,18 @@ const ModalManager = (() => {
           <div class="admin-panel">
             <div class="admin-top-stats" style="display:flex; justify-content:space-between; background:#fee2e2; border:2px solid #fca5a5; padding:12px; border-radius:8px; margin-bottom:12px;">
               <div>👨‍🎓 등록 학생: <strong>${students.length}명</strong></div>
-              <div>⚙️ 관리자 모드: <strong>승인됨 (선생님)</strong></div>
+              <div>⚙️ 학급 관리자 권한: <strong>승인됨</strong></div>
             </div>
+
+            <!-- 관리자 핵심 액션 툴바 -->
+            <div class="admin-action-bar" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+              <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#0284c7;" onclick="ModalManager.openPaySalariesModal()">💰 월급 일괄 배부</button>
+              <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#dc2626;" onclick="ModalManager.openFineModal()">⚖️ 벌금 징수</button>
+              <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#ea580c;" onclick="ModalManager.openWarnModal()">⚠️ 경고장 발송</button>
+              <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#16a34a;" onclick="ModalManager.openNoticeWriteModal()">📢 새 공지 작성</button>
+              <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#7c3aed;" onclick="ModalManager.openAddMartItemModal()">🛒 마트 물품 등록</button>
+            </div>
+
             <div class="admin-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
               <button class="tab-btn active" onclick="ModalManager.switchAdminTab('students')">👥 학생 자산 관리</button>
               <button class="tab-btn" onclick="ModalManager.switchAdminTab('stock_admin')">📈 주가 & 뉴스 발행</button>
@@ -514,9 +700,9 @@ const ModalManager = (() => {
             </div>
 
             <div id="admin-tab-students" class="admin-tab-content">
-              <div class="table-wrap" style="max-height:350px; overflow-y:auto;">
+              <div class="table-wrap" style="max-height:300px; overflow-y:auto;">
                 <table class="pixel-table">
-                  <thead><tr><th>번호</th><th>이름</th><th>직업</th><th>현금</th><th>주식수량</th><th>총자산</th><th>자산조정</th></tr></thead>
+                  <thead><tr><th>번호</th><th>이름</th><th>직업</th><th>현금</th><th>주식수량</th><th>총자산</th><th>관리</th></tr></thead>
                   <tbody>
                     ${students.map(st => `
                       <tr>
@@ -526,7 +712,11 @@ const ModalManager = (() => {
                         <td>${(st.cash || 0).toLocaleString()}원</td>
                         <td>${st.stockQty || 0}주</td>
                         <td><strong>${(st.totalAsset || 0).toLocaleString()}원</strong></td>
-                        <td><button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${st.name}')">지급/차감</button></td>
+                        <td>
+                          <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${st.name}')">금액조정</button>
+                          <button class="pixel-btn-sm" style="background:#f87171;" onclick="ModalManager.openFineModal('${st.name}')">벌금</button>
+                          <button class="pixel-btn-sm" style="background:#fb923c;" onclick="ModalManager.openWarnModal('${st.name}')">경고</button>
+                        </td>
                       </tr>
                     `).join('')}
                   </tbody>
@@ -563,9 +753,24 @@ const ModalManager = (() => {
   return {
     open,
     close,
+    switchShopTab: (tab) => {
+      document.getElementById('shop-tab-furn').style.display = tab === 'furn' ? 'grid' : 'none';
+      document.getElementById('shop-tab-item').style.display = tab === 'item' ? 'grid' : 'none';
+      document.querySelectorAll('.shop-tabs .tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', (tab === 'furn' && i === 0) || (tab === 'item' && i === 1));
+      });
+      SoundEngine.click();
+    },
     switchInvenTab: (tab) => {
       ['equips', 'coupons', 'furns'].forEach(t => {
         const el = document.getElementById(`inven-tab-${t}`);
+        if (el) el.style.display = t === tab ? 'block' : 'none';
+      });
+      SoundEngine.click();
+    },
+    switchLmsTab: (tab) => {
+      ['notice', 'assign', 'meal', 'tt'].forEach(t => {
+        const el = document.getElementById(`lms-tab-${t}`);
         if (el) el.style.display = t === tab ? 'block' : 'none';
       });
       SoundEngine.click();
@@ -594,24 +799,78 @@ const ModalManager = (() => {
       alert(res?.msg || '쿠폰이 사용되었습니다!');
       open('inventory');
     },
-    handleSeatClick: async (seatId, owner, isForSale, price) => {
+    // 관리자 액션 핸들러들
+    openPaySalariesModal: async () => {
+      const amt = prompt('전체 학생에게 일괄 지급할 월급 금액을 입력하세요:', '5000');
+      if (!amt || isNaN(amt)) return;
+      API.showLoading('월급을 배부하는 중...');
+      const res = await API.call('adminPaySalaries', { amount: Number(amt) });
+      API.hideLoading();
+      SoundEngine.fanfare();
+      alert(res?.msg || '월급 배부가 완료되었습니다!');
+      open('principal');
+    },
+    openFineModal: async (targetDefault) => {
+      const target = prompt('벌금을 부과할 학생 이름을 입력하세요:', targetDefault || '');
+      if (!target) return;
+      const amt = prompt(`${target} 학생에게 부과할 벌금 금액:`, '1000');
+      if (!amt) return;
+      const reason = prompt('벌금 부과 사유:', '학급 규칙 미준수');
+      API.showLoading('벌금을 징수하는 중...');
+      const res = await API.call('adminFineStudent', { targetName: target, amount: Number(amt), reason });
+      API.hideLoading();
+      SoundEngine.coin();
+      alert(res?.msg || '벌금 징수가 완료되었습니다.');
+      open('principal');
+    },
+    openWarnModal: async (targetDefault) => {
+      const target = prompt('경고장을 발송할 학생 이름을 입력하세요:', targetDefault || '');
+      if (!target) return;
+      const reason = prompt('경고 주의 사유:', '수업 태도 주의');
+      API.showLoading('경고장을 발송하는 중...');
+      const res = await API.call('adminWarnStudent', { targetName: target, reason });
+      API.hideLoading();
+      SoundEngine.open();
+      alert(res?.msg || '경고장이 발송되었습니다.');
+      open('principal');
+    },
+    openNoticeWriteModal: async () => {
+      const title = prompt('공지사항 제목을 입력하세요:');
+      if (!title) return;
+      const content = prompt('공지사항 내용:');
+      const isUrgent = confirm('긴급 공지로 등록하시겠습니까?');
+      API.showLoading('공지사항을 등록하는 중...');
+      const res = await API.call('adminAddNotice', { title, content, isUrgent });
+      API.hideLoading();
+      SoundEngine.fanfare();
+      alert(res?.msg || '공지사항이 등록되었습니다!');
+      open('school');
+    },
+    openAddMartItemModal: async () => {
+      const itemName = prompt('등록할 마트 물품명을 입력하세요 (예: 맛있는 젤리):');
+      if (!itemName) return;
+      const price = prompt('판매 가격(원):', '1000');
+      const stock = prompt('초기 입고 수량(개):', '10');
+      API.showLoading('마트 물품을 등록하는 중...');
+      const res = await API.call('addMartItem', { itemName, price: Number(price), stock: Number(stock) });
+      API.hideLoading();
+      SoundEngine.fanfare();
+      alert(res?.msg || '마트 물품이 성공적으로 등록되었습니다!');
+      open('mart');
+    },
+    sendPraise: async () => {
+      const target = document.getElementById('praise-target')?.value;
+      const msg = document.getElementById('praise-msg')?.value;
+      const bonus = Number(document.getElementById('praise-bonus')?.value || 500);
+      if (!target || !msg) return alert('칭찬할 친구와 메시지를 입력하세요.');
       const st = GameState.student;
       const myName = st ? (st.name || st.이름) : '';
-
-      if (owner === myName) {
-        alert(`좌석 [${seatId}]은(는) 회원님의 현재 좌석입니다! ⭐`);
-        return;
-      }
-
-      const offer = prompt(`[${seatId}] 좌석 (${owner || '빈자리'})\n${owner}님에게 제안할 구매 금액을 입력하세요:`, price || 5000);
-      if (!offer) return;
-
-      API.showLoading('좌석 구매 요청을 전송하는 중...');
-      const res = await API.call('requestSeatTrade', { fromName: myName, targetOwner: owner, seatId, offerPrice: Number(offer) });
+      API.showLoading('칭찬카드를 발송하는 중...');
+      const res = await API.call('sendPraiseCard', { fromName: myName, targetName: target, message: msg, bonus });
       API.hideLoading();
-
       SoundEngine.fanfare();
-      alert(res?.msg || `${owner}님에게 좌석 구매 요청이 전송되었습니다!`);
+      alert(res?.msg || '칭찬 카드가 배달되었습니다! 💌');
+      close();
     },
     handleDeposit: async () => {
       const val = parseInt(document.getElementById('deposit-amount-input')?.value, 10);
