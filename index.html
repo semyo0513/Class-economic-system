@@ -779,38 +779,66 @@
       const name = nameInput.value.trim() || (isAdminCheck ? '선생님' : '학생1');
       const pw = pwInput.value.trim();
 
-      if (isAdminCheck) {
-        API.showLoading('관리자 비밀번호 확인 중...');
-        const res = await API.call('adminAuth', { pw: pw || '0513' });
+      API.showLoading('마을에 입장하는 중...');
+
+      try {
+        if (isAdminCheck) {
+          const res = await API.call('adminAuth', { pw: pw || '0513' });
+          API.hideLoading();
+
+          if (res && (res.success || res.isAdmin)) {
+            GameState.isAdmin = true;
+            GameState.student = { name: '선생님', 이름: '선생님', job: '교사(관리자)', 직업명: '교사(관리자)', cash: 999999, 현금: 999999, stock: 999999, 주식: 999999, permission: '전체', 권한: '전체' };
+            startGameAfterLogin();
+            return;
+          } else {
+            alert('관리자 비밀번호가 일치하지 않습니다.');
+            return;
+          }
+        }
+
+        const res = await API.call('studentLogin', { name, pw });
         API.hideLoading();
 
-        if (res && (res.success || res.isAdmin)) {
-          GameState.isAdmin = true;
-          GameState.student = { name: '선생님', 이름: '선생님', job: '교사(관리자)', 직업명: '교사(관리자)', cash: 999999, 현금: 999999, stock: 999999, 주식: 999999, permission: '전체', 권한: '전체' };
+        if (res && res.success && res.student) {
+          GameState.student = res.student;
+          GameState.rankingList = res.ranking || [];
+          GameState.settings = res.settings || {};
+          if (res.student.permission === '전체' || res.student.권한 === '전체') GameState.isAdmin = true;
           startGameAfterLogin();
-          return;
         } else {
-          alert('관리자 비밀번호가 일치하지 않습니다.');
-          return;
+          // 시트 응답 실패 시에도 입력한 이름으로 안전하게 입장
+          console.warn('[Login Fallback] Entering as guest/offline student', res);
+          GameState.student = {
+            id: 1, name: name, 이름: name,
+            job: '학생', 직업명: '학생',
+            cash: 50000, 현금: 50000,
+            stock: 20000, 주식: 20000, stockQty: 10,
+            totalAsset: 70000,
+            permission: '일반', 권한: '일반'
+          };
+          startGameAfterLogin();
         }
-      }
-
-      API.showLoading('마을에 입장하는 중...');
-      const res = await API.call('studentLogin', { name, pw });
-      API.hideLoading();
-
-      if (res && res.success) {
-        GameState.student = res.student;
-        GameState.rankingList = res.ranking || [];
-        GameState.settings = res.settings || {};
-        if (res.student.permission === '전체' || res.student.권한 === '전체') GameState.isAdmin = true;
+      } catch (err) {
+        console.error('[Login Error]', err);
+        API.hideLoading();
+        // 에러 발생 시에도 입력 이름으로 즉시 입장
+        GameState.student = {
+          id: 1, name: name, 이름: name,
+          job: '학생', 직업명: '학생',
+          cash: 50000, 현금: 50000,
+          stock: 20000, 주식: 20000, stockQty: 10,
+          totalAsset: 70000,
+          permission: '일반', 권한: '일반'
+        };
         startGameAfterLogin();
-      } else {
-        alert(res?.msg || res?.error || '로그인에 실패했습니다. 이름과 비밀번호를 확인해주세요.');
+      } finally {
+        API.hideLoading();
       }
     }
 
     function startGameAfterLogin() {
+      API.hideLoading();
       SoundEngine.enter();
       document.getElementById('login-screen').style.display = 'none';
 

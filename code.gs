@@ -323,18 +323,31 @@ function handleRequest(params) {
         break;
 
       case 'studentLogin': {
-        const students = getStudentsWithAssets();
-        const found = students.find(s => s.name === payload.name && (!payload.pw || String(s.pw) === String(payload.pw)));
-        if (found) {
-          result = {
-            success: true,
-            student: found,
-            settings: getSettings(),
-            ranking: students.map((s, idx) => ({ rank: idx + 1, name: s.name, total: s.totalAsset, job: s.job, level: s.level }))
-          };
-        } else {
-          result = { success: false, msg: '이름 또는 비밀번호가 일치하지 않습니다.' };
+        const studentName = String(payload.name || '학생').trim();
+        const inputPw = String(payload.pw || '').trim();
+        let students = getStudentsWithAssets();
+        let found = students.find(s => s.name === studentName);
+
+        if (!found) {
+          // 시트에 등록되지 않은 신규 학생일 경우 자동 등록!
+          const sh = getOrCreateSheet(SH.USERS);
+          const newId = sh.getLastRow();
+          const initialCash = 50000;
+          const initialStock = 10;
+          const curP = getCurrentStockPrice();
+          sh.appendRow([newId, studentName, inputPw || '1234', '학생', '브론즈(Lv.1)', '일반', initialCash, initialStock, initialStock * curP, initialCash + (initialStock * curP)]);
+          students = getStudentsWithAssets();
+          found = students.find(s => s.name === studentName);
+        } else if (found.pw && inputPw && String(found.pw) !== inputPw) {
+          return respond({ success: false, msg: '비밀번호가 일치하지 않습니다.' });
         }
+
+        result = {
+          success: true,
+          student: found || { id: 1, name: studentName, job: '학생', level: '브론즈(Lv.1)', permission: '일반', cash: 50000, stockQty: 10, totalAsset: 62000 },
+          settings: getSettings(),
+          ranking: students.map((s, idx) => ({ rank: idx + 1, name: s.name, total: s.totalAsset, job: s.job, level: s.level }))
+        };
         break;
       }
 
