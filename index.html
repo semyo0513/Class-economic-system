@@ -668,7 +668,6 @@
         <div class="input-group" style="margin-bottom:18px;">
           <label style="display:flex; justify-content:space-between; font-size:12px; font-weight:bold; color:#1e293b; margin-bottom:4px;">
             <span>🔑 비밀번호</span>
-            <span id="pw-hint-text" style="font-weight:normal; color:#64748b; font-size:11px;">(학생: 1234 / 관리자: 0513)</span>
           </label>
           <input type="password" id="login-pw-input" placeholder="비밀번호를 입력하세요" onkeydown="if(event.key==='Enter') handleLogin()" style="width:100%; padding:12px 14px; border:2px solid #94a3b8; border-radius:8px; font-size:15px; background:#ffffff; color:#1e293b;">
         </div>
@@ -680,9 +679,9 @@
         <input type="checkbox" id="admin-login-checkbox" style="display:none;">
       </div>
 
-      <!-- 하단 저작권 / 버전 표시 -->
-      <div style="margin-top:18px; font-size:10px; color:#94a3b8; letter-spacing:0.5px;">
-        © 2026 Animal Crossing Class Economic System. All Rights Reserved.
+      <!-- 하단 저작권 / 제작자 표시 -->
+      <div style="margin-top:18px; font-size:11px; color:#64748b; border-top:1px solid #e2e8f0; padding-top:10px;">
+        제작: <strong style="color:#0f172a;">창순기획</strong> | Copyright © 창순기획 All Rights Reserved.
       </div>
     </div>
   </div>
@@ -818,18 +817,17 @@
 
       const nameInput = document.getElementById('login-name-input');
       const pwInput = document.getElementById('login-pw-input');
-      const pwHint = document.getElementById('pw-hint-text');
 
       if (isAdm) {
         nameInput.value = '선생님';
         nameInput.placeholder = '선생님';
-        pwInput.placeholder = '관리자 비밀번호 (0513)';
-        if (pwHint) pwHint.textContent = '(기본 관리자 번호: 0513)';
+        pwInput.value = '';
+        pwInput.placeholder = '관리자 비밀번호를 입력하세요';
       } else {
         nameInput.value = '';
-        nameInput.placeholder = '이름을 입력하세요 (예: 김현주)';
-        pwInput.placeholder = '비밀번호 (기본: 1234)';
-        if (pwHint) pwHint.textContent = '(기본 번호: 1234)';
+        nameInput.placeholder = '이름을 입력하세요';
+        pwInput.value = '';
+        pwInput.placeholder = '비밀번호를 입력하세요';
       }
     }
 
@@ -897,30 +895,31 @@
       const pwInput = document.getElementById('login-pw-input');
       const isAdminCheck = document.getElementById('admin-login-checkbox').checked;
 
-      const name = nameInput.value.trim() || (isAdminCheck ? '선생님' : '김현주');
-      const pw = pwInput.value.trim() || (isAdminCheck ? '0513' : '1234');
+      const name = nameInput.value.trim();
+      const pw = pwInput.value.trim();
 
-      API.showLoading('구글 시트에서 학생 자산 및 정보 동기화 중...');
+      if (!name) {
+        alert('이름을 입력해주세요!');
+        return;
+      }
+      if (!pw) {
+        alert('비밀번호를 입력해주세요!');
+        return;
+      }
+
+      API.showLoading('구글 시트에서 사용자 인증 및 자산 동기화 중...');
 
       try {
         const loginRes = await API.call('login', { name: name, password: pw });
         if (loginRes && loginRes.success && loginRes.student) {
           GameState.student = loginRes.student;
           GameState.isAdmin = loginRes.isAdmin || loginRes.student.permission === '전체' || name === '선생님';
-        } else if (isAdminCheck && name === '선생님') {
-          GameState.isAdmin = true;
-          GameState.student = { name: '선생님', 이름: '선생님', job: '교사(관리자)', 직업명: '교사(관리자)', cash: 99999999, 현금: 99999999, stock: 1000000, 주식: 1000000, permission: '전체', 권한: '전체' };
+          API.hideLoading();
+          startGameAfterLogin();
         } else {
-          // 비상 폴백
-          GameState.isAdmin = false;
-          GameState.student = {
-            id: 1, name: name, 이름: name,
-            job: '학생', 직업명: '학생',
-            cash: 100000, 현금: 100000,
-            stock: 0, 주식: 0, stockQty: 0,
-            totalAsset: 100000,
-            permission: '일반', 권한: '일반'
-          };
+          API.hideLoading();
+          alert(loginRes?.msg || '로그인에 실패했습니다. 등록된 학생인지 확인해주세요.');
+          return;
         }
 
         // 초기 시스템 설정 동기화
@@ -939,12 +938,10 @@
           }
         });
       } catch (err) {
+        API.hideLoading();
         console.warn('[Login sync error]', err);
-        GameState.student = { name: name, job: '학생', cash: 100000, stock: 0, permission: '일반' };
+        alert('서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.');
       }
-
-      API.hideLoading();
-      startGameAfterLogin();
     }
 
     function startGameAfterLogin() {
@@ -1007,6 +1004,10 @@
           <div style="margin: 10px 0; display:flex; gap:10px;">
             <button class="pixel-btn-secondary" onclick="SoundEngine.toggleMute()">효과음 음소거 토글</button>
             <button class="pixel-btn-secondary" onclick="SoundEngine.toggleBGM()">배경음악 BGM 토글</button>
+          </div>
+
+          <div style="margin-top:24px; padding-top:12px; border-top:1px solid #cbd5e1; text-align:center; font-size:12px; color:#64748b;">
+            💡 <strong>학급 경제 시스템</strong> | 제작: <strong style="color:#0f172a;">창순기획</strong>
           </div>
         </div>
       `;

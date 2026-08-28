@@ -269,9 +269,11 @@ class TownScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.groundLayer);
     this.physics.add.collider(this.player, this.buildingGroup);
 
-    // 날개 & 킥보드 오버레이 스프라이트
+    // 날개 & 킥보드 오버레이 스프라이트 & 특수 오라 그래픽스
     this.wingsSprite = this.add.sprite(spawnX, spawnY - 10, 'equip_wings').setDepth(9990).setVisible(false);
     this.mountSprite = this.add.sprite(spawnX, spawnY + 14, 'equip_kickboard').setDepth(9991).setVisible(false);
+    this.auraGraphics = this.add.graphics().setDepth(9980);
+    this.auraAngle = 0;
 
     const st = GameState.student;
     const myDispName = st ? `${st.name || st.이름} (${st.job || st.직업명 || '학생'})` : '나';
@@ -376,6 +378,65 @@ class TownScene extends Phaser.Scene {
       this.mountSprite.setVisible(!!equips.kickboard);
       this.mountSprite.setPosition(this.player.x, this.player.y + (equips.giant_grow ? 20 : 14));
       this.mountSprite.setDepth(this.player.depth + 1);
+    }
+
+    // ─── 특수 오라(Aura) 실시간 시각 효과 렌더링 ───
+    if (this.auraGraphics) {
+      this.auraGraphics.clear();
+      const auraType = (GameState.characterStyle && GameState.characterStyle.aura) || null;
+      if (auraType && auraType !== 'none') {
+        this.auraAngle = (this.auraAngle || 0) + 0.05;
+        const px = this.player.x, py = this.player.y + 6;
+        const radius = (equips.giant_grow ? 30 : 20);
+
+        if (auraType === 'gold') {
+          // 황금빛 회전 링 & 반짝임 오라
+          this.auraGraphics.lineStyle(3, 0xf59e0b, 0.85);
+          this.auraGraphics.strokeCircle(px, py, radius + Math.sin(this.auraAngle * 2) * 3);
+          this.auraGraphics.fillStyle(0xfbbf24, 0.25);
+          this.auraGraphics.fillCircle(px, py, radius);
+
+          // 회전하는 4개의 황금 파티클
+          for (let i = 0; i < 4; i++) {
+            const ang = this.auraAngle + (i * Math.PI / 2);
+            const ox = px + Math.cos(ang) * (radius + 4);
+            const oy = py + Math.sin(ang) * (radius + 4) * 0.6;
+            this.auraGraphics.fillStyle(0xfffbeb, 0.9);
+            this.auraGraphics.fillCircle(ox, oy, 3);
+          }
+        } else if (auraType === 'cherry') {
+          // 벚꽃 잎사귀 휘날림 오라
+          this.auraGraphics.lineStyle(2, 0xf472b6, 0.8);
+          this.auraGraphics.strokeCircle(px, py, radius + Math.sin(this.auraAngle) * 2);
+          this.auraGraphics.fillStyle(0xfbcfe8, 0.3);
+          this.auraGraphics.fillCircle(px, py, radius);
+
+          for (let i = 0; i < 5; i++) {
+            const ang = this.auraAngle * 1.5 + (i * Math.PI * 2 / 5);
+            const ox = px + Math.cos(ang) * (radius + 6);
+            const oy = py + Math.sin(ang) * (radius + 6) * 0.7;
+            this.auraGraphics.fillStyle(0xf43f5e, 0.85);
+            this.auraGraphics.fillCircle(ox, oy, 3.5);
+          }
+        } else if (auraType === 'rainbow') {
+          // 7색 네온 무지개 회전 오라
+          const colors = [0xef4444, 0xf97316, 0xeab308, 0x22c55e, 0x06b6d4, 0x3b82f6, 0xa855f7];
+          const colorIdx = Math.floor(Date.now() / 150) % colors.length;
+          this.auraGraphics.lineStyle(3.5, colors[colorIdx], 0.9);
+          this.auraGraphics.strokeCircle(px, py, radius + 2);
+          this.auraGraphics.fillStyle(colors[(colorIdx + 2) % colors.length], 0.25);
+          this.auraGraphics.fillCircle(px, py, radius);
+
+          for (let i = 0; i < 6; i++) {
+            const ang = -this.auraAngle * 2 + (i * Math.PI / 3);
+            const ox = px + Math.cos(ang) * (radius + 8);
+            const oy = py + Math.sin(ang) * (radius + 8) * 0.6;
+            this.auraGraphics.fillStyle(colors[(colorIdx + i) % colors.length], 0.95);
+            this.auraGraphics.fillCircle(ox, oy, 3);
+          }
+        }
+        this.auraGraphics.setDepth(this.player.depth - 1);
+      }
     }
 
     const speed = CONFIG.GAME.MOVE_SPEED * speedMult;

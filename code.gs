@@ -407,12 +407,12 @@ function getSettings() {
 }
 
 /* ══════════════════════════════════════════════
-   나이스(NEIS) 오늘의 급식 & 시간표 실시간 연동
+   나이스(NEIS) 오늘의 급식 & 시간표 실시간 연동 (학교코드: 9051056)
 ══════════════════════════════════════════════ */
 function fetchNeisMeal(dateStr) {
   const cfg = getSettings();
-  const officeCode = cfg['NEIS_OFFICE_CODE'] || 'T10'; // 기본 경남교육청
-  const schoolCode = cfg['NEIS_SCHOOL_CODE'] || '9290066'; // 기본 학교코드
+  const officeCode = cfg['NEIS_OFFICE_CODE'] || 'S10'; // 경남교육청 (S10)
+  const schoolCode = cfg['NEIS_SCHOOL_CODE'] || '9051056'; // 교육부 학교코드 (9051056)
   const targetDate = (dateStr || nowStr().slice(0, 10)).replace(/-/g, '');
 
   try {
@@ -423,7 +423,7 @@ function fetchNeisMeal(dateStr) {
       if (data.mealServiceDietInfo && data.mealServiceDietInfo[1] && data.mealServiceDietInfo[1].row) {
         const mealRow = data.mealServiceDietInfo[1].row[0];
         const rawDish = mealRow.DDISH_NM || '';
-        const cleanDish = rawDish.replace(/<br\/>/g, '\n').replace(/\([0-9\.\s]+\)/g, '').trim();
+        const cleanDish = rawDish.replace(/<br\/>/g, '\n').replace(/\([0-9\.\s*]+\)/g, '').trim();
         return {
           success: true,
           date: targetDate,
@@ -438,7 +438,7 @@ function fetchNeisMeal(dateStr) {
     console.warn('NEIS Meal API error:', e);
   }
 
-  // 폴백 맛있는 식단 안내
+  // 주말/방학/미등록 시 알기 쉬운 안내
   return {
     success: true,
     date: targetDate,
@@ -450,36 +450,42 @@ function fetchNeisMeal(dateStr) {
 
 function fetchNeisTimetable(dateStr) {
   const cfg = getSettings();
-  const officeCode = cfg['NEIS_OFFICE_CODE'] || 'T10';
-  const schoolCode = cfg['NEIS_SCHOOL_CODE'] || '9290066';
-  const grade = cfg['GRADE'] || '6';
+  const officeCode = cfg['NEIS_OFFICE_CODE'] || 'S10';
+  const schoolCode = cfg['NEIS_SCHOOL_CODE'] || '9051056';
+  const grade = cfg['GRADE'] || '1';
   const classNm = cfg['CLASS_NM'] || '1';
   const targetDate = (dateStr || nowStr().slice(0, 10)).replace(/-/g, '');
 
-  try {
-    const url = `https://open.neis.go.kr/hub/elsTimetable?Type=json&pIndex=1&pSize=10&ATPT_OFCDC_SC_CODE=${officeCode}&SD_SCHUL_CODE=${schoolCode}&GRADE=${grade}&CLASS_NM=${classNm}&TI_FROM_YMD=${targetDate}&TI_TO_YMD=${targetDate}`;
-    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    if (res.getResponseCode() === 200) {
-      const data = JSON.parse(res.getContentText());
-      if (data.elsTimetable && data.elsTimetable[1] && data.elsTimetable[1].row) {
-        const rows = data.elsTimetable[1].row;
-        const timetable = rows.map(r => `${r.PERIO}교시: ${r.ITRT_CNTNT}`);
-        return {
-          success: true,
-          date: targetDate,
-          timetable: timetable,
-          source: 'NEIS'
-        };
+  // 중학교(misTimetable) -> 초등학교(elsTimetable) -> 고등학교(hisTimetable) 순차 조회
+  const endpoints = ['misTimetable', 'elsTimetable', 'hisTimetable'];
+  for (const ep of endpoints) {
+    try {
+      const url = `https://open.neis.go.kr/hub/${ep}?Type=json&pIndex=1&pSize=10&ATPT_OFCDC_SC_CODE=${officeCode}&SD_SCHUL_CODE=${schoolCode}&GRADE=${grade}&CLASS_NM=${classNm}&TI_FROM_YMD=${targetDate}&TI_TO_YMD=${targetDate}`;
+      const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+      if (res.getResponseCode() === 200) {
+        const data = JSON.parse(res.getContentText());
+        if (data[ep] && data[ep][1] && data[ep][1].row) {
+          const rows = data[ep][1].row;
+          const timetable = rows.map(r => `${r.PERIO}교시: ${r.ITRT_CNTNT}`);
+          if (timetable.length > 0) {
+            return {
+              success: true,
+              date: targetDate,
+              timetable: timetable,
+              source: 'NEIS'
+            };
+          }
+        }
       }
+    } catch (e) {
+      console.warn(`NEIS ${ep} API error:`, e);
     }
-  } catch (e) {
-    console.warn('NEIS Timetable API error:', e);
   }
 
   return {
     success: true,
     date: targetDate,
-    timetable: ['1교시: 국어', '2교시: 수학', '3교시: 사회', '4교시: 과학', '5교시: 체육', '6교시: 미술'],
+    timetable: ['1교시: 국어', '2교시: 수학', '3교시: 영어', '4교시: 사회', '5교시: 과학', '6교시: 체육'],
     source: 'DEFAULT'
   };
 }
@@ -757,11 +763,7 @@ function handleRequest(payload, callback) {
         }
 
         if (!found) {
-          // 시트에 없는 신규 학생 등록
-          const newId = data.length;
-          sh.appendRow([newId, name, pwd, '학생', '브론즈(Lv.1)', '일반', 100000, 0, 0, 100000]);
-          const st = syncStudentAssets(name);
-          result = { success: true, isAdmin: false, student: st };
+          result = { success: false, msg: `[${name}] 학생은 시트에 등록되지 않은 사용자입니다. 선생님께 등록을 요청하세요.` };
         }
         break;
       }
@@ -976,6 +978,44 @@ function handleRequest(payload, callback) {
           return (owner === targetName || (targetName === '선생님' && owner === '선생님')) && (status === '보유' || status === '장착' || status === '판매중' || status === '');
         });
         result = { success: true, inventory: myItems };
+        break;
+      }
+
+      case 'equipItem': {
+        const studentName = String(payload.name || '').trim();
+        const itemName = String(payload.itemName || '').trim();
+        const category = String(payload.category || '').trim();
+        const sh = getOrCreateSheet(SH.ASSETS);
+        const data = sh.getDataRange().getValues();
+
+        // 동일 카테고리 기존 아이템은 '보유'로 변경, 해당 아이템은 '장착'으로 변경
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][1]).trim() === studentName) {
+            if (String(data[i][2]).trim() === category) {
+              if (String(data[i][3]).trim() === itemName) {
+                sh.getRange(i + 1, 8).setValue('장착');
+              } else if (String(data[i][7]).trim() === '장착') {
+                sh.getRange(i + 1, 8).setValue('보유');
+              }
+            }
+          }
+        }
+        result = { success: true, msg: `[${itemName}] 장착 완료!` };
+        break;
+      }
+
+      case 'unequipItem': {
+        const studentName = String(payload.name || '').trim();
+        const itemName = String(payload.itemName || '').trim();
+        const sh = getOrCreateSheet(SH.ASSETS);
+        const data = sh.getDataRange().getValues();
+
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][1]).trim() === studentName && String(data[i][3]).trim() === itemName) {
+            sh.getRange(i + 1, 8).setValue('보유');
+          }
+        }
+        result = { success: true, msg: `[${itemName}] 장착 해제 완료!` };
         break;
       }
 

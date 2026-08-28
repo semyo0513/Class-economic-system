@@ -988,15 +988,24 @@ const ModalManager = (() => {
 
         const eqEl = document.getElementById('inven-tab-equips');
         if (eqEl) {
-          eqEl.innerHTML = equips.length === 0 ? '<div style="padding:15px; text-align:center; color:#64748b;">보유 중인 패션 장착 아이템이 없습니다.</div>' : equips.map(e => `
-            <div class="shop-item-card" style="border:2px solid #a7f3d0; background:#f0fdf4; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <div class="item-name" style="font-weight:bold; font-size:13px; color:#065f46;">${e.아이템명}</div>
-                <div style="font-size:11px; color:#15803d; margin-top:2px;">[${e.카테고리}] ${e.상태 || '보유중'}</div>
+          eqEl.innerHTML = equips.length === 0 ? '<div style="padding:15px; text-align:center; color:#64748b;">보유 중인 패션 장착 아이템이 없습니다.</div>' : equips.map(e => {
+            const isEquipped = e.상태 === '장착';
+            return `
+              <div class="shop-item-card" style="border:2px solid ${isEquipped ? '#86efac' : '#cbd5e1'}; background:${isEquipped ? '#f0fdf4' : '#ffffff'}; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <div>
+                  <div class="item-name" style="font-weight:bold; font-size:13px; color:#1e293b;">${e.아이템명}</div>
+                  <div style="font-size:11px; color:#64748b; margin-top:2px;">[${e.카테고리}] ${isEquipped ? '<span style="color:#16a34a; font-weight:bold;">현재 장착 중</span>' : '보유 중'}</div>
+                </div>
+                <div>
+                  ${isEquipped ? `
+                    <button class="pixel-btn-sm" style="background:#fee2e2; color:#991b1b; border-color:#f87171;" onclick="ModalManager.toggleEquipItem('${e.아이템명}', '${e.카테고리}', '${e.속성 || ''}', '장착')">❌ 장착 해제</button>
+                  ` : `
+                    <button class="pixel-btn-sm" style="background:#22c55e; color:white;" onclick="ModalManager.toggleEquipItem('${e.아이템명}', '${e.카테고리}', '${e.속성 || ''}', '보유')">✨ 장착하기</button>
+                  `}
+                </div>
               </div>
-              <span class="badge badge-success" style="background:#22c55e; color:white; padding:4px 8px; border-radius:6px; font-size:11px;">✨ 장착됨</span>
-            </div>
-          `).join('');
+            `;
+          }).join('');
         }
 
         const cpEl = document.getElementById('inven-tab-coupons');
@@ -1299,6 +1308,71 @@ const ModalManager = (() => {
       }
     },
 
+    toggleEquipItem: async (itemName, category, prop, currentStatus) => {
+      const st = GameState.student;
+      const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생');
+      const isCurrentlyEquipped = currentStatus === '장착';
+
+      if (!GameState.characterStyle) GameState.characterStyle = {};
+
+      if (isCurrentlyEquipped) {
+        // 장착 해제
+        API.showLoading('아이템 장착 해제 중...');
+        await API.call('unequipItem', { name: myName, studentName: myName, itemName: itemName });
+        API.hideLoading();
+
+        if (category === '오라') GameState.characterStyle.aura = null;
+        else if (category === '의상') GameState.characterStyle.costume = null;
+        else if (category === '모자') GameState.characterStyle.hat = null;
+        else if (category === '헤어') GameState.characterStyle.hairColor = null;
+
+        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
+        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
+          window.MainGameScene.reloadPlayerTexture();
+        }
+        SoundEngine.click();
+        alert(`[${itemName}] 장착을 해제했습니다.`);
+      } else {
+        // 장착하기
+        API.showLoading('아이템 장착 중...');
+        await API.call('equipItem', { name: myName, studentName: myName, itemName: itemName, category: category });
+        API.hideLoading();
+
+        if (category === '오라') {
+          let aKey = prop || 'gold';
+          if (itemName.includes('황금')) aKey = 'gold';
+          else if (itemName.includes('벚꽃')) aKey = 'cherry';
+          else if (itemName.includes('무지개')) aKey = 'rainbow';
+          GameState.characterStyle.aura = aKey;
+        } else if (category === '의상') {
+          let cKey = prop || 'school';
+          if (itemName.includes('한복')) cKey = 'hanbok';
+          else if (itemName.includes('정장')) cKey = 'suit';
+          else if (itemName.includes('마법사')) cKey = 'wizard';
+          else if (itemName.includes('교복')) cKey = 'school';
+          GameState.characterStyle.costume = cKey;
+        } else if (category === '모자') {
+          let hKey = prop || 'crown';
+          if (itemName.includes('왕관')) hKey = 'crown';
+          else if (itemName.includes('베레모')) hKey = 'beret';
+          else if (itemName.includes('캡모자')) hKey = 'cap';
+          GameState.characterStyle.hat = hKey;
+        } else if (category === '헤어') {
+          GameState.characterStyle.hairColor = prop || '#f59e0b';
+        }
+
+        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
+        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
+          window.MainGameScene.reloadPlayerTexture();
+        }
+        SoundEngine.fanfare();
+        alert(`✨ [${itemName}] 장착 완료!`);
+      }
+
+      // 인벤토리 모달 새로고침
+      ModalManager.open('inventory');
+    },
+
     // ─── 주식 설정 저장 (교장실) ───
     saveStockSettings: async () => {
       const modeEl = document.querySelector('input[name="stock-mode-radio"]:checked');
@@ -1319,31 +1393,46 @@ const ModalManager = (() => {
     multiStockHoldings: {},
     fetchLiveStockClient: async (code) => {
       if (code === 'CLASS') return;
-      try {
-        const yfSuffix = code === '086520' ? '.KQ' : '.KS';
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${code}${yfSuffix}?interval=1d`;
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.chart && data.chart.result && data.chart.result[0]) {
-            const meta = data.chart.result[0].meta;
-            const price = Number(meta.regularMarketPrice);
-            const prev = Number(meta.previousClose || meta.chartPreviousClose || price);
-            const diff = price - prev;
-            const rate = ((diff / prev) * 100).toFixed(2);
-            const isUp = diff >= 0;
+      const yfSuffix = (code === '086520') ? '.KQ' : '.KS';
+      const targetYf = `https://query1.finance.yahoo.com/v8/finance/chart/${code}${yfSuffix}?interval=1d`;
+      const urls = [
+        targetYf,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetYf)}`,
+        `https://corsproxy.io/?url=${encodeURIComponent(targetYf)}`
+      ];
 
-            const existing = ModalManager.multiStockCache.find(s => s.code === code);
-            if (existing) {
-              existing.price = price;
-              existing.changeRate = (isUp ? '+' : '') + rate + '%';
-              existing.changePrice = (isUp ? '+' : '') + Math.round(diff).toLocaleString();
+      for (const u of urls) {
+        try {
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 3000);
+          const res = await fetch(u, { signal: controller.signal });
+          clearTimeout(tid);
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.chart && data.chart.result && data.chart.result[0]) {
+              const meta = data.chart.result[0].meta;
+              const price = Number(meta.regularMarketPrice);
+              const prev = Number(meta.previousClose || meta.chartPreviousClose || price);
+              if (!isNaN(price) && price > 0) {
+                const diff = price - prev;
+                const rate = ((diff / prev) * 100).toFixed(2);
+                const isUp = diff >= 0;
+
+                const existing = ModalManager.multiStockCache.find(s => s.code === code);
+                if (existing) {
+                  existing.price = price;
+                  existing.changeRate = (isUp ? '+' : '') + rate + '%';
+                  existing.changePrice = (isUp ? '+' : '') + Math.round(diff).toLocaleString();
+                }
+                ModalManager.updateMultiStockUI();
+                return; // 성공 시 종료
+              }
             }
-            ModalManager.updateMultiStockUI();
           }
+        } catch (err) {
+          // 다음 프록시 시도
         }
-      } catch (err) {
-        console.warn('[Client live stock fetch error]', err);
       }
     },
     switchStockCode: (code) => {
