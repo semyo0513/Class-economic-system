@@ -651,7 +651,22 @@ function logTx(name, category, type, amount, qty, target, reason, status) {
    HTTP REST API Gateway (doGet & doPost)
 ══════════════════════════════════════════════ */
 function doGet(e) {
-  return handleRequest(e ? e.parameter : {});
+  let params = e ? (e.parameter || {}) : {};
+  if (params.data) {
+    try {
+      const parsed = JSON.parse(params.data);
+      params = { ...params, ...parsed };
+    } catch (err) {}
+  }
+  if (params.payload && typeof params.payload === 'object') {
+    params = { ...params, ...params.payload };
+  } else if (typeof params.payload === 'string') {
+    try {
+      const pObj = JSON.parse(params.payload);
+      params = { ...params, ...pObj };
+    } catch (e2) {}
+  }
+  return handleRequest(params, params.callback);
 }
 
 function doPost(e) {
@@ -665,10 +680,18 @@ function doPost(e) {
   } catch (err) {
     params = e ? (e.parameter || {}) : {};
   }
-  return handleRequest(params);
+  if (params.payload && typeof params.payload === 'object') {
+    params = { ...params, ...params.payload };
+  } else if (typeof params.payload === 'string') {
+    try {
+      const pObj = JSON.parse(params.payload);
+      params = { ...params, ...pObj };
+    } catch (e2) {}
+  }
+  return handleRequest(params, params.callback);
 }
 
-function handleRequest(payload) {
+function handleRequest(payload, callback) {
   const action = payload.action || 'initData';
   let result = { success: false, msg: '알 수 없는 요청입니다.' };
 
@@ -942,6 +965,20 @@ function handleRequest(payload) {
         break;
       }
 
+      case 'getInventory':
+      case 'getUserInventory': {
+        const targetName = String(payload.name || payload.studentName || '').trim();
+        const sh = getOrCreateSheet(SH.ASSETS);
+        const rows = sheetToObj(sh);
+        const myItems = rows.filter(r => {
+          const owner = String(r['소유자'] || r['이름'] || r['학생명'] || '').trim();
+          const status = String(r['상태'] || '보유').trim();
+          return (owner === targetName || (targetName === '선생님' && owner === '선생님')) && (status === '보유' || status === '장착' || status === '판매중' || status === '');
+        });
+        result = { success: true, inventory: myItems };
+        break;
+      }
+
       case 'getAdminItemsList': {
         const sh = getOrCreateSheet(SH.ASSETS);
         const allItems = sheetToObj(sh).filter(r => ['아이템', '캐릭터아이템', '가구', '마트물품', '의상', '헤어', '모자', '오라'].includes(r['카테고리']));
@@ -1153,10 +1190,15 @@ function handleRequest(payload) {
     result = { success: false, msg: error.toString(), stack: error.stack };
   }
 
-  return respond(result);
+  return respond(result, callback);
 }
 
-function respond(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
+function respond(data, callback) {
+  const jsonStr = JSON.stringify(data);
+  if (callback) {
+    return ContentService.createTextOutput(`${callback}(${jsonStr})`)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(jsonStr)
     .setMimeType(ContentService.MimeType.JSON);
 }

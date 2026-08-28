@@ -36,25 +36,47 @@ const API = (() => {
         return getMockResponse(action, payload);
       }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5초 타임아웃
+      const mergedPayload = { action: action, ...payload };
 
-      const response = await fetch(gasUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action, payload }),
-        signal: controller.signal
-      });
+      // 1. POST 방식 시도
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-      clearTimeout(timeoutId);
+        const response = await fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(mergedPayload),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        console.warn(`[API HTTP Error] ${response.status}`);
-        return getMockResponse(action, payload);
+        if (response.ok) {
+          const res = await response.json();
+          if (res) return res;
+        }
+      } catch (postErr) {
+        console.warn('[POST attempt failed, trying GET...]', postErr);
       }
 
-      const res = await response.json();
-      return res;
+      // 2. GET 방식 시도 (CORS 100% 호환)
+      try {
+        const getUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action) + '&data=' + encodeURIComponent(JSON.stringify(payload));
+        const controller2 = new AbortController();
+        const timeoutId2 = setTimeout(() => controller2.abort(), 6000);
+
+        const response2 = await fetch(getUrl, { signal: controller2.signal });
+        clearTimeout(timeoutId2);
+
+        if (response2.ok) {
+          const res2 = await response2.json();
+          if (res2) return res2;
+        }
+      } catch (getErr) {
+        console.warn('[GET attempt failed]', getErr);
+      }
+
+      return getMockResponse(action, payload);
     } catch (err) {
       console.warn(`[API Fallback] Action: ${action}, Error:`, err);
       return getMockResponse(action, payload);

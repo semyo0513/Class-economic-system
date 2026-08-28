@@ -266,6 +266,7 @@ const ModalManager = (() => {
 
         ModalManager.activeMultiStockCode = '005930';
         ModalManager.multiStockCache = stockList;
+        ModalManager.fetchLiveStockClient('005930');
 
         API.call('getMultiStockData', { name: me }, true).then(data => {
           if (data && data.success && data.stocks) {
@@ -981,16 +982,19 @@ const ModalManager = (() => {
 
       API.call('getUserInventory', { name: me }, true).then(res => {
         const inv = res.inventory || [];
-        const equips = inv.filter(it => it.카테고리 === '캐릭터아이템' || it.카테고리 === '의상' || it.카테고리 === '모자' || it.카테고리 === '오라');
+        const equips = inv.filter(it => ['캐릭터아이템', '의상', '모자', '오라', '헤어'].includes(it.카테고리));
         const coupons = inv.filter(it => it.카테고리 === '아이템');
         const furns = inv.filter(it => it.카테고리 === '가구');
 
         const eqEl = document.getElementById('inven-tab-equips');
         if (eqEl) {
           eqEl.innerHTML = equips.length === 0 ? '<div style="padding:15px; text-align:center; color:#64748b;">보유 중인 패션 장착 아이템이 없습니다.</div>' : equips.map(e => `
-            <div class="shop-item-card">
-              <div class="item-name">${e.아이템명}</div>
-              <div style="font-size:11px; color:#16a34a;">보유 중</div>
+            <div class="shop-item-card" style="border:2px solid #a7f3d0; background:#f0fdf4; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div class="item-name" style="font-weight:bold; font-size:13px; color:#065f46;">${e.아이템명}</div>
+                <div style="font-size:11px; color:#15803d; margin-top:2px;">[${e.카테고리}] ${e.상태 || '보유중'}</div>
+              </div>
+              <span class="badge badge-success" style="background:#22c55e; color:white; padding:4px 8px; border-radius:6px; font-size:11px;">✨ 장착됨</span>
             </div>
           `).join('');
         }
@@ -1310,16 +1314,45 @@ const ModalManager = (() => {
       alert(res?.msg || '주식 설정이 성공적으로 저장되었습니다!');
     },
 
-    // ─── 다종목 실시간 네이버 주식 스위처 및 거래 ───
     activeMultiStockCode: '005930',
     multiStockCache: [],
     multiStockHoldings: {},
+    fetchLiveStockClient: async (code) => {
+      if (code === 'CLASS') return;
+      try {
+        const yfSuffix = code === '086520' ? '.KQ' : '.KS';
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${code}${yfSuffix}?interval=1d`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.chart && data.chart.result && data.chart.result[0]) {
+            const meta = data.chart.result[0].meta;
+            const price = Number(meta.regularMarketPrice);
+            const prev = Number(meta.previousClose || meta.chartPreviousClose || price);
+            const diff = price - prev;
+            const rate = ((diff / prev) * 100).toFixed(2);
+            const isUp = diff >= 0;
+
+            const existing = ModalManager.multiStockCache.find(s => s.code === code);
+            if (existing) {
+              existing.price = price;
+              existing.changeRate = (isUp ? '+' : '') + rate + '%';
+              existing.changePrice = (isUp ? '+' : '') + Math.round(diff).toLocaleString();
+            }
+            ModalManager.updateMultiStockUI();
+          }
+        }
+      } catch (err) {
+        console.warn('[Client live stock fetch error]', err);
+      }
+    },
     switchStockCode: (code) => {
       ModalManager.activeMultiStockCode = code;
       document.querySelectorAll('.stock-code-tab').forEach(b => b.classList.remove('active'));
       const activeTab = document.getElementById(`stock-tab-${code}`);
       if (activeTab) activeTab.classList.add('active');
       ModalManager.updateMultiStockUI();
+      ModalManager.fetchLiveStockClient(code);
       SoundEngine.click();
     },
     updateMultiStockUI: () => {
