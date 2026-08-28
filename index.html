@@ -161,16 +161,16 @@
     /* 상단 HUD */
     #top-hud {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      right: 10px;
+      top: 8px;
+      left: 8px;
+      right: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       pointer-events: none;
       z-index: 1000;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
     }
     .hud-card {
       pointer-events: auto;
@@ -178,10 +178,10 @@
       border: 3px solid #334155;
       border-radius: 10px;
       box-shadow: 0 3px 0 #334155;
-      padding: 6px 12px;
+      padding: 5px 10px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       font-size: 12px;
     }
     .hud-btn {
@@ -190,16 +190,21 @@
       border: 2px solid #334155;
       border-radius: 8px;
       box-shadow: 0 2px 0 #334155;
-      padding: 6px 10px;
+      padding: 5px 8px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
+      white-space: nowrap;
+    }
+    .hud-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 0 #334155;
     }
     .hud-admin-btn {
       background: #fee2e2;
       color: #991b1b;
       border-color: #991b1b;
-      box-shadow: 0 3px 0 #991b1b;
+      box-shadow: 0 2px 0 #991b1b;
       font-weight: bold;
       animation: pulse 2s infinite;
     }
@@ -211,13 +216,13 @@
     /* 실시간 미니맵 레이더 HUD */
     #minimap-hud-wrap {
       position: absolute;
-      top: 65px;
-      right: 12px;
+      top: 60px;
+      right: 8px;
       background: rgba(255, 253, 247, 0.95);
       border: 3px solid #334155;
       border-radius: 10px;
       box-shadow: 0 4px 0 #334155;
-      padding: 6px;
+      padding: 4px;
       z-index: 1000;
       text-align: center;
     }
@@ -225,7 +230,7 @@
       font-size: 10px;
       font-weight: bold;
       color: #334155;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       display: flex;
       justify-content: space-between;
       padding: 0 2px;
@@ -236,20 +241,33 @@
       display: block;
     }
 
-    /* 하단 실시간 채팅창 */
+    /* 토글형 플로팅 실시간 채팅창 */
     #chat-hud-wrap {
       position: absolute;
-      bottom: 16px;
-      left: 16px;
-      width: 300px;
-      max-height: 200px;
-      background: rgba(15, 23, 42, 0.88);
-      border: 2px solid #475569;
-      border-radius: 10px;
-      display: flex;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      max-width: calc(100vw - 32px);
+      max-height: 260px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 3px solid #475569;
+      border-radius: 12px;
+      display: none;
       flex-direction: column;
-      z-index: 1000;
+      z-index: 2000;
       color: white;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .chat-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      border-radius: 9px 9px 0 0;
+      font-size: 12px;
+      font-weight: bold;
     }
     #chat-messages-list {
       flex: 1;
@@ -259,7 +277,7 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
-      max-height: 130px;
+      max-height: 160px;
     }
     .chat-item strong { color: #38bdf8; }
     #chat-input-row {
@@ -271,11 +289,11 @@
     #chat-input {
       flex: 1;
       padding: 6px 8px;
-      background: #1e293b;
+      background: #0f172a;
       border: 1px solid #475569;
       border-radius: 6px;
       color: white;
-      font-size: 11px;
+      font-size: 12px;
       outline: none;
     }
     #chat-send-btn {
@@ -299,16 +317,17 @@
     }
     @media (max-width: 768px) {
       #mobile-controls { display: block; }
-      #minimap-hud-wrap { top: auto; bottom: 85px; right: 12px; transform: scale(0.85); transform-origin: bottom right; }
-      #chat-hud-wrap { width: 180px; max-height: 120px; bottom: 85px; left: 10px; }
-      #top-hud { font-size: 11px; }
-      .hud-card { padding: 4px 8px; gap: 4px; }
-      #modal-container { max-height: 96vh !important; border-radius: 12px !important; }
+      #minimap-hud-wrap { top: auto; bottom: 80px; right: 8px; transform: scale(0.75); transform-origin: bottom right; }
+      #chat-hud-wrap { width: calc(100vw - 20px); left: 10px; right: 10px; bottom: 85px; max-height: 200px; }
+      #top-hud { top: 4px; left: 4px; right: 4px; gap: 4px; }
+      .hud-card { padding: 4px 6px; font-size: 10px; gap: 4px; }
+      .hud-btn { padding: 4px 6px; font-size: 10px; }
+      #modal-container { max-height: 94vh !important; border-radius: 12px !important; }
     }
     .d-pad-container {
       position: absolute;
       bottom: 20px;
-      left: 20px;
+      left: 16px;
       width: 120px;
       height: 120px;
       pointer-events: auto;
@@ -318,8 +337,8 @@
       gap: 4px;
     }
     .d-btn {
-      background: rgba(255, 255, 255, 0.45);
-      border: 2px solid rgba(0, 0, 0, 0.5);
+      background: rgba(255, 255, 255, 0.55);
+      border: 2px solid rgba(0, 0, 0, 0.6);
       border-radius: 8px;
       display: flex;
       align-items: center;
@@ -327,16 +346,16 @@
       font-size: 18px;
       font-weight: bold;
     }
-    .d-btn:active { background: rgba(34, 197, 94, 0.85); }
+    .d-btn:active { background: rgba(34, 197, 94, 0.9); }
     .action-btn-container {
       position: absolute;
       bottom: 24px;
-      right: 24px;
+      right: 20px;
       pointer-events: auto;
     }
     .action-circle-btn {
-      width: 66px;
-      height: 66px;
+      width: 62px;
+      height: 62px;
       border-radius: 50%;
       background: #f59e0b;
       border: 4px solid #78350f;
@@ -718,9 +737,13 @@
         <button class="hud-btn" style="background:#e0f2fe; color:#0369a1; border-color:#0284c7; font-weight:bold;" onclick="ModalManager.open('inventory')">
           🎒 인벤토리
         </button>
+        <!-- 상단 채팅 토글 버튼 -->
+        <button class="hud-btn" style="background:#e0e7ff; color:#3730a3; border-color:#6366f1; font-weight:bold;" onclick="toggleChatWindow()">
+          💬 채팅
+        </button>
         <!-- 상단 교장실 (관리자 설정) 퀵 버튼 -->
         <button class="hud-btn hud-admin-btn" id="hud-admin-btn" style="display:none;" onclick="ModalManager.open('principal')">
-          🏫 교장실
+          👑 교장실
         </button>
         <button class="hud-btn" onclick="SoundEngine.toggleBGM()">🎵 BGM</button>
         <button class="hud-btn" onclick="openSettingsModal()">⚙️ 설정</button>
@@ -736,8 +759,12 @@
       <canvas id="minimap-canvas" width="130" height="100"></canvas>
     </div>
 
-    <!-- 하단 실시간 채팅 HUD -->
+    <!-- 플로팅 실시간 채팅창 (토글형 드로어) -->
     <div id="chat-hud-wrap">
+      <div class="chat-header-bar">
+        <span>💬 실시간 마을 채팅</span>
+        <button style="background:none; border:none; color:#94a3b8; font-size:14px; cursor:pointer;" onclick="toggleChatWindow()">✕</button>
+      </div>
       <div id="chat-messages-list">
         <div class="chat-item" style="color:#94a3b8;">[안내] 마을에 입장했습니다.</div>
       </div>
@@ -971,6 +998,19 @@
       }
 
       initPhaserGame();
+    }
+
+    function toggleChatWindow() {
+      SoundEngine.click();
+      const chatWrap = document.getElementById('chat-hud-wrap');
+      if (chatWrap) {
+        const isShown = chatWrap.style.display === 'flex';
+        chatWrap.style.display = isShown ? 'none' : 'flex';
+        if (!isShown) {
+          const input = document.getElementById('chat-input');
+          if (input) setTimeout(() => input.focus(), 100);
+        }
+      }
     }
 
     function sendChat() {

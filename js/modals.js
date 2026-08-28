@@ -751,31 +751,46 @@ const ModalManager = (() => {
 
         container.innerHTML = `
           <div class="admin-panel">
-            <div class="admin-top-stats" style="display:flex; justify-content:space-between; background:#fee2e2; border:2px solid #fca5a5; padding:12px; border-radius:8px; margin-bottom:12px;">
-              <div>👨‍🎓 등록 학생: <strong id="admin-student-count">불러오는 중...</strong></div>
-              <div>⚙️ 내 직무 권한: <strong>${isTeacher ? '👑 교사(전체)' : myPerm}</strong></div>
+            <!-- 상단 요약 바 -->
+            <div class="admin-top-stats" style="display:flex; justify-content:space-between; align-items:center; background:#fee2e2; border:2px solid #fca5a5; padding:10px 14px; border-radius:8px; margin-bottom:12px;">
+              <div>👥 총 등록 학생: <strong id="admin-student-count" style="color:#991b1b;">불러오는 중...</strong></div>
+              <div>👑 관리 권한: <strong style="color:#991b1b;">${isTeacher ? '교사(전체 관리자)' : myPerm}</strong></div>
             </div>
 
-            <!-- 관리자 핵심 액션 툴바 -->
-            <div class="admin-action-bar" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
-              ${canPaySalary ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#0284c7;" onclick="ModalManager.openPaySalariesModal()">💰 월급 일괄 배부</button>' : ''}
-              ${canFine ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#dc2626;" onclick="ModalManager.openFineModal()">⚖️ 벌금 징수</button>' : ''}
-              ${canWarn ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#ea580c;" onclick="ModalManager.openWarnModal()">⚠️ 경고장 발송</button>' : ''}
-              ${canNotice ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#16a34a;" onclick="ModalManager.openNoticeWriteModal()">📢 새 공지 작성</button>' : ''}
-              ${canMart ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#7c3aed;" onclick="ModalManager.openAddMartItemModal()">🛒 마트 물품 등록</button>' : ''}
-            </div>
-
+            <!-- 4대 카테고리 탭 네비게이션 -->
             <div class="admin-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
-              <button class="tab-btn active" onclick="ModalManager.switchAdminTab('students')">👥 학생 목록 & 현황</button>
-              ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'permissions\')">👑 학생 권한 부여</button>' : ''}
-              ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'items_admin\')">🛍️ 아이템 가격/수량 수정</button>' : ''}
-              ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'stock_admin\')">📈 주식 설정 & 시세 관리</button>' : ''}
-              ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'sheet_init\')">🔄 시트 전체 초기화</button>' : ''}
+              <button class="tab-btn active" id="btn-adm-tab-students" onclick="ModalManager.switchAdminCategory('students')">👥 1. 학생/학급 관리</button>
+              ${isTeacher || canMart ? '<button class="tab-btn" id="btn-adm-tab-items" onclick="ModalManager.switchAdminCategory(\'items\')">🏪 2. 상점/물품 관리</button>' : ''}
+              ${isTeacher ? '<button class="tab-btn" id="btn-adm-tab-finance" onclick="ModalManager.switchAdminCategory(\'finance\')">📈 3. 금융/경제 설정</button>' : ''}
+              ${isTeacher || canNotice ? '<button class="tab-btn" id="btn-adm-tab-system" onclick="ModalManager.switchAdminCategory(\'system\')">⚙️ 4. 시스템/공지 관리</button>' : ''}
             </div>
 
-            <!-- 1. 학생 목록 탭 -->
-            <div id="admin-tab-students" class="admin-tab-content">
-              <div class="table-wrap" style="max-height:300px; overflow-y:auto;">
+            <!-- ════════ 탭 1: 학생 및 학급 관리 ════════ -->
+            <div id="admin-cat-students" class="admin-category-panel">
+              <!-- 학급 운영 퀵 액션 카드 -->
+              <div style="background:#f8fafc; border:2px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:12px;">
+                <div style="font-weight:bold; font-size:12px; color:#334155; margin-bottom:6px;">⚡ 학급 운영 직무 집행</div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  ${canPaySalary ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#0284c7;" onclick="ModalManager.openPaySalariesModal()">💰 월급 일괄 배부</button>' : ''}
+                  ${canFine ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#dc2626;" onclick="ModalManager.openFineModal()">⚖️ 벌금 징수</button>' : ''}
+                  ${canWarn ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#ea580c;" onclick="ModalManager.openWarnModal()">⚠️ 경고장 발송</button>' : ''}
+                </div>
+              </div>
+
+              <!-- 학생 명렬 & 다기능 정렬 툴바 -->
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                <span style="font-weight:bold; font-size:13px; color:#1e293b;">📋 학생 목록 및 자산 현황</span>
+                <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center; font-size:11px;">
+                  <span style="color:#64748b;">정렬:</span>
+                  <button class="pixel-btn-sm adm-sort-btn active" id="sort-btn-default" style="padding:3px 6px;" onclick="ModalManager.sortAdminStudentsList('default')">📑 시트 순서 (기본)</button>
+                  <button class="pixel-btn-sm adm-sort-btn" id="sort-btn-totalAsset" style="padding:3px 6px;" onclick="ModalManager.sortAdminStudentsList('totalAsset')">💰 총자산 순</button>
+                  <button class="pixel-btn-sm adm-sort-btn" id="sort-btn-cash" style="padding:3px 6px;" onclick="ModalManager.sortAdminStudentsList('cash')">💵 현금 순</button>
+                  <button class="pixel-btn-sm adm-sort-btn" id="sort-btn-stock" style="padding:3px 6px;" onclick="ModalManager.sortAdminStudentsList('stock')">📈 주식 순</button>
+                  <button class="pixel-btn-sm adm-sort-btn" id="sort-btn-name" style="padding:3px 6px;" onclick="ModalManager.sortAdminStudentsList('name')">🔤 이름 순</button>
+                </div>
+              </div>
+
+              <div class="table-wrap" style="max-height:240px; overflow-y:auto; margin-bottom:14px;">
                 <table class="pixel-table">
                   <thead><tr><th>번호</th><th>이름</th><th>직업</th><th>현금</th><th>주식수량</th><th>총자산</th><th>부여권한</th>${isTeacher ? '<th>교사조정</th>' : ''}</tr></thead>
                   <tbody id="admin-students-tbody">
@@ -783,29 +798,32 @@ const ModalManager = (() => {
                   </tbody>
                 </table>
               </div>
+
+              <!-- 직무 권한 부여 섹션 -->
+              ${isTeacher ? `
+                <div style="background:#fef3c7; border:2px solid #f59e0b; border-radius:8px; padding:10px; margin-top:8px;">
+                  <div style="font-weight:bold; font-size:13px; color:#92400e; margin-bottom:6px;">👑 학생 1인 1직무 권한 부여</div>
+                  <div class="table-wrap" style="max-height:180px; overflow-y:auto;">
+                    <table class="pixel-table">
+                      <thead><tr><th>이름</th><th>직업</th><th>부여할 권한 선택</th><th>저장</th></tr></thead>
+                      <tbody id="admin-perm-tbody">
+                        <tr><td colspan="4" style="text-align:center; padding:10px;">학생 목록 로딩 중...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ` : ''}
             </div>
 
-            <!-- 2. 교사 전용 권한 부여 관리 탭 -->
-            ${isTeacher ? `
-              <div id="admin-tab-permissions" class="admin-tab-content" style="display:none;">
-                <div style="background:#fef3c7; border:2px solid #f59e0b; padding:10px; border-radius:8px; margin-bottom:10px; font-size:12px; color:#92400e;">
-                  💡 학생 직무에 맞춰 권한을 체크하고 [권한 저장]을 누르면 즉시 시트에 동기화됩니다.
-                </div>
-                <div class="table-wrap" style="max-height:280px; overflow-y:auto;">
-                  <table class="pixel-table">
-                    <thead><tr><th>이름</th><th>직업</th><th>부여할 권한 선택</th><th>저장</th></tr></thead>
-                    <tbody id="admin-perm-tbody">
-                      <tr><td colspan="4" style="text-align:center; padding:15px;">학생 목록을 불러오는 중...</td></tr>
-                    </tbody>
-                  </table>
-                </div>
+            <!-- ════════ 탭 2: 상점 및 물품 관리 ════════ -->
+            <div id="admin-cat-items" class="admin-category-panel" style="display:none;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div style="font-weight:bold; font-size:13px; color:#1e293b;">🛍️ 상점 물품 & 마트 관리</div>
+                ${canMart ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#7c3aed;" onclick="ModalManager.openAddMartItemModal()">🛒 마트 신규 물품 등록</button>' : ''}
               </div>
-            ` : ''}
 
-            <!-- 2-1. 아이템 가격 & 수량 관리 탭 (교사전용) -->
-            ${isTeacher ? `
-              <div id="admin-tab-items_admin" class="admin-tab-content" style="display:none;">
-                <div style="background:#eff6ff; border:2px solid #93c5fd; padding:10px; border-radius:8px; margin-bottom:10px; font-size:12px; color:#1e40af;">
+              ${isTeacher ? `
+                <div style="background:#eff6ff; border:2px solid #93c5fd; padding:8px 12px; border-radius:8px; margin-bottom:10px; font-size:12px; color:#1e40af;">
                   💡 가구, 의상, 아이템, 마트 물품의 가격과 재고 수량을 즉시 수정할 수 있습니다.
                 </div>
                 <div class="table-wrap" style="max-height:280px; overflow-y:auto;">
@@ -816,73 +834,67 @@ const ModalManager = (() => {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            ` : ''}
+              ` : ''}
+            </div>
 
-            <!-- 3. 주식 설정 & 시세 관리 탭 -->
-            ${isTeacher ? `
-              <div id="admin-tab-stock_admin" class="admin-tab-content" style="display:none;">
-                <div style="background:#f8fafc; border:2px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
-                  <div style="font-weight:bold; font-size:13px; margin-bottom:6px;">📈 주식 운영 모드 설정</div>
-                  <label style="margin-right:12px; font-size:12px;"><input type="radio" name="stock-mode-radio" value="REALTIME_NAVER" checked> 실시간 네이버 증권 (다종목)</label>
-                  <label style="font-size:12px;"><input type="radio" name="stock-mode-radio" value="MANUAL"> 교사 수동 조정 주식 (학급 자체 주가)</label>
-                </div>
-
-                <div class="form-group" style="margin-bottom:10px;">
-                  <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">활성화할 주식 종목 코드 (쉼표로 구분)</label>
-                  <input type="text" id="admin-stock-codes" value="005930,035720,035420,086520,005380,CLASS" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;">
-                  <div style="font-size:11px; color:#64748b; margin-top:2px;">(예: 005930=삼성전자, 035720=카카오, 035420=NAVER, 086520=에코프로, CLASS=학급주식)</div>
-                </div>
-
-                <div class="form-group" style="margin-bottom:10px;">
-                  <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">학급 자체 주가 수동 설정 (원)</label>
-                  <input type="number" id="admin-new-stock-price" placeholder="예: 1300" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
-                </div>
-
-                <div class="form-group" style="margin-bottom:12px;">
-                  <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">주식 경제 뉴스 제목</label>
-                  <input type="text" id="admin-stock-news-title" placeholder="예: 학급 마트 신규 오픈 호재" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
-                </div>
-
-                <button class="pixel-btn-primary" onclick="ModalManager.saveStockSettings()">💾 주식 모드 및 시세 설정 저장</button>
+            <!-- ════════ 탭 3: 금융 및 경제 설정 ════════ -->
+            <div id="admin-cat-finance" class="admin-category-panel" style="display:none;">
+              <div style="background:#f8fafc; border:2px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+                <div style="font-weight:bold; font-size:13px; margin-bottom:6px;">📈 주식 운영 모드 설정</div>
+                <label style="margin-right:12px; font-size:12px;"><input type="radio" name="stock-mode-radio" value="REALTIME_NAVER" checked> 실시간 네이버 증권 (다종목)</label>
+                <label style="font-size:12px;"><input type="radio" name="stock-mode-radio" value="MANUAL"> 교사 수동 조정 주식 (학급 자체 주가)</label>
               </div>
 
-              <!-- 4. 시트 전체 초기화 탭 (교사전용) -->
-              <div id="admin-tab-sheet_init" class="admin-tab-content" style="display:none; text-align:center; padding:20px;">
-                <p style="color:#ef4444; font-weight:bold; margin-bottom:12px;">⚠️ 교사 전용 기능: 구글 시트의 12개 시트 구조와 기본 데이터를 완전하게 재구성합니다.</p>
-                <button class="pixel-btn-primary" style="background:#ef4444; border-color:#991b1b;" onclick="ModalManager.adminInitSheets()">12개 시스템 시트 자동 초기화 실행</button>
+              <div class="form-group" style="margin-bottom:10px;">
+                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">활성화할 주식 종목 코드 (쉼표로 구분)</label>
+                <input type="text" id="admin-stock-codes" value="005930,035720,035420,086520,005380,CLASS" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;">
+                <div style="font-size:11px; color:#64748b; margin-top:2px;">(005930=삼성전자, 035720=카카오, 035420=NAVER, 086520=에코프로, CLASS=학급주식)</div>
               </div>
-            ` : ''}
+
+              <div class="form-group" style="margin-bottom:10px;">
+                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">학급 자체 주가 수동 설정 (원)</label>
+                <input type="number" id="admin-new-stock-price" placeholder="예: 1300" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+              </div>
+
+              <div class="form-group" style="margin-bottom:12px;">
+                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">주식 경제 뉴스 제목</label>
+                <input type="text" id="admin-stock-news-title" placeholder="예: 학급 마트 신규 오픈 호재" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+              </div>
+
+              <button class="pixel-btn-primary" onclick="ModalManager.saveStockSettings()">💾 주식 모드 및 시세 설정 저장</button>
+            </div>
+
+            <!-- ════════ 탭 4: 시스템 및 공지 관리 ════════ -->
+            <div id="admin-cat-system" class="admin-category-panel" style="display:none;">
+              <div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; border:2px solid #cbd5e1; padding:12px; border-radius:8px; margin-bottom:12px;">
+                <div>
+                  <div style="font-weight:bold; font-size:13px; color:#1e293b;">📢 학급 전체 공지사항</div>
+                  <div style="font-size:11px; color:#64748b;">학생들에게 전달할 새 공지를 학교 본관에 등록합니다.</div>
+                </div>
+                ${canNotice ? '<button class="pixel-btn-primary" style="width:auto; padding:8px 14px; background:#16a34a;" onclick="ModalManager.openNoticeWriteModal()">✍️ 새 공지 작성</button>' : ''}
+              </div>
+
+              ${isTeacher ? `
+                <div style="background:#fee2e2; border:2px solid #fca5a5; border-radius:8px; padding:14px; margin-top:14px; text-align:center;">
+                  <div style="color:#991b1b; font-weight:bold; font-size:13px; margin-bottom:6px;">⚠️ 시트 전체 초기화 (교사 전용)</div>
+                  <p style="color:#7f1d1d; font-size:11px; margin-bottom:10px;">구글 시트의 12개 시트 구조 및 기본 데이터를 완전하게 재생성합니다.</p>
+                  <button class="pixel-btn-primary" style="background:#ef4444; border-color:#991b1b; width:auto; padding:8px 16px;" onclick="ModalManager.adminInitSheets()">🔄 12개 시스템 시트 자동 초기화</button>
+                </div>
+              ` : ''}
+            </div>
           </div>
         `;
 
-        // 전체 학생 목록 실시간 로드 및 렌더링
+        // 전체 학생 목록 실시간 로드 및 렌더링 (시트 순서 기본값 보존)
         API.call('getStudents', {}, true).then(res => {
           const students = res.students || [];
+          ModalManager.adminStudentsCache = students;
           GameState.rankingList = students;
 
           const countEl = document.getElementById('admin-student-count');
           if (countEl) countEl.textContent = `${students.length}명`;
 
-          const sTbody = document.getElementById('admin-students-tbody');
-          if (sTbody) {
-            sTbody.innerHTML = students.map((s, idx) => `
-              <tr>
-                <td>${s.id || idx + 1}</td>
-                <td><strong>${s.name}</strong></td>
-                <td>${s.job}</td>
-                <td>${(s.cash || s.total || 0).toLocaleString()}원</td>
-                <td>${s.stockQty || 0}주</td>
-                <td><strong>${(s.totalAsset || s.total || 0).toLocaleString()}원</strong></td>
-                <td><span class="badge badge-primary">${s.permission || '일반'}</span></td>
-                ${isTeacher ? `
-                  <td>
-                    <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${s.name}')">금액조정</button>
-                  </td>
-                ` : ''}
-              </tr>
-            `).join('');
-          }
+          ModalManager.renderAdminStudentsTable(students);
 
           const pTbody = document.getElementById('admin-perm-tbody');
           if (pTbody) {
@@ -1708,6 +1720,75 @@ const ModalManager = (() => {
       API.hideLoading();
       SoundEngine.fanfare();
       alert(res?.msg || '초기화 완료');
+    },
+
+    adminStudentsCache: [],
+    currentAdminSort: 'default',
+
+    switchAdminCategory: (cat) => {
+      SoundEngine.click();
+      document.querySelectorAll('.admin-category-panel').forEach(p => p.style.display = 'none');
+      document.querySelectorAll('.admin-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+
+      const targetPanel = document.getElementById(`admin-cat-${cat}`);
+      const targetBtn = document.getElementById(`btn-adm-tab-${cat}`);
+      if (targetPanel) targetPanel.style.display = 'block';
+      if (targetBtn) targetBtn.classList.add('active');
+
+      if (cat === 'items') {
+        ModalManager.loadAdminItems();
+      }
+    },
+
+    sortAdminStudentsList: (criteria) => {
+      SoundEngine.click();
+      ModalManager.currentAdminSort = criteria;
+      document.querySelectorAll('.adm-sort-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById(`sort-btn-${criteria}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const list = [...(ModalManager.adminStudentsCache || [])];
+      if (criteria === 'default') {
+        // 원래 구글 시트 행 번호 순서
+        list.sort((a, b) => (a.sheetIndex || a.id || 0) - (b.sheetIndex || b.id || 0));
+      } else if (criteria === 'totalAsset') {
+        list.sort((a, b) => (b.totalAsset || b.total || 0) - (a.totalAsset || a.total || 0));
+      } else if (criteria === 'cash') {
+        list.sort((a, b) => (b.cash || 0) - (a.cash || 0));
+      } else if (criteria === 'stock') {
+        list.sort((a, b) => (b.stockQty || 0) - (a.stockQty || 0));
+      } else if (criteria === 'name') {
+        list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ko'));
+      }
+
+      ModalManager.renderAdminStudentsTable(list);
+    },
+
+    renderAdminStudentsTable: (students) => {
+      const isTeacher = GameState.isAdmin || (GameState.student && (GameState.student.name === '선생님' || GameState.student.permission === '전체'));
+      const sTbody = document.getElementById('admin-students-tbody');
+      if (sTbody) {
+        if (!students || students.length === 0) {
+          sTbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:15px;">등록된 학생이 없습니다.</td></tr>';
+          return;
+        }
+        sTbody.innerHTML = students.map((s, idx) => `
+          <tr>
+            <td>${s.sheetIndex || s.id || idx + 1}</td>
+            <td><strong>${s.name}</strong></td>
+            <td>${s.job || '학생'}</td>
+            <td>${(s.cash || 0).toLocaleString()}원</td>
+            <td>${s.stockQty || 0}주</td>
+            <td><strong>${(s.totalAsset || s.total || s.cash || 0).toLocaleString()}원</strong></td>
+            <td><span class="badge badge-primary">${s.permission || '일반'}</span></td>
+            ${isTeacher ? `
+              <td>
+                <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${s.name}')">금액조정</button>
+              </td>
+            ` : ''}
+          </tr>
+        `).join('');
+      }
     },
 
     loadAdminItems: async () => {

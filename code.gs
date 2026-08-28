@@ -601,6 +601,7 @@ function getStudentsWithAssets() {
     const totalAsset = cash + stockVal;
 
     result.push({
+      sheetIndex: i,
       id: data[i][idCol >= 0 ? idCol : 0] || i,
       name: rowName,
       job: data[i][jobCol >= 0 ? jobCol : 3] || '학생',
@@ -613,7 +614,8 @@ function getStudentsWithAssets() {
     });
   }
 
-  return result.sort((a, b) => b.totalAsset - a.totalAsset);
+  // 기본 반환은 시트에 기록된 원래 행 순서 그대로 보존
+  return result;
 }
 
 function updateCash(studentName, amount, reason, category) {
