@@ -387,7 +387,7 @@ const ModalManager = (() => {
     `;
   }
 
-  async function renderBuildingContent(id, container) {
+  function renderBuildingContent(id, container) {
     const st = GameState.student;
     const me = st ? (st.name || st.이름 || '나') : '나';
     const myCash = st ? (st.cash ?? st.현금 ?? 0) : 0;
@@ -399,9 +399,7 @@ const ModalManager = (() => {
         break;
 
       case 'bank': {
-        const data = await API.call('getDeposits', { name: me });
-        const deposits = Array.isArray(data) ? data : (data.deposits || []);
-        const rateVal = data.rate || 0.05;
+        const rateVal = 0.05;
         container.innerHTML = `
           <div class="bank-panel">
             <div class="stat-banner" style="background:#e0f2fe; padding:12px; border-radius:8px; margin-bottom:14px;">
@@ -418,40 +416,45 @@ const ModalManager = (() => {
               </div>
             </div>
             <h4 style="margin-top:20px;">📜 나의 예금 계좌 목록</h4>
-            <div class="table-wrap" style="margin-top:8px;">
+            <div class="table-wrap" style="margin-top:8px;" id="bank-deposits-wrap">
               <table class="pixel-table">
                 <thead><tr><th>가입일</th><th>원금</th><th>이율</th><th>상태</th><th>관리</th></tr></thead>
-                <tbody>
-                  ${deposits.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding:15px;">가입된 예금이 없습니다.</td></tr>' : deposits.map((d, i) => `
-                    <tr>
-                      <td>${d.일시 || d.날짜 || '-'}</td>
-                      <td>${(d.금액 || 0).toLocaleString()}원</td>
-                      <td>${((d.속성 || rateVal) * 100).toFixed(1)}%</td>
-                      <td><span class="badge badge-success">${d.상태 || '활성'}</span></td>
-                      <td><button class="pixel-btn-sm" onclick="ModalManager.handleWithdraw(${i})">만기해지</button></td>
-                    </tr>
-                  `).join('')}
+                <tbody id="bank-deposits-tbody">
+                  <tr><td colspan="5" style="text-align:center; padding:15px;">예금 내역을 동기화하고 있습니다...</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
         `;
+
+        API.call('getDeposits', { name: me }, true).then(data => {
+          const deposits = Array.isArray(data) ? data : (data.deposits || []);
+          const tbody = document.getElementById('bank-deposits-tbody');
+          if (tbody) {
+            tbody.innerHTML = deposits.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding:15px;">가입된 예금이 없습니다.</td></tr>' : deposits.map((d, i) => `
+              <tr>
+                <td>${d.일시 || d.날짜 || '2026-08-28'}</td>
+                <td>${(d.금액 || 0).toLocaleString()}원</td>
+                <td>${((d.속성 || rateVal) * 100).toFixed(1)}%</td>
+                <td><span class="badge badge-success">${d.상태 || '활성'}</span></td>
+                <td><button class="pixel-btn-sm" onclick="ModalManager.handleWithdraw(${i})">만기해지</button></td>
+              </tr>
+            `).join('');
+          }
+        });
         break;
       }
 
       case 'stock': {
-        const data = await API.call('getStockData', { name: me });
-        const curPrice = data.currentPrice || data.info?.현재가 || 1200;
-        let rawHistory = data.history || [];
-        let history = rawHistory.map(h => typeof h === 'object' ? Number(h.price || 1200) : Number(h));
-        if (history.length < 2) history = [Math.round(curPrice * 0.95), curPrice];
+        const curPrice = 1200;
+        let history = [1150, 1180, 1200];
 
         container.innerHTML = `
           <div class="stock-panel">
             <div class="stock-header-grid" style="display:flex; justify-content:space-between; background:#f8fafc; padding:12px; border:2px solid #cbd5e1; border-radius:8px; margin-bottom:12px;">
               <div>
                 <div style="font-size:13px; color:#64748b;">📈 행복초 협동조합 주식회사</div>
-                <div style="font-size:22px; font-weight:bold; color:#ef4444;">${curPrice.toLocaleString()}원</div>
+                <div style="font-size:22px; font-weight:bold; color:#ef4444;" id="stock-current-price-val">${curPrice.toLocaleString()}원</div>
               </div>
               <div style="text-align:right;">
                 <div>보유 주식: <strong>${myStock.toLocaleString()}주</strong></div>
@@ -480,31 +483,49 @@ const ModalManager = (() => {
           </div>
         `;
 
-        setTimeout(() => {
+        function drawStockChart(hist) {
           const cvs = document.getElementById('stock-chart-canvas');
           if (!cvs) return;
           const ctx = cvs.getContext('2d');
           const W = cvs.width, H = cvs.height, padding = 30;
-          const max = Math.max(...history) * 1.05, min = Math.min(...history) * 0.95, range = Math.max(1, max - min);
+          const max = Math.max(...hist) * 1.05, min = Math.min(...hist) * 0.95, range = Math.max(1, max - min);
 
           ctx.clearRect(0, 0, W, H);
           ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3;
           ctx.beginPath();
-          history.forEach((val, idx) => {
-            const x = padding + (idx / Math.max(1, history.length - 1)) * (W - padding * 2);
+          hist.forEach((val, idx) => {
+            const x = padding + (idx / Math.max(1, hist.length - 1)) * (W - padding * 2);
             const y = H - padding - ((val - min) / range) * (H - padding * 2);
             if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
           });
           ctx.stroke();
-        }, 50);
+        }
+
+        setTimeout(() => drawStockChart(history), 30);
+
+        API.call('getStockData', { name: me }, true).then(data => {
+          if (data && data.currentPrice) {
+            const priceEl = document.getElementById('stock-current-price-val');
+            if (priceEl) priceEl.textContent = `${Number(data.currentPrice).toLocaleString()}원`;
+            if (data.history) {
+              const h = data.history.map(item => typeof item === 'object' ? Number(item.price || 1200) : Number(item));
+              if (h.length > 0) drawStockChart(h);
+            }
+          }
+        });
         break;
       }
 
       // 잡화점
       case 'shop': {
-        const data = await API.call('getShopItems', { name: me });
-        const items = Array.isArray(data) ? data : (data.items || []);
         const furns = CONFIG.FURNITURE_CATALOG;
+        const defaultItems = [
+          { itemName: '👟 스피드 롤러스케이트', 금액: 5000, 수량: 99, 설명: '이동속도 80% 증가' },
+          { itemName: '✨ 황금 오라 이펙트', 금액: 8000, 수량: 99, 설명: '반짝이는 황금빛 파티클' },
+          { itemName: '🍄 슈퍼 아이키커 버섯', 금액: 6000, 수량: 99, 설명: '캐릭터 크기 1.5배 거대화' },
+          { itemName: '🪽 천사의 날개', 금액: 10000, 수량: 99, 설명: '등 뒤에 날개 장착' },
+          { itemName: '🪑 자리 우선 선택권', 금액: 5000, 수량: 10, 설명: '원하는 자리를 먼저 고를 수 있는 티켓' }
+        ];
 
         container.innerHTML = `
           <div class="shop-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
@@ -524,23 +545,42 @@ const ModalManager = (() => {
           </div>
 
           <div id="shop-tab-item" class="shop-grid" style="display:none;">
-            ${items.length === 0 ? '<div style="padding:20px;">등록된 상점 아이템이 없습니다.</div>' : items.map(it => `
+            ${defaultItems.map(it => `
+              <div class="shop-item-card">
+                <div class="item-name">${it.itemName}</div>
+                <div class="item-desc">${it.설명}</div>
+                <div class="item-price">💰 ${it.금액.toLocaleString()}원</div>
+                <button class="pixel-btn-primary" onclick="ModalManager.buyItem('${it.itemName}', ${it.금액})">구매하기</button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+
+        API.call('getShopItems', { name: me }, true).then(data => {
+          const items = Array.isArray(data) ? data : (data.items || []);
+          const itemGrid = document.getElementById('shop-tab-item');
+          if (itemGrid && items.length > 0) {
+            itemGrid.innerHTML = items.map(it => `
               <div class="shop-item-card">
                 <div class="item-name">${it.아이템명 || it.itemName || it.이름}</div>
                 <div class="item-desc">${it.설명 || it.desc || ''}</div>
                 <div class="item-price">💰 ${(it.금액 || it.가격 || 0).toLocaleString()}원 (재고: ${it.수량 || it.재고 || 1}개)</div>
                 <button class="pixel-btn-primary" onclick="ModalManager.buyItem('${it.아이템명 || it.itemName || it.이름}', ${it.금액 || it.가격 || 0})">구매하기</button>
               </div>
-            `).join('')}
-          </div>
-        `;
+            `).join('');
+          }
+        });
         break;
       }
 
       // 학급마트
       case 'mart': {
-        const martData = await API.call('getMartItems');
-        const items = Array.isArray(martData) ? martData : (martData.items || []);
+        const defaultMartItems = [
+          { 아이템명: '초코파이', 가격: 800, 재고: 20 },
+          { 아이템명: '비타민 음료', 가격: 1200, 재고: 15 },
+          { 아이템명: '고급 형광펜', 가격: 1500, 재고: 10 },
+          { 아이템명: '과일 젤리 세트', 가격: 600, 재고: 25 }
+        ];
 
         container.innerHTML = `
           <div class="mart-panel">
@@ -553,13 +593,13 @@ const ModalManager = (() => {
             </div>
 
             <h4 style="margin-bottom:8px;">🛍️ 판매 중인 마트 물품</h4>
-            <div class="shop-grid" style="margin-bottom:16px;">
-              ${items.length === 0 ? '<div style="padding:10px; color:#64748b;">현재 등록된 상품이 없습니다. 아래 자율 결제를 이용하세요.</div>' : items.map(it => `
+            <div class="shop-grid" id="mart-items-grid" style="margin-bottom:16px;">
+              ${defaultMartItems.map(it => `
                 <div class="shop-item-card">
                   <div class="item-emoji">🍎</div>
-                  <div class="item-name">${it.아이템명 || it.name}</div>
-                  <div class="item-price">${(it.가격 || it.금액 || 0).toLocaleString()}원 (재고: ${it.재고 || it.수량 || 1}개)</div>
-                  <button class="pixel-btn-primary" onclick="ModalManager.openMartPayModal('${it.아이템명 || it.name}', ${it.가격 || it.금액 || 0})">구매 결제</button>
+                  <div class="item-name">${it.아이템명}</div>
+                  <div class="item-price">${it.가격.toLocaleString()}원 (재고: ${it.재고}개)</div>
+                  <button class="pixel-btn-primary" onclick="ModalManager.openMartPayModal('${it.아이템명}', ${it.가격})">구매 결제</button>
                 </div>
               `).join('')}
             </div>
@@ -574,23 +614,36 @@ const ModalManager = (() => {
             </div>
           </div>
         `;
+
+        API.call('getMartItems', {}, true).then(martData => {
+          const items = Array.isArray(martData) ? martData : (martData.items || []);
+          const grid = document.getElementById('mart-items-grid');
+          if (grid && items.length > 0) {
+            grid.innerHTML = items.map(it => `
+              <div class="shop-item-card">
+                <div class="item-emoji">🍎</div>
+                <div class="item-name">${it.아이템명 || it.name}</div>
+                <div class="item-price">${(it.가격 || it.금액 || 0).toLocaleString()}원 (재고: ${it.재고 || it.수량 || 1}개)</div>
+                <button class="pixel-btn-primary" onclick="ModalManager.openMartPayModal('${it.아이템명 || it.name}', ${it.가격 || it.금액 || 0})">구매 결제</button>
+              </div>
+            `).join('');
+          }
+        });
         break;
       }
 
       // 학교 본관 LMS
       case 'school': {
-        const noticesRes = await API.call('getNotices');
-        const notices = Array.isArray(noticesRes) ? noticesRes : (noticesRes.notices || []);
-        const assignsRes = await API.call('getAssignments');
-        const assigns = Array.isArray(assignsRes) ? assignsRes : (assignsRes.assignments || []);
-        const mealData = await API.call('getMeal');
-        const ttData = await API.call('getTimetable');
+        const defaultNotices = [
+          { 날짜: '2026-08-28', 제목: '🎉 2D 동물의숲 클래스타운 개장 안내!', 내용: '기숙사 미니룸을 꾸미고 친구들과 교류해보세요.', 중요도: '긴급' },
+          { 날짜: '2026-08-27', 제목: '이번 주 금요일 주식 배당금 지급 안내', 내용: '보유 주식 수에 따라 배당금이 지급됩니다.', 중요도: '일반' }
+        ];
 
         container.innerHTML = `
           <div class="school-lms-wrap">
             <div class="lms-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
-              <button class="tab-btn active" onclick="ModalManager.switchLmsTab('notice')">📢 공지사항 (${notices.length})</button>
-              <button class="tab-btn" onclick="ModalManager.switchLmsTab('assign')">📝 과제 & 숙제 (${assigns.length})</button>
+              <button class="tab-btn active" onclick="ModalManager.switchLmsTab('notice')">📢 공지사항</button>
+              <button class="tab-btn" onclick="ModalManager.switchLmsTab('assign')">📝 과제 & 숙제</button>
               <button class="tab-btn" onclick="ModalManager.switchLmsTab('meal')">🍱 오늘의 급식</button>
               <button class="tab-btn" onclick="ModalManager.switchLmsTab('tt')">⏰ 시간표</button>
             </div>
@@ -599,10 +652,10 @@ const ModalManager = (() => {
               <div style="margin-bottom:10px; display:flex; justify-content:flex-end;">
                 <button class="pixel-btn-sm" onclick="ModalManager.openNoticeWriteModal()">✍️ 새 공지 작성</button>
               </div>
-              <div class="notice-cards" style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto;">
-                ${notices.length === 0 ? '<div style="padding:20px; text-align:center;">등록된 공지사항이 없습니다.</div>' : notices.map(n => `
+              <div class="notice-cards" id="notice-cards-list" style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto;">
+                ${defaultNotices.map(n => `
                   <div class="notice-card" style="background:#fff; border:2px solid #cbd5e1; border-radius:8px; padding:12px;">
-                    <div class="nc-date" style="font-size:11px; color:#64748b; margin-bottom:4px;">${n.일시 || n.날짜 || ''} ${n.중요도 === '긴급' ? '<span class="badge badge-danger">긴급</span>' : ''}</div>
+                    <div class="nc-date" style="font-size:11px; color:#64748b; margin-bottom:4px;">${n.날짜} ${n.중요도 === '긴급' ? '<span class="badge badge-danger">긴급</span>' : ''}</div>
                     <div class="nc-title" style="font-weight:bold; font-size:14px; margin-bottom:4px;">${n.제목}</div>
                     <div class="nc-content" style="font-size:12px; color:#334155; line-height:1.5;">${n.내용}</div>
                   </div>
@@ -614,16 +667,14 @@ const ModalManager = (() => {
               <div class="table-wrap" style="max-height:300px; overflow-y:auto;">
                 <table class="pixel-table">
                   <thead><tr><th>과제명</th><th>내용</th><th>마감일</th><th>수당</th><th>제출</th></tr></thead>
-                  <tbody>
-                    ${assigns.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding:15px;">등록된 과제가 없습니다.</td></tr>' : assigns.map(a => `
-                      <tr>
-                        <td><strong>${a.제목 || a.과제ID}</strong></td>
-                        <td>${a.내용 || '-'}</td>
-                        <td>${a.기간종료 || '-'}</td>
-                        <td>💰 ${(a.수당 || 0).toLocaleString()}원</td>
-                        <td><button class="pixel-btn-sm" onclick="ModalManager.submitAssignmentModal('${a.과제ID}', '${a.제목}')">제출</button></td>
-                      </tr>
-                    `).join('')}
+                  <tbody id="assignments-tbody">
+                    <tr>
+                      <td><strong>2학기 경제 포트폴리오</strong></td>
+                      <td>나의 소비 습관과 투자 일지 작성 제출</td>
+                      <td>2026-09-15</td>
+                      <td>💰 5,000원</td>
+                      <td><button class="pixel-btn-sm" onclick="ModalManager.submitAssignmentModal('as1', '2학기 경제 포트폴리오')">제출</button></td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -632,19 +683,33 @@ const ModalManager = (() => {
             <div id="lms-tab-meal" class="lms-content-tab" style="display:none;">
               <div class="meal-box" style="background:#fffbeb; border:2px solid #fde68a; padding:16px; border-radius:10px;">
                 <h3 style="color:#b45309; margin-bottom:8px;">🍱 오늘의 영양 급식 식단</h3>
-                <div class="meal-content" style="font-size:14px; line-height:1.7;">${mealData.meal || '찰보리밥, 한우소고기미역국, 돈육간장불고기, 상추쌈/쌈장, 배추김치, 멜론'}</div>
+                <div class="meal-content" style="font-size:14px; line-height:1.7;">찰보리밥, 한우소고기미역국, 돈육간장불고기, 상추쌈/쌈장, 배추김치, 멜론</div>
               </div>
             </div>
 
             <div id="lms-tab-tt" class="lms-content-tab" style="display:none;">
               <div class="timetable-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
-                ${(Array.isArray(ttData) ? ttData : (ttData.timetable || ['1교시: 국어', '2교시: 수학', '3교시: 사회', '4교시: 과학', '5교시: 체육', '6교시: 미술'])).map(t => `
+                ${['1교시: 국어', '2교시: 수학', '3교시: 사회', '4교시: 과학', '5교시: 체육', '6교시: 미술'].map(t => `
                   <div class="tt-cell" style="background:#fff; border:2px solid #cbd5e1; padding:12px; border-radius:8px; text-align:center; font-weight:bold;">${t}</div>
                 `).join('')}
               </div>
             </div>
           </div>
         `;
+
+        API.call('getNotices', {}, true).then(noticesRes => {
+          const notices = Array.isArray(noticesRes) ? noticesRes : (noticesRes.notices || []);
+          const list = document.getElementById('notice-cards-list');
+          if (list && notices.length > 0) {
+            list.innerHTML = notices.map(n => `
+              <div class="notice-card" style="background:#fff; border:2px solid #cbd5e1; border-radius:8px; padding:12px;">
+                <div class="nc-date" style="font-size:11px; color:#64748b; margin-bottom:4px;">${n.일시 || n.날짜 || ''} ${n.중요도 === '긴급' ? '<span class="badge badge-danger">긴급</span>' : ''}</div>
+                <div class="nc-title" style="font-weight:bold; font-size:14px; margin-bottom:4px;">${n.제목}</div>
+                <div class="nc-content" style="font-size:12px; color:#334155; line-height:1.5;">${n.내용}</div>
+              </div>
+            `).join('');
+          }
+        });
         break;
       }
 
@@ -674,16 +739,22 @@ const ModalManager = (() => {
       case 'cityhall':
       case 'principal':
       case 'admin_quick': {
-        const allData = await API.call('adminGetAllData');
-        const students = allData.students || [];
+        const students = (GameState.rankingList && GameState.rankingList.length > 0)
+          ? GameState.rankingList
+          : [
+              { id: 1, name: '김현주', job: '문화체육부 장관', cash: 2310000, stockQty: 50, totalAsset: 2370000 },
+              { id: 2, name: '이하진', job: '대통령(반장)', cash: 1722000, stockQty: 30, totalAsset: 1758000 },
+              { id: 3, name: '정수빈', job: '은행원', cash: 1695800, stockQty: 20, totalAsset: 1719800 },
+              { id: 4, name: '서언', job: '국세청장', cash: 1666560, stockQty: 10, totalAsset: 1678560 }
+            ];
+
         container.innerHTML = `
           <div class="admin-panel">
             <div class="admin-top-stats" style="display:flex; justify-content:space-between; background:#fee2e2; border:2px solid #fca5a5; padding:12px; border-radius:8px; margin-bottom:12px;">
-              <div>👨‍🎓 등록 학생: <strong>${students.length}명</strong></div>
+              <div>👨‍🎓 등록 학생: <strong id="admin-student-count">${students.length}명</strong></div>
               <div>⚙️ 학급 관리자 권한: <strong>승인됨</strong></div>
             </div>
 
-            <!-- 관리자 핵심 액션 툴바 -->
             <div class="admin-action-bar" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
               <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#0284c7;" onclick="ModalManager.openPaySalariesModal()">💰 월급 일괄 배부</button>
               <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#dc2626;" onclick="ModalManager.openFineModal()">⚖️ 벌금 징수</button>
@@ -702,19 +773,19 @@ const ModalManager = (() => {
               <div class="table-wrap" style="max-height:300px; overflow-y:auto;">
                 <table class="pixel-table">
                   <thead><tr><th>번호</th><th>이름</th><th>직업</th><th>현금</th><th>주식수량</th><th>총자산</th><th>관리</th></tr></thead>
-                  <tbody>
-                    ${students.map(st => `
+                  <tbody id="admin-students-tbody">
+                    ${students.map((s, idx) => `
                       <tr>
-                        <td>${st.id}</td>
-                        <td><strong>${st.name}</strong></td>
-                        <td>${st.job}</td>
-                        <td>${(st.cash || 0).toLocaleString()}원</td>
-                        <td>${st.stockQty || 0}주</td>
-                        <td><strong>${(st.totalAsset || 0).toLocaleString()}원</strong></td>
+                        <td>${s.id || idx + 1}</td>
+                        <td><strong>${s.name}</strong></td>
+                        <td>${s.job}</td>
+                        <td>${(s.cash || s.total || 0).toLocaleString()}원</td>
+                        <td>${s.stockQty || 0}주</td>
+                        <td><strong>${(s.totalAsset || s.total || 0).toLocaleString()}원</strong></td>
                         <td>
-                          <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${st.name}')">금액조정</button>
-                          <button class="pixel-btn-sm" style="background:#f87171;" onclick="ModalManager.openFineModal('${st.name}')">벌금</button>
-                          <button class="pixel-btn-sm" style="background:#fb923c;" onclick="ModalManager.openWarnModal('${st.name}')">경고</button>
+                          <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${s.name}')">금액조정</button>
+                          <button class="pixel-btn-sm" style="background:#f87171;" onclick="ModalManager.openFineModal('${s.name}')">벌금</button>
+                          <button class="pixel-btn-sm" style="background:#fb923c;" onclick="ModalManager.openWarnModal('${s.name}')">경고</button>
                         </td>
                       </tr>
                     `).join('')}
@@ -741,11 +812,37 @@ const ModalManager = (() => {
             </div>
           </div>
         `;
+
+        API.call('adminGetAllData', {}, true).then(allData => {
+          const freshStudents = allData.students || [];
+          if (freshStudents.length > 0) {
+            const countEl = document.getElementById('admin-student-count');
+            if (countEl) countEl.textContent = `${freshStudents.length}명`;
+            const tbody = document.getElementById('admin-students-tbody');
+            if (tbody) {
+              tbody.innerHTML = freshStudents.map(s => `
+                <tr>
+                  <td>${s.id}</td>
+                  <td><strong>${s.name}</strong></td>
+                  <td>${s.job}</td>
+                  <td>${(s.cash || 0).toLocaleString()}원</td>
+                  <td>${s.stockQty || 0}주</td>
+                  <td><strong>${(s.totalAsset || 0).toLocaleString()}원</strong></td>
+                  <td>
+                    <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${s.name}')">금액조정</button>
+                    <button class="pixel-btn-sm" style="background:#f87171;" onclick="ModalManager.openFineModal('${s.name}')">벌금</button>
+                    <button class="pixel-btn-sm" style="background:#fb923c;" onclick="ModalManager.openWarnModal('${s.name}')">경고</button>
+                  </td>
+                </tr>
+              `).join('');
+            }
+          }
+        });
         break;
       }
 
       default:
-        container.innerHTML = `<div style="padding:20px;">${building.desc || '준비 중인 건물입니다.'}</div>`;
+        container.innerHTML = `<div style="padding:20px;">${id} 시설에 오신 것을 환영합니다!</div>`;
     }
   }
 

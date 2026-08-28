@@ -52,15 +52,34 @@ function getSpreadsheet() {
 
 function getOrCreateSheet(sheetName) {
   const ss = getSpreadsheet();
-  let sh = ss.getSheetByName(sheetName);
-  if (!sh) {
-    sh = ss.insertSheet(sheetName);
-    const headers = SCHEMA[sheetName] || [];
-    if (headers.length > 0) {
-      sh.appendRow(headers);
-      sh.getRange(1, 1, 1, headers.length).setBackground('#1e293b').setFontColor('#ffffff').setFontWeight('bold');
-      sh.setFrozenRows(1);
-    }
+  // 유사 시트명 별칭 매핑
+  const ALIASES = {
+    '사용자': ['사용자', '학생', '학생명단', '학생목록', '학생관리'],
+    '환경설정': ['환경설정', '설정', '기본설정', '시스템설정'],
+    '거래LOG': ['거래LOG', '거래기록', '거래내역', '입출금내역', '로그'],
+    '주식시장': ['주식시장', '주식', '증권', '주가'],
+    '자산현황': ['자산현황', '상점', '아이템', '상점아이템', '자산'],
+    '학습관리': ['학습관리', '공지사항', '공지', '게시판'],
+    '학급활동': ['학급활동', '활동기록', '활동', '상벌점'],
+    '과제': ['과제', '숙제', '과제제출'],
+    '복권': ['복권', '로또', '행운복권'],
+    '미니룸': ['미니룸', '기숙사', '방데이터', '하우징'],
+    '채팅LOG': ['채팅LOG', '채팅로그', '채팅기록', '채팅']
+  };
+
+  const candidateNames = ALIASES[sheetName] || [sheetName];
+  for (const name of candidateNames) {
+    const found = ss.getSheetByName(name);
+    if (found) return found;
+  }
+
+  // 없으면 표준 이름으로 신규 생성
+  let sh = ss.insertSheet(sheetName);
+  const headers = SCHEMA[sheetName] || [];
+  if (headers.length > 0) {
+    sh.appendRow(headers);
+    sh.getRange(1, 1, 1, headers.length).setBackground('#1e293b').setFontColor('#ffffff').setFontWeight('bold');
+    sh.setFrozenRows(1);
   }
   return sh;
 }
@@ -470,8 +489,13 @@ function handleRequest(params) {
       }
 
       case 'getShopItems': {
-        const items = sheetToObj(getOrCreateSheet(SH.ASSETS))
+        let items = sheetToObj(getOrCreateSheet(SH.ASSETS))
           .filter(r => (r['카테고리'] === '아이템' || r['카테고리'] === '캐릭터아이템') && r['상태'] === '판매중' && Number(r['수량'] || 0) > 0);
+        if (items.length === 0) {
+          initSystemSheets();
+          items = sheetToObj(getOrCreateSheet(SH.ASSETS))
+            .filter(r => (r['카테고리'] === '아이템' || r['카테고리'] === '캐릭터아이템') && r['상태'] === '판매중' && Number(r['수량'] || 0) > 0);
+        }
         result = { success: true, items: items };
         break;
       }
@@ -569,8 +593,19 @@ function handleRequest(params) {
 
       // 6. 학급마트 간편결제
       case 'getMartItems': {
-        const items = sheetToObj(getOrCreateSheet(SH.ASSETS))
+        const sh = getOrCreateSheet(SH.ASSETS);
+        let items = sheetToObj(sh)
           .filter(r => r['카테고리'] === '마트물품' && r['상태'] === '판매중' && Number(r['수량'] || 0) > 0);
+        if (items.length === 0) {
+          const defaultMarts = [
+            [nowStr(), '선생님', '마트물품', '초코파이', 800, 20, '', '판매중', '', '달콤한 초코파이 간식'],
+            [nowStr(), '선생님', '마트물품', '비타민 음료', 1200, 15, '', '판매중', '', '상큼한 활력 비타민 음료'],
+            [nowStr(), '선생님', '마트물품', '고급 형광펜', 1500, 10, '', '판매중', '', '필기용 네온 형광펜'],
+            [nowStr(), '선생님', '마트물품', '과일 젤리 세트', 600, 25, '', '판매중', '', '쫀득쫀득 맛있는 젤리']
+          ];
+          defaultMarts.forEach(r => sh.appendRow(r));
+          items = sheetToObj(sh).filter(r => r['카테고리'] === '마트물품' && r['상태'] === '판매중');
+        }
         result = { success: true, items: items };
         break;
       }
@@ -717,8 +752,13 @@ function handleRequest(params) {
 
       // 12. 공지사항 & 과제
       case 'getNotices': {
-        const rows = sheetToObj(getOrCreateSheet(SH.LEARNING))
-          .filter(r => r['카테고리'] === '공지').reverse();
+        const sh = getOrCreateSheet(SH.LEARNING);
+        let rows = sheetToObj(sh).filter(r => r['카테고리'] === '공지').reverse();
+        if (rows.length === 0) {
+          sh.appendRow([nowStr(), '공지', 'N1', '🎉 2D 동물의숲 클래스타운 개장 안내!', '기숙사 미니룸을 꾸미고 친구들과 교류해보세요.', 'all', '', '선생님', '활성', '긴급']);
+          sh.appendRow([nowStr(), '공지', 'N2', '이번 주 금요일 주식 배당금 지급 안내', '보유 주식 수에 따라 배당금이 지급됩니다.', 'all', '', '선생님', '활성', '일반']);
+          rows = sheetToObj(sh).filter(r => r['카테고리'] === '공지').reverse();
+        }
         result = { success: true, notices: rows };
         break;
       }
@@ -736,7 +776,13 @@ function handleRequest(params) {
       }
 
       case 'getAssignments': {
-        const rows = sheetToObj(getOrCreateSheet(SH.ASSIGNMENT)).reverse();
+        const sh = getOrCreateSheet(SH.ASSIGNMENT);
+        let rows = sheetToObj(sh).reverse();
+        if (rows.length === 0) {
+          sh.appendRow(['as1', '2026-08-28', '2학기 경제 포트폴리오 작성', '나의 소비 습관과 투자 일지 작성 제출', '2026-08-28', '2026-09-15', '문서', 5000, '진행중', '선생님']);
+          sh.appendRow(['as2', '2026-08-28', '금융/경제 독서 감상문 쓰기', '지정 도서 1권 읽고 느낀 점 쓰기', '2026-08-28', '2026-09-10', '문서', 3000, '진행중', '선생님']);
+          rows = sheetToObj(sh).reverse();
+        }
         result = { success: true, assignments: rows };
         break;
       }
