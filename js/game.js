@@ -1,5 +1,5 @@
 // ============================================================
-// Phaser 3 게임 메인 루프 & 타운 씬 (js/game.js)
+// Phaser 3 게임 메인 루프 & 타운 씬 & 미니맵 HUD (js/game.js)
 // ============================================================
 
 // 전역 게임 상태
@@ -18,15 +18,13 @@ class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    // 캔버스 기반 텍스처 동기적 즉시 등록
     try {
+      // 1. 기본 타일 및 캐릭터 스프라이트
       const tilesetCvs = AssetGenerator.generateTileset();
       this.textures.addCanvas('tileset', tilesetCvs);
 
-      // 캐릭터 스프라이트시트 텍스처 및 프레임 등록
       const charCvs = AssetGenerator.generateCharacterSpritesheet();
       const charTexture = this.textures.addCanvas('character', charCvs);
-      // 4x4 프레임 (각 32x48 px) 분할 등록
       for (let row = 0; row < 4; row++) {
         for (let col = 0; col < 4; col++) {
           const frameIndex = row * 4 + col;
@@ -34,7 +32,7 @@ class BootScene extends Phaser.Scene {
         }
       }
 
-      // 환경 소품 캔버스 등록
+      // 2. 환경 소품
       this.textures.addCanvas('tree_pink', AssetGenerator.generateTreeSprite(true));
       this.textures.addCanvas('tree_green', AssetGenerator.generateTreeSprite(false));
       this.textures.addCanvas('fountain', AssetGenerator.generateFountainSprite());
@@ -42,18 +40,31 @@ class BootScene extends Phaser.Scene {
       this.textures.addCanvas('prop_bench', AssetGenerator.generatePropSprite('bench'));
       this.textures.addCanvas('prop_mailbox', AssetGenerator.generatePropSprite('mailbox'));
 
-      // 14개 건물 텍스처 등록
+      // 3. 14개 건물
       TownMapData.BUILDINGS.forEach(b => {
         const bCvs = AssetGenerator.generateBuildingSprite(b.roofColor, b.signTitle, b.signEmoji, b.w, b.h);
         this.textures.addCanvas(`building_${b.id}`, bCvs);
       });
+
+      // 4. 놀이동산 어트랙션 텍스처
+      this.textures.addCanvas('amuse_ferris_wheel', AssetGenerator.generateAmusementSprite('ferris_wheel'));
+      this.textures.addCanvas('amuse_carousel', AssetGenerator.generateAmusementSprite('carousel'));
+      this.textures.addCanvas('amuse_circus_tent', AssetGenerator.generateAmusementSprite('circus_tent'));
+      this.textures.addCanvas('amuse_popcorn_cart', AssetGenerator.generateAmusementSprite('popcorn_cart'));
+
+      // 5. 동물 NPC 텍스처
+      this.textures.addCanvas('npc_bear', AssetGenerator.generateAnimalNPCSprite('bear'));
+      this.textures.addCanvas('npc_rabbit', AssetGenerator.generateAnimalNPCSprite('rabbit'));
+      this.textures.addCanvas('npc_cat', AssetGenerator.generateAnimalNPCSprite('cat'));
+      this.textures.addCanvas('npc_panda', AssetGenerator.generateAnimalNPCSprite('panda'));
+      this.textures.addCanvas('npc_fox', AssetGenerator.generateAnimalNPCSprite('fox'));
+
     } catch (e) {
       console.error('[BootScene Texture Error]', e);
     }
   }
 
   create() {
-    // 캐릭터 4방향 애니메이션 정의 (각 4프레임)
     const anims = this.anims;
     const dirs = ['down', 'left', 'right', 'up'];
 
@@ -88,16 +99,17 @@ class TownScene extends Phaser.Scene {
     this.wasd = null;
     this.interactKey = null;
     this.currentDirection = 'down';
-    this.nearBuilding = null;
+    this.nearTarget = null;
     this.otherPlayerSprites = {};
     this.interactPrompt = null;
+    this.lastMinimapUpdate = 0;
   }
 
   create() {
     const TILE_SIZE = CONFIG.GAME.TILE_SIZE;
     const mapGrid = TownMapData.createTileGrid();
 
-    // 1. 타일맵 생성
+    // 1. 타일맵
     const map = this.make.tilemap({
       data: mapGrid,
       tileWidth: TILE_SIZE,
@@ -105,16 +117,13 @@ class TownScene extends Phaser.Scene {
     });
     const tiles = map.addTilesetImage('tileset', 'tileset', TILE_SIZE, TILE_SIZE, 0, 0);
     this.groundLayer = map.createLayer(0, tiles, 0, 0);
-
-    // 물 타일(3) 충돌 설정
     this.groundLayer.setCollision([3]);
 
-    // 월드 경계 설정
     const worldW = TownMapData.WIDTH * TILE_SIZE;
     const worldH = TownMapData.HEIGHT * TILE_SIZE;
     this.physics.world.setBounds(0, 0, worldW, worldH);
 
-    // 2. 환경 오브젝트 (분수, 가로등, 벤치, 나무)
+    // 2. 환경 소품
     TownMapData.PROPS.forEach(p => {
       let key = 'fountain';
       if (p.type === 'lamp') key = 'prop_lamp';
@@ -132,33 +141,73 @@ class TownScene extends Phaser.Scene {
       tree.setDepth(t.y + 40);
     });
 
-    // 3. 14개 건물 오브젝트 및 충돌체 배치
+    // 3. 14개 건물
     this.buildingGroup = this.physics.add.staticGroup();
-    this.buildingZones = [];
+    this.interactTargets = [];
 
     TownMapData.BUILDINGS.forEach(b => {
       const bx = b.tileX * TILE_SIZE;
       const by = b.tileY * TILE_SIZE;
       const bSpr = this.buildingGroup.create(bx + b.w / 2, by + b.h / 2, `building_${b.id}`);
       bSpr.setDepth(by + b.h);
-
-      // 충돌 바운딩 박스 (하단 벽면)
       bSpr.body.setSize(b.w - 20, 60);
       bSpr.body.setOffset(10, b.h - 60);
 
-      // 상호작용 트리거 영역 (문 앞)
-      const triggerZone = {
+      this.interactTargets.push({
+        type: 'building',
         id: b.id,
         name: b.name,
         emoji: b.signEmoji,
         x: bx + b.w / 2,
         y: by + b.h + 10,
         radius: 65
-      };
-      this.buildingZones.push(triggerZone);
+      });
     });
 
-    // 4. 플레이어 캐릭터 생성
+    // 4. 놀이동산 어트랙션 배치
+    if (TownMapData.AMUSEMENTS) {
+      TownMapData.AMUSEMENTS.forEach(a => {
+        const aSpr = this.physics.add.staticSprite(a.x, a.y, `amuse_${a.type}`);
+        aSpr.setDepth(a.y + 20);
+        this.interactTargets.push({
+          type: 'dialog',
+          id: a.type,
+          name: a.name,
+          emoji: '🎈',
+          dialog: `${a.name}에 탑승했습니다! 신나는 음악이 흘러나옵니다 🎶`,
+          x: a.x,
+          y: a.y + 30,
+          radius: 60
+        });
+      });
+    }
+
+    // 5. 동물 NPC 배치
+    if (TownMapData.NPCS) {
+      TownMapData.NPCS.forEach(n => {
+        const npcSpr = this.physics.add.staticSprite(n.x, n.y, `npc_${n.type}`);
+        npcSpr.setDepth(n.y + 15);
+        this.add.text(n.x, n.y - 30, n.name, {
+          fontSize: '10px',
+          fill: '#fef08a',
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          padding: { x: 4, y: 2 }
+        }).setOrigin(0.5).setDepth(9999);
+
+        this.interactTargets.push({
+          type: 'dialog',
+          id: n.id,
+          name: n.name,
+          emoji: '💬',
+          dialog: n.dialog,
+          x: n.x,
+          y: n.y + 10,
+          radius: 55
+        });
+      });
+    }
+
+    // 6. 플레이어 생성
     const spawnX = TownMapData.SPAWN_X;
     const spawnY = TownMapData.SPAWN_Y;
 
@@ -167,11 +216,9 @@ class TownScene extends Phaser.Scene {
     this.player.body.setOffset(6, 28);
     this.player.setCollideWorldBounds(true);
 
-    // 충돌 처리
     this.physics.add.collider(this.player, this.groundLayer);
     this.physics.add.collider(this.player, this.buildingGroup);
 
-    // 플레이어 닉네임 / 직업 태그
     const st = GameState.student;
     const myDispName = st ? `${st.name || st.이름} (${st.job || st.직업명 || '학생'})` : '나';
     this.playerNameTag = this.add.text(spawnX, spawnY - 32, myDispName, {
@@ -181,7 +228,6 @@ class TownScene extends Phaser.Scene {
       padding: { x: 4, y: 2 }
     }).setOrigin(0.5).setDepth(9999);
 
-    // 플레이어 머리 위 말풍선 텍스트
     this.playerBubble = this.add.text(spawnX, spawnY - 52, '', {
       fontSize: '12px',
       fill: '#1e293b',
@@ -191,7 +237,6 @@ class TownScene extends Phaser.Scene {
       padding: { x: 6, y: 4 }
     }).setOrigin(0.5).setDepth(10000).setVisible(false);
 
-    // 건물 상호작용 프롬프트 안내창 ([E] 키를 눌러 입장)
     this.interactPrompt = this.add.text(spawnX, spawnY - 45, '', {
       fontSize: '12px',
       fontWeight: 'bold',
@@ -200,12 +245,12 @@ class TownScene extends Phaser.Scene {
       padding: { x: 8, y: 4 }
     }).setOrigin(0.5).setDepth(10001).setVisible(false);
 
-    // 5. 카메라 설정
+    // 7. 카메라
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.cameras.main.setBounds(0, 0, worldW, worldH);
     this.cameras.main.setZoom(CONFIG.GAME.CAMERA_ZOOM);
 
-    // 6. 입력 키 설정
+    // 8. 입력 키
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -216,10 +261,9 @@ class TownScene extends Phaser.Scene {
     this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
-    // 벚꽃 잎 파티클 효과
     this.createCherryBlossomParticles();
 
-    // 멀티플레이어 리스너 초기화
+    // 멀티플레이어
     if (GameState.student) {
       const studentName = GameState.student.name || GameState.student.이름;
       Realtime.init(
@@ -254,7 +298,6 @@ class TownScene extends Phaser.Scene {
   update() {
     if (!this.player) return;
 
-    // 모달창 오픈 중일 때는 이동 일시 중지
     const modal = document.getElementById('modal-overlay');
     if (modal && modal.style.display === 'flex') {
       this.player.body.setVelocity(0);
@@ -267,7 +310,6 @@ class TownScene extends Phaser.Scene {
     let vy = 0;
     let moving = false;
 
-    // 키보드 입력 체크
     if (this.cursors.left.isDown || this.wasd.left.isDown) {
       vx = -speed;
       this.currentDirection = 'left';
@@ -288,7 +330,6 @@ class TownScene extends Phaser.Scene {
       moving = true;
     }
 
-    // 모바일 가상 조이스틱 연동
     if (window.MobileJoystickVector && (window.MobileJoystickVector.x !== 0 || window.MobileJoystickVector.y !== 0)) {
       vx = window.MobileJoystickVector.x * speed;
       vy = window.MobileJoystickVector.y * speed;
@@ -300,7 +341,6 @@ class TownScene extends Phaser.Scene {
       }
     }
 
-    // 대각선 이동 속도 정규화
     if (vx !== 0 && vy !== 0) {
       vx *= 0.7071;
       vy *= 0.7071;
@@ -317,47 +357,118 @@ class TownScene extends Phaser.Scene {
 
     this.player.setDepth(this.player.y + 20);
 
-    // 닉네임 태그 & 말풍선 위치 동기화
     this.playerNameTag.setPosition(this.player.x, this.player.y - 30);
     this.playerBubble.setPosition(this.player.x, this.player.y - 50);
 
-    // 실시간 좌표 전송
     Realtime.updatePosition(this.player.x, this.player.y, this.currentDirection, moving);
 
-    // 건물 근접 상호작용 검사
-    this.checkBuildingInteraction();
+    this.checkInteractions();
+    this.updateMinimap();
   }
 
-  checkBuildingInteraction() {
+  checkInteractions() {
     const px = this.player.x;
     const py = this.player.y;
     let found = null;
 
-    for (const b of this.buildingZones) {
-      const dist = Phaser.Math.Distance.Between(px, py, b.x, b.y);
-      if (dist <= b.radius) {
-        found = b;
+    for (const t of this.interactTargets) {
+      const dist = Phaser.Math.Distance.Between(px, py, t.x, t.y);
+      if (dist <= t.radius) {
+        found = t;
         break;
       }
     }
 
-    this.nearBuilding = found;
+    this.nearTarget = found;
 
     if (found) {
-      this.interactPrompt.setText(`${found.emoji} [E] ${found.name} 입장`);
+      const actionText = found.type === 'building' ? `${found.emoji} [E] ${found.name} 입장` : `${found.emoji} [E] ${found.name} 대화하기`;
+      this.interactPrompt.setText(actionText);
       this.interactPrompt.setPosition(px, py - 45);
       this.interactPrompt.setVisible(true);
 
-      // E 키 또는 Space 키로 입장
       if (Phaser.Input.Keyboard.JustDown(this.interactKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-        ModalManager.open(found.id);
+        if (found.type === 'building') {
+          ModalManager.open(found.id);
+        } else if (found.type === 'dialog') {
+          SoundEngine.open();
+          alert(`[${found.name}]\n\n"${found.dialog}"`);
+        }
       }
     } else {
       this.interactPrompt.setVisible(false);
     }
   }
 
-  // 원격 플레이어 렌더링 동기화
+  // 실시간 미니맵 렌더러
+  updateMinimap() {
+    const now = Date.now();
+    if (now - this.lastMinimapUpdate < 150) return;
+    this.lastMinimapUpdate = now;
+
+    const cvs = document.getElementById('minimap-canvas');
+    if (!cvs) return;
+    const ctx = cvs.getContext('2d');
+    const W = cvs.width;
+    const H = cvs.height;
+
+    const worldW = TownMapData.WIDTH * 32;
+    const worldH = TownMapData.HEIGHT * 32;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // 맵 배경
+    ctx.fillStyle = '#88d49e';
+    ctx.fillRect(0, 0, W, H);
+
+    // 호수
+    const lakeX = (42 / 100) * W;
+    const lakeY = (56 / 80) * H;
+    const lakeW = (16 / 100) * W;
+    const lakeH = (7 / 80) * H;
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(lakeX, lakeY, lakeW, lakeH);
+
+    // 건물 위치 (노란색 사각형)
+    TownMapData.BUILDINGS.forEach(b => {
+      const bx = (b.tileX / 100) * W;
+      const by = (b.tileY / 80) * H;
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(bx - 2, by - 2, 4, 4);
+    });
+
+    // NPC 위치 (초록 점)
+    if (TownMapData.NPCS) {
+      TownMapData.NPCS.forEach(n => {
+        const nx = (n.x / worldW) * W;
+        const ny = (n.y / worldH) * H;
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath(); ctx.arc(nx, ny, 2, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+
+    // 다른 플레이어 (파란 점)
+    Object.values(this.otherPlayerSprites).forEach(p => {
+      if (p.spr) {
+        const ox = (p.spr.x / worldW) * W;
+        const oy = (p.spr.y / worldH) * H;
+        ctx.fillStyle = '#3b82f6';
+        ctx.beginPath(); ctx.arc(ox, oy, 2.5, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+
+    // 내 위치 (빨간색 빛나는 점)
+    if (this.player) {
+      const px = (this.player.x / worldW) * W;
+      const py = (this.player.y / worldH) * H;
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
   handleRemotePlayers(players) {
     const st = GameState.student;
     const myName = st ? (st.name || st.이름) : '';
@@ -404,7 +515,6 @@ class TownScene extends Phaser.Scene {
     });
   }
 
-  // 채팅 메시지 수신 및 말풍선 팝업
   handleChatMessage(chat) {
     const chatList = document.getElementById('chat-messages-list');
     if (chatList) {
@@ -436,7 +546,6 @@ class TownScene extends Phaser.Scene {
   }
 }
 
-// 게임 인스턴스 초기화 함수
 function initPhaserGame() {
   if (window.GameApp) {
     window.GameApp.destroy(true);
