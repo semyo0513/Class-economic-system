@@ -1,6 +1,6 @@
 // ============================================================
-// 싸이월드풍 미니룸 & 하우징 시스템 (js/miniroom.js)
-// 가구 터치/마우스 드래그 & 드롭 이동, 인벤토리 수량 체크, 방명록, 좋아요
+// 아기자기한 파스텔 감성 미니룸 & 인테리어 시스템 (js/miniroom.js)
+// 가구 드래그 & 드롭 자유 배치, 햇살 창문 효과, 방명록, 좋아요(❤️)
 // ============================================================
 
 const MiniroomSystem = (() => {
@@ -9,33 +9,36 @@ const MiniroomSystem = (() => {
   let draggingItemIdx = null;
   let dragOffset = { x: 0, y: 0 };
 
-  // 기본 방 템플릿
+  // 기본 아기자기한 방 템플릿
   const DEFAULT_ROOM = {
     wallpaper: 'wp_pastel_pink',
     floor: 'fl_wood_parquet',
-    statusMsg: '어서오세요! 행복한 나의 방에 놀러오신 것을 환영해요 🌸',
-    likes: 5,
+    statusMsg: '어서오세요! 따뜻하고 포근한 나의 방에 오신 걸 환영해요 🌸',
+    likes: 8,
     likedBy: [],
     inventory: {
       'fn_cozy_bed': 1,
       'fn_gaming_desk': 1,
       'fn_plant_pot': 1,
       'fn_teddy_bear': 1,
-      'pet_shiba_dog': 1
+      'pet_shiba_dog': 1,
+      'fn_fluffy_rug': 1,
+      'fn_window_sun': 1
     },
     items: [
-      { id: 'fn_cozy_bed', x: 80, y: 80 },
-      { id: 'fn_gaming_desk', x: 220, y: 80 },
-      { id: 'fn_plant_pot', x: 40, y: 160 },
-      { id: 'fn_teddy_bear', x: 150, y: 170 },
-      { id: 'pet_shiba_dog', x: 260, y: 190 }
+      { id: 'fn_window_sun', x: 180, y: 40 },
+      { id: 'fn_cozy_bed', x: 60, y: 80 },
+      { id: 'fn_gaming_desk', x: 260, y: 80 },
+      { id: 'fn_fluffy_rug', x: 160, y: 150 },
+      { id: 'fn_plant_pot', x: 30, y: 160 },
+      { id: 'fn_teddy_bear', x: 140, y: 165 },
+      { id: 'pet_shiba_dog', x: 280, y: 175 }
     ],
     guestbook: [
-      { author: '선생님', msg: '방이 정말 아늑하고 멋지구나! 좋은 하루 보내렴 😊', date: '2026-08-28 09:00' }
+      { author: '선생님', msg: '방이 정말 아기자기하고 예쁘구나! 멋진 인테리어야 ✨', date: '2026-08-28 09:30' }
     ]
   };
 
-  // 로컬 저장소 캐시 및 동기화
   function getRoomData(studentName) {
     const key = `classbank_room_${studentName}`;
     const local = localStorage.getItem(key);
@@ -43,7 +46,6 @@ const MiniroomSystem = (() => {
       try {
         const parsed = JSON.parse(local);
         if (!parsed.inventory) parsed.inventory = { ...DEFAULT_ROOM.inventory };
-        // 기존 그리드 좌표(x: 1~8)를 픽셀 좌표(px)로 마이그레이션
         if (parsed.items) {
           parsed.items.forEach(it => {
             if (it.x < 15) it.x = it.x * 40;
@@ -59,17 +61,12 @@ const MiniroomSystem = (() => {
   function saveRoomData(studentName, data) {
     const key = `classbank_room_${studentName}`;
     localStorage.setItem(key, JSON.stringify(data));
-
-    // GAS 백엔드에 백업 저장 (Google Sheets '미니룸' 시트)
     API.call('saveRoomData', { name: studentName, roomData: data }, true);
-
-    // Firebase RTDB에도 동기화
     if (window.Realtime && window.Realtime.saveRoom) {
       window.Realtime.saveRoom(studentName, data);
     }
   }
 
-  // 가구 구매 시 인벤토리에 추가
   function addFurnitureToInventory(studentName, furnitureId) {
     const room = getRoomData(studentName);
     if (!room.inventory) room.inventory = {};
@@ -77,11 +74,8 @@ const MiniroomSystem = (() => {
     saveRoomData(studentName, room);
   }
 
-  // 기숙사 메인 모달 렌더링 (호실 목록 즉시 0초 렌더링)
   function renderDormitoryList(container) {
     const me = GameState.student ? (GameState.student.name || GameState.student.이름 || '나') : '나';
-
-    // 1. 학생 목록 구성
     const students = (GameState.rankingList && GameState.rankingList.length > 0)
       ? GameState.rankingList
       : [
@@ -90,53 +84,56 @@ const MiniroomSystem = (() => {
           { name: '이하진', job: '대통령(반장)' },
           { name: '정수빈', job: '은행원' },
           { name: '서언', job: '국세청장' },
-          { name: '홍길동', job: '학생' }
+          { name: '고설아', job: '학생' }
         ];
 
     let html = `
-      <div class="dorm-header" style="background:#fffbeb; border:2px solid #fde68a; padding:12px; border-radius:10px; margin-bottom:14px; text-align:center;">
-        <div class="dorm-title" style="font-size:18px; font-weight:bold; color:#b45309;">🏢 학생 기숙사 (싸이월드 미니룸 타운)</div>
-        <div class="dorm-subtitle" style="font-size:12px; color:#78350f; margin-top:4px;">친구들의 방에 놀러가서 구경하고, 방명록과 좋아요(❤️)를 남겨보세요!</div>
+      <div class="dorm-header" style="background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border:2px solid #fcd34d; padding:14px; border-radius:12px; margin-bottom:14px; text-align:center;">
+        <div class="dorm-title" style="font-size:18px; font-weight:900; color:#b45309;">🏡 학생 아기자기 기숙사 타운</div>
+        <div class="dorm-subtitle" style="font-size:12px; color:#78350f; margin-top:4px;">친구들의 미니룸에 놀러가서 구경하고, 방명록과 좋아요(❤️)를 남겨보세요!</div>
       </div>
-      <div class="dorm-grid">
-    `;
 
-    students.forEach((st, idx) => {
-      const sName = st.name || st.이름 || `학생${idx+1}`;
-      const sJob = st.job || st.직업명 || '학생';
-      const room = getRoomData(sName);
-      const isMe = sName === me;
-      html += `
-        <div class="dorm-card ${isMe ? 'my-room-card' : ''}" onclick="MiniroomSystem.openRoom('${sName}')">
-          <div class="dorm-card-badge">${idx + 1}호실 ${isMe ? '(내 방 ⭐)' : ''}</div>
-          <div class="dorm-card-avatar">🏠</div>
-          <div class="dorm-card-name">${sName}</div>
-          <div class="dorm-card-job">${sJob}</div>
-          <div class="dorm-card-msg">"${(room.statusMsg || '즐거운 하루!').substring(0, 22)}..."</div>
-          <div class="dorm-card-footer">
-            <span>❤️ ${room.likes || 0}</span>
-            <span>💬 방명록 ${(room.guestbook || []).length}</span>
+      <div class="my-room-banner" style="background:linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border:2px solid #93c5fd; padding:14px; border-radius:10px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-size:32px;">🛋️</div>
+          <div>
+            <div style="font-size:15px; font-weight:bold; color:#1e40af;">내 아기자기 미니룸 입장하기</div>
+            <div style="font-size:12px; color:#3b82f6;">내 취향대로 벽지와 가구를 배치해보세요.</div>
           </div>
         </div>
-      `;
-    });
+        <button class="pixel-btn-primary" style="width:auto; padding:8px 18px;" onclick="MiniroomSystem.openRoom('${me}')">
+          🚪 내 방 꾸미기
+        </button>
+      </div>
 
-    html += `</div>`;
+      <h4 style="margin-bottom:10px; font-size:14px; color:#334155;">👥 친구들의 미니룸 목록</h4>
+      <div class="dorm-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; max-height:260px; overflow-y:auto;">
+        ${students.map((s, idx) => {
+          const room = getRoomData(s.name);
+          const isMy = s.name === me;
+          return `
+            <div class="dorm-card" style="background:#ffffff; border:2px solid ${isMy ? '#3b82f6' : '#cbd5e1'}; border-radius:10px; padding:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="MiniroomSystem.openRoom('${s.name}')">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="font-size:26px;">${isMy ? '👑' : '🚪'}</div>
+                <div>
+                  <div style="font-weight:bold; font-size:13px; color:#1e293b;">${s.name} ${isMy ? '<span class="badge badge-primary">내 방</span>' : ''}</div>
+                  <div style="font-size:11px; color:#64748b;">${s.job || '학생'} · ❤️ ${room.likes || 0}</div>
+                </div>
+              </div>
+              <button class="pixel-btn-sm" style="${isMy ? 'background:#3b82f6;' : ''}">방문</button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
     container.innerHTML = html;
-
-    // 2. 백그라운드에서 시트 최신 미니룸 데이터 동기화
-    API.call('getRoomData', { name: me }, true).then(cloudRes => {
-      if (cloudRes && cloudRes.success && cloudRes.roomData) {
-        localStorage.setItem(`classbank_room_${me}`, JSON.stringify(cloudRes.roomData));
-      }
-    });
   }
 
-  // 특정 학생의 미니룸 화면 오픈
   function openRoom(ownerName) {
     currentRoomOwner = ownerName;
     isEditing = false;
-    SoundEngine.open();
+    draggingItemIdx = null;
 
     const st = GameState.student;
     const myName = st ? (st.name || st.이름) : '';
@@ -151,16 +148,16 @@ const MiniroomSystem = (() => {
     let html = `
       <div class="miniroom-container">
         <!-- 상단 헤더 바 -->
-        <div class="miniroom-header">
-          <button class="pixel-btn-secondary" onclick="MiniroomSystem.backToList()">⬅️ 기숙사 목록</button>
-          <div class="miniroom-title-box">
-            <span class="miniroom-owner-name">🏠 <strong>${ownerName}</strong> 님의 미니룸</span>
-            <span class="miniroom-likes-badge" id="room-likes-btn" onclick="MiniroomSystem.likeRoom('${ownerName}')" style="cursor:pointer; background:#fee2e2; padding:4px 8px; border-radius:6px; font-size:12px; margin-left:8px;">
-              ❤️ <span id="room-likes-count">${room.likes || 0}</span> 좋아요
+        <div class="miniroom-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <button class="pixel-btn-secondary" style="width:auto; padding:6px 12px;" onclick="MiniroomSystem.backToList()">⬅️ 목록</button>
+          <div class="miniroom-title-box" style="display:flex; align-items:center;">
+            <span class="miniroom-owner-name" style="font-size:15px; font-weight:bold;">🏠 <strong>${ownerName}</strong> 님의 미니룸</span>
+            <span class="miniroom-likes-badge" id="room-likes-btn" onclick="MiniroomSystem.likeRoom('${ownerName}')" style="cursor:pointer; background:#fee2e2; border:1px solid #fca5a5; padding:3px 8px; border-radius:6px; font-size:12px; margin-left:8px;">
+              ❤️ <span id="room-likes-count">${room.likes || 0}</span>
             </span>
           </div>
           ${isMe ? `
-            <button class="pixel-btn-primary" id="edit-room-toggle-btn" style="width:auto; padding:6px 14px;" onclick="MiniroomSystem.toggleEditMode()">
+            <button class="pixel-btn-primary" id="edit-room-toggle-btn" style="width:auto; padding:6px 14px; background:#8b5cf6;" onclick="MiniroomSystem.toggleEditMode()">
               🎨 방 꾸미기
             </button>
           ` : `
@@ -169,60 +166,69 @@ const MiniroomSystem = (() => {
         </div>
 
         <!-- 상태메시지 -->
-        <div class="miniroom-status-bar" style="background:#f1f5f9; padding:8px 12px; border-radius:6px; font-size:12px; display:flex; align-items:center; gap:8px;">
-          <span class="status-label" style="font-weight:bold; color:#475569;">Today's Story:</span>
+        <div class="miniroom-status-bar" style="background:#f8fafc; border:1px solid #e2e8f0; padding:8px 12px; border-radius:8px; font-size:12px; display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+          <span style="font-weight:bold; color:#6366f1;">Today:</span>
           ${isMe ? `
-            <input type="text" id="status-msg-input" class="status-input" value="${room.statusMsg || ''}" onchange="MiniroomSystem.updateStatusMsg(this.value)" style="flex:1; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;">
+            <input type="text" id="status-msg-input" value="${room.statusMsg || ''}" onchange="MiniroomSystem.updateStatusMsg(this.value)" style="flex:1; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;">
           ` : `
-            <span class="status-text">${room.statusMsg || '즐거운 하루 보내세요!'}</span>
+            <span style="color:#334155;">${room.statusMsg || '포근한 하루 되세요!'}</span>
           `}
         </div>
 
         <!-- 안내 문구 (편집 모드 시) -->
-        <div id="drag-guide-msg" style="display:none; font-size:12px; color:#b45309; background:#fef3c7; padding:6px 10px; border-radius:6px; text-align:center;">
+        <div id="drag-guide-msg" style="display:none; font-size:12px; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; padding:6px 10px; border-radius:6px; text-align:center; margin-bottom:10px;">
           💡 가구를 터치하거나 마우스로 드래그하여 원하는 위치로 자유롭게 이동하세요!
         </div>
 
         <!-- 미니룸 뷰어 스테이지 -->
-        <div class="miniroom-stage-wrap">
-          <div class="miniroom-stage" id="miniroom-stage" style="background-color: ${wpItem.color || '#ffd1dc'};" onmousemove="MiniroomSystem.onStageMouseMove(event)" onmouseup="MiniroomSystem.onStageMouseUp(event)" ontouchmove="MiniroomSystem.onStageTouchMove(event)" ontouchend="MiniroomSystem.onStageTouchEnd(event)">
-            <!-- 바닥 레이어 -->
-            <div class="miniroom-floor" style="background-color: ${flItem.color || '#d4a373'}; pointer-events:none;"></div>
+        <div class="miniroom-stage-wrap" style="position:relative; width:100%; height:280px; border:3px solid #64748b; border-radius:12px; overflow:hidden; box-shadow:0 6px 16px rgba(0,0,0,0.15);">
+          <div class="miniroom-stage" id="miniroom-stage" style="position:relative; width:100%; height:100%; background-color: ${wpItem.color || '#fed7aa'};" onmousemove="MiniroomSystem.onStageMouseMove(event)" onmouseup="MiniroomSystem.onStageMouseUp(event)" ontouchmove="MiniroomSystem.onStageTouchMove(event)" ontouchend="MiniroomSystem.onStageTouchEnd(event)">
+            
+            <!-- 벽면 장식 (창문 햇살 효과) -->
+            <div style="position:absolute; top:15px; left:180px; width:90px; height:70px; background:rgba(255,255,255,0.7); border:3px solid #94a3b8; border-radius:6px; pointer-events:none; box-shadow:0 0 25px rgba(254, 240, 138, 0.8);">
+              <div style="position:absolute; top:0; left:50%; width:2px; height:100%; background:#94a3b8;"></div>
+              <div style="position:absolute; top:50%; left:0; width:100%; height:2px; background:#94a3b8;"></div>
+              <!-- 햇살 줄기 -->
+              <div style="position:absolute; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg, rgba(254,240,138,0.5) 0%, transparent 80%);"></div>
+            </div>
 
-            <!-- 배치된 가구 오브젝트 레이어 -->
+            <!-- 바닥 레이어 (2.5D 헤링본/원목 마루) -->
+            <div class="miniroom-floor" style="position:absolute; bottom:0; left:0; width:100%; height:120px; background-color: ${flItem.color || '#d4a373'}; border-top:3px solid #78350f; pointer-events:none; background-image: repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(0,0,0,0.04) 15px, rgba(0,0,0,0.04) 30px);"></div>
+
+            <!-- 가구 오브젝트 레이어 -->
             <div class="miniroom-objects-layer" id="miniroom-objects-layer">
               ${renderPlacedObjects(room.items || [])}
             </div>
 
             <!-- 주인 아바타 -->
-            <div class="miniroom-avatar" style="left: 140px; top: 115px; pointer-events:none;">
-              <div class="avatar-tag">${ownerName}</div>
-              <div class="avatar-sprite">🚶‍♂️</div>
+            <div class="miniroom-avatar" style="position:absolute; left: 160px; top: 140px; pointer-events:none; text-align:center;">
+              <div style="font-size:10px; background:rgba(0,0,0,0.6); color:#fff; padding:1px 5px; border-radius:4px; margin-bottom:2px;">${ownerName}</div>
+              <div style="font-size:36px;">🚶‍♂️</div>
             </div>
           </div>
         </div>
 
         <!-- 방 꾸미기 인벤토리 팔레트 (편집 모드 시 노출) -->
-        <div class="miniroom-edit-palette" id="miniroom-edit-palette" style="display: none; background:#f8fafc; border:2px solid #cbd5e1; border-radius:8px; padding:10px;">
+        <div class="miniroom-edit-palette" id="miniroom-edit-palette" style="display: none; background:#f8fafc; border:2px solid #cbd5e1; border-radius:10px; padding:12px; margin-top:12px;">
           <div class="palette-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span style="font-size:12px; font-weight:bold;">📦 보유 중인 가구 (클릭하여 방에 추가)</span>
-            <button class="pixel-btn-sm" onclick="MiniroomSystem.saveLayout()">💾 저장 완료</button>
+            <span style="font-size:13px; font-weight:bold; color:#1e293b;">📦 보유 중인 가구 (클릭하여 방에 추가)</span>
+            <button class="pixel-btn-sm" style="background:#16a34a;" onclick="MiniroomSystem.saveLayout()">💾 저장 완료</button>
           </div>
-          <div class="palette-items" id="palette-items-list">
+          <div class="palette-items" id="palette-items-list" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; max-height:160px; overflow-y:auto;">
             ${renderPaletteItems(room)}
           </div>
         </div>
 
-        <!-- 하단: 일촌평 / 방명록 -->
-        <div class="miniroom-guestbook-section" style="margin-top:12px; border-top:2px solid #e2e8f0; padding-top:10px;">
-          <div class="guestbook-header" style="font-weight:bold; font-size:13px; margin-bottom:8px;">
+        <!-- 방명록 & 일촌평 -->
+        <div class="miniroom-guestbook-section" style="margin-top:14px; border-top:2px solid #e2e8f0; padding-top:10px;">
+          <div style="font-weight:bold; font-size:13px; color:#334155; margin-bottom:8px;">
             <span>📝 방명록 & 일촌평 (${(room.guestbook || []).length})</span>
           </div>
           <div class="guestbook-input-wrap" style="display:flex; gap:6px; margin-bottom:10px;">
             <input type="text" id="guestbook-msg-input" placeholder="친구에게 따뜻한 한마디를 남겨주세요!" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;" onkeydown="if(event.key==='Enter') MiniroomSystem.addGuestbook()">
             <button class="pixel-btn-primary" style="width:auto; padding:8px 16px;" onclick="MiniroomSystem.addGuestbook()">등록</button>
           </div>
-          <div class="guestbook-list" id="guestbook-list" style="max-height:140px; overflow-y:auto;">
+          <div class="guestbook-list" id="guestbook-list" style="max-height:130px; overflow-y:auto;">
             ${renderGuestbookList(room.guestbook || [])}
           </div>
         </div>
@@ -232,7 +238,6 @@ const MiniroomSystem = (() => {
     modalBody.innerHTML = html;
   }
 
-  // 배치된 가구 렌더링 (터치 & 마우스 드래그 리스너 부착)
   function renderPlacedObjects(items) {
     return items.map((it, idx) => {
       const def = CONFIG.FURNITURE_CATALOG.find(f => f.id === it.id);
@@ -242,18 +247,17 @@ const MiniroomSystem = (() => {
       return `
         <div class="placed-furniture ${isEditing ? 'editable-furniture' : ''}"
              id="furn_${idx}"
-             style="left: ${left}px; top: ${top}px; font-size: ${def.type === 'prop' ? '32px' : '42px'}; touch-action: none;"
+             style="position:absolute; left: ${left}px; top: ${top}px; font-size: ${def.type === 'prop' ? '32px' : '44px'}; cursor:${isEditing ? 'grab' : 'default'}; user-select:none; z-index:${Math.floor(top)};"
              onmousedown="MiniroomSystem.startDrag(event, ${idx})"
              ontouchstart="MiniroomSystem.startTouchDrag(event, ${idx})"
              title="${def.name}">
           ${def.emoji}
-          ${isEditing ? `<span class="furn-del-btn" onclick="event.stopPropagation(); MiniroomSystem.removeFurniture(${idx})">❌</span>` : ''}
+          ${isEditing ? `<span class="furn-del-btn" style="position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border-radius:50%; width:16px; height:16px; font-size:10px; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="event.stopPropagation(); MiniroomSystem.removeFurniture(${idx})">✕</span>` : ''}
         </div>
       `;
     }).join('');
   }
 
-  // 가구 팔레트 렌더링
   function renderPaletteItems(room) {
     const inv = room.inventory || {};
     const placedCounts = {};
@@ -268,13 +272,13 @@ const MiniroomSystem = (() => {
       const isAvailable = remaining > 0 || f.type === 'wallpaper' || f.type === 'floor';
 
       return `
-        <div class="palette-card ${isAvailable ? '' : 'palette-card-disabled'}"
-             style="opacity: ${isAvailable ? '1' : '0.4'}; border-color: ${isAvailable ? '#22c55e' : '#cbd5e1'};"
+        <div class="palette-card"
+             style="background:#fff; border:2px solid ${isAvailable ? '#86efac' : '#cbd5e1'}; border-radius:8px; padding:6px; text-align:center; opacity: ${isAvailable ? '1' : '0.4'}; cursor:${isAvailable ? 'pointer' : 'not-allowed'};"
              onclick="MiniroomSystem.addFurnitureToRoom('${f.id}')"
-             title="${f.name} (보유: ${owned}개, 남음: ${remaining}개)">
-          <div class="palette-emoji">${f.emoji}</div>
-          <div class="palette-name">${f.name}</div>
-          <div class="palette-type" style="color:${isAvailable ? '#15803d' : '#94a3b8'}; font-weight:bold;">
+             title="${f.name}">
+          <div style="font-size:24px;">${f.emoji}</div>
+          <div style="font-size:11px; font-weight:bold; margin-top:2px;">${f.name}</div>
+          <div style="font-size:9px; color:${isAvailable ? '#15803d' : '#94a3b8'};">
             ${f.type === 'wallpaper' || f.type === 'floor' ? '스타일' : `남음: ${remaining}개`}
           </div>
         </div>
@@ -282,7 +286,6 @@ const MiniroomSystem = (() => {
     }).join('');
   }
 
-  // 터치 & 마우스 드래그 로직
   function startDrag(e, idx) {
     if (!isEditing) return;
     e.preventDefault();
@@ -329,222 +332,138 @@ const MiniroomSystem = (() => {
     let x = clientX - rect.left - dragOffset.x;
     let y = clientY - rect.top - dragOffset.y;
 
-    // 스테이지 경계 제한
-    x = Math.max(30, Math.min(rect.width - 30, x));
-    y = Math.max(30, Math.min(rect.height - 30, y));
+    x = Math.max(20, Math.min(rect.width - 40, x));
+    y = Math.max(20, Math.min(rect.height - 40, y));
 
     const el = document.getElementById(`furn_${draggingItemIdx}`);
     if (el) {
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
+      el.style.zIndex = `${Math.floor(y)}`;
     }
   }
 
-  function onStageMouseUp(e) {
-    finishDrag();
-  }
-
-  function onStageTouchEnd(e) {
-    finishDrag();
-  }
+  function onStageMouseUp() { finishDrag(); }
+  function onStageTouchEnd() { finishDrag(); }
 
   function finishDrag() {
     if (draggingItemIdx === null) return;
     const el = document.getElementById(`furn_${draggingItemIdx}`);
-    if (el) {
-      const x = parseFloat(el.style.left) || 100;
-      const y = parseFloat(el.style.top) || 100;
+    if (el && currentRoomOwner) {
       const room = getRoomData(currentRoomOwner);
       if (room.items && room.items[draggingItemIdx]) {
-        room.items[draggingItemIdx].x = Math.round(x);
-        room.items[draggingItemIdx].y = Math.round(y);
+        room.items[draggingItemIdx].x = parseInt(el.style.left, 10);
+        room.items[draggingItemIdx].y = parseInt(el.style.top, 10);
         saveRoomData(currentRoomOwner, room);
-        SoundEngine.snap();
       }
     }
     draggingItemIdx = null;
   }
 
-  // 방명록 목록 렌더링
   function renderGuestbookList(list) {
     if (!list || list.length === 0) {
-      return `<div class="guestbook-empty" style="text-align:center; padding:15px; color:#64748b; font-size:12px;">아직 등록된 방명록이 없습니다. 첫 번째 응원글을 남겨보세요!</div>`;
+      return '<div style="text-align:center; padding:15px; color:#94a3b8; font-size:12px;">첫 방명록을 남겨보세요! ✨</div>';
     }
-    return list.slice().reverse().map(g => `
-      <div class="guestbook-item" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; margin-bottom:6px; font-size:12px;">
-        <div class="gb-meta" style="display:flex; justify-content:space-between; color:#64748b; font-size:11px; margin-bottom:4px;">
-          <span class="gb-author">👤 <strong>${g.author}</strong></span>
-          <span class="gb-date">${g.date}</span>
+    return list.map(item => `
+      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; margin-bottom:6px; font-size:12px;">
+        <div style="display:flex; justify-content:space-between; color:#64748b; font-size:11px; margin-bottom:3px;">
+          <strong>👤 ${item.author}</strong>
+          <span>${item.date}</span>
         </div>
-        <div class="gb-msg" style="color:#1e293b;">${g.msg}</div>
+        <div style="color:#1e293b;">${item.msg}</div>
       </div>
     `).join('');
-  }
-
-  // 방명록 추가
-  function addGuestbook() {
-    const input = document.getElementById('guestbook-msg-input');
-    if (!input || !input.value.trim()) return;
-
-    const st = GameState.student;
-    const myName = st ? (st.name || st.이름 || '익명') : '익명';
-    const room = getRoomData(currentRoomOwner);
-    if (!room.guestbook) room.guestbook = [];
-
-    const now = new Date();
-    const dateStr = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-    room.guestbook.push({
-      author: myName,
-      msg: input.value.trim(),
-      date: dateStr
-    });
-
-    saveRoomData(currentRoomOwner, room);
-    SoundEngine.coin();
-    input.value = '';
-
-    const listEl = document.getElementById('guestbook-list');
-    if (listEl) listEl.innerHTML = renderGuestbookList(room.guestbook);
-  }
-
-  // 좋아요 누르기
-  function likeRoom(ownerName) {
-    const st = GameState.student;
-    const myName = st ? (st.name || st.이름 || '나') : '나';
-    const room = getRoomData(ownerName);
-    if (!room.likedBy) room.likedBy = [];
-
-    if (room.likedBy.includes(myName)) {
-      alert('이미 좋아요를 누른 방입니다! ❤️');
-      return;
-    }
-
-    room.likedBy.push(myName);
-    room.likes = (room.likes || 0) + 1;
-    saveRoomData(ownerName, room);
-
-    SoundEngine.coin();
-    const countEl = document.getElementById('room-likes-count');
-    if (countEl) countEl.textContent = room.likes;
-  }
-
-  // 편집 모드 토글
-  function toggleEditMode() {
-    isEditing = !isEditing;
-    SoundEngine.click();
-    const palette = document.getElementById('miniroom-edit-palette');
-    const toggleBtn = document.getElementById('edit-room-toggle-btn');
-    const dragGuide = document.getElementById('drag-guide-msg');
-
-    if (palette) palette.style.display = isEditing ? 'block' : 'none';
-    if (dragGuide) dragGuide.style.display = isEditing ? 'block' : 'none';
-    if (toggleBtn) toggleBtn.textContent = isEditing ? '✅ 꾸미기 완료' : '🎨 방 꾸미기';
-
-    const layer = document.getElementById('miniroom-objects-layer');
-    const room = getRoomData(currentRoomOwner);
-    if (layer) layer.innerHTML = renderPlacedObjects(room.items || []);
-
-    const palList = document.getElementById('palette-items-list');
-    if (palList) palList.innerHTML = renderPaletteItems(room);
-  }
-
-  // 가구 추가
-  function addFurnitureToRoom(furnitureId) {
-    if (!isEditing) return;
-    const def = CONFIG.FURNITURE_CATALOG.find(f => f.id === furnitureId);
-    if (!def) return;
-
-    const room = getRoomData(currentRoomOwner);
-    if (!room.items) room.items = [];
-    if (!room.inventory) room.inventory = {};
-
-    if (def.type === 'wallpaper') {
-      room.wallpaper = def.id;
-      const stage = document.getElementById('miniroom-stage');
-      if (stage) stage.style.backgroundColor = def.color || '#ffd1dc';
-      SoundEngine.snap();
-      saveRoomData(currentRoomOwner, room);
-      return;
-    }
-
-    if (def.type === 'floor') {
-      room.floor = def.id;
-      const fl = document.querySelector('.miniroom-floor');
-      if (fl) fl.style.backgroundColor = def.color || '#d4a373';
-      SoundEngine.snap();
-      saveRoomData(currentRoomOwner, room);
-      return;
-    }
-
-    // 일반 가구 수량 검증
-    const owned = room.inventory[furnitureId] || 0;
-    const placed = room.items.filter(it => it.id === furnitureId).length;
-
-    if (placed >= owned) {
-      alert(`[${def.name}] 가구를 모두 배치했습니다! 잡화점에서 추가로 구매할 수 있습니다.`);
-      return;
-    }
-
-    const newX = 80 + (room.items.length % 5) * 45;
-    const newY = 100 + (Math.floor(room.items.length / 5) % 3) * 40;
-    room.items.push({ id: def.id, x: newX, y: newY });
-
-    SoundEngine.snap();
-    saveRoomData(currentRoomOwner, room);
-
-    const layer = document.getElementById('miniroom-objects-layer');
-    if (layer) layer.innerHTML = renderPlacedObjects(room.items);
-
-    const palList = document.getElementById('palette-items-list');
-    if (palList) palList.innerHTML = renderPaletteItems(room);
-  }
-
-  // 가구 제거
-  function removeFurniture(idx) {
-    const room = getRoomData(currentRoomOwner);
-    if (!room.items) return;
-    room.items.splice(idx, 1);
-    saveRoomData(currentRoomOwner, room);
-    SoundEngine.click();
-
-    const layer = document.getElementById('miniroom-objects-layer');
-    if (layer) layer.innerHTML = renderPlacedObjects(room.items);
-
-    const palList = document.getElementById('palette-items-list');
-    if (palList) palList.innerHTML = renderPaletteItems(room);
-  }
-
-  function updateStatusMsg(newMsg) {
-    const room = getRoomData(currentRoomOwner);
-    room.statusMsg = newMsg;
-    saveRoomData(currentRoomOwner, room);
-  }
-
-  function saveLayout() {
-    toggleEditMode();
-    SoundEngine.fanfare();
-    alert('방 인테리어가 구글 시트와 클라우드에 안전하게 저장되었습니다! ✨');
-  }
-
-  function backToList() {
-    SoundEngine.click();
-    const modalBody = document.getElementById('modal-body');
-    if (modalBody) renderDormitoryList(modalBody);
   }
 
   return {
     renderDormitoryList,
     openRoom,
-    backToList,
-    toggleEditMode,
-    addFurnitureToRoom,
-    addFurnitureToInventory,
-    removeFurniture,
-    updateStatusMsg,
-    addGuestbook,
-    likeRoom,
-    saveLayout,
+    backToList: () => {
+      const modalBody = document.getElementById('modal-body');
+      if (modalBody) renderDormitoryList(modalBody);
+      SoundEngine.click();
+    },
+    toggleEditMode: () => {
+      isEditing = !isEditing;
+      const palette = document.getElementById('miniroom-edit-palette');
+      const guide = document.getElementById('drag-guide-msg');
+      const btn = document.getElementById('edit-room-toggle-btn');
+      if (palette) palette.style.display = isEditing ? 'block' : 'none';
+      if (guide) guide.style.display = isEditing ? 'block' : 'none';
+      if (btn) btn.textContent = isEditing ? '💾 꾸미기 완료' : '🎨 방 꾸미기';
+      if (currentRoomOwner) openRoom(currentRoomOwner);
+      SoundEngine.snap();
+    },
+    saveLayout: () => {
+      isEditing = false;
+      if (currentRoomOwner) openRoom(currentRoomOwner);
+      SoundEngine.fanfare();
+      alert('방 인테리어가 저장되었습니다! ✨');
+    },
+    addFurnitureToRoom: (id) => {
+      if (!currentRoomOwner) return;
+      const room = getRoomData(currentRoomOwner);
+      const def = CONFIG.FURNITURE_CATALOG.find(f => f.id === id);
+      if (!def) return;
+
+      if (def.type === 'wallpaper') {
+        room.wallpaper = id;
+      } else if (def.type === 'floor') {
+        room.floor = id;
+      } else {
+        if (!room.items) room.items = [];
+        room.items.push({ id, x: 150 + Math.floor(Math.random() * 40), y: 120 + Math.floor(Math.random() * 40) });
+      }
+      saveRoomData(currentRoomOwner, room);
+      openRoom(currentRoomOwner);
+      SoundEngine.coin();
+    },
+    removeFurniture: (idx) => {
+      if (!currentRoomOwner) return;
+      const room = getRoomData(currentRoomOwner);
+      if (room.items && room.items[idx]) {
+        room.items.splice(idx, 1);
+        saveRoomData(currentRoomOwner, room);
+        openRoom(currentRoomOwner);
+        SoundEngine.snap();
+      }
+    },
+    likeRoom: (ownerName) => {
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '익명';
+      const room = getRoomData(ownerName);
+      if (!room.likedBy) room.likedBy = [];
+      if (room.likedBy.includes(myName)) return alert('이미 좋아요를 눌렀습니다! ❤️');
+
+      room.likes = (room.likes || 0) + 1;
+      room.likedBy.push(myName);
+      saveRoomData(ownerName, room);
+      const countEl = document.getElementById('room-likes-count');
+      if (countEl) countEl.textContent = room.likes;
+      SoundEngine.fanfare();
+    },
+    updateStatusMsg: (msg) => {
+      if (!currentRoomOwner) return;
+      const room = getRoomData(currentRoomOwner);
+      room.statusMsg = msg;
+      saveRoomData(currentRoomOwner, room);
+    },
+    addGuestbook: () => {
+      const input = document.getElementById('guestbook-msg-input');
+      if (!input || !input.value.trim() || !currentRoomOwner) return;
+      const msg = input.value.trim();
+      const st = GameState.student;
+      const author = st ? (st.name || st.이름) : '익명';
+
+      const room = getRoomData(currentRoomOwner);
+      if (!room.guestbook) room.guestbook = [];
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      room.guestbook.unshift({ author, msg, date: dateStr });
+      saveRoomData(currentRoomOwner, room);
+      openRoom(currentRoomOwner);
+      SoundEngine.coin();
+    },
     startDrag,
     startTouchDrag,
     onStageMouseMove,

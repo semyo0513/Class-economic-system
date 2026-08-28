@@ -163,8 +163,52 @@ function sheetToObj(sh) {
 }
 
 /* ══════════════════════════════════════════════
-   실시간 학생 자산 계산 및 동기화 코어 엔진
+   실시간 네이버 증권 시세 연동 및 자산 동기화 엔진
 ══════════════════════════════════════════════ */
+function fetchNaverStockPrice(code) {
+  if (code === 'CLASS') {
+    return {
+      code: 'CLASS',
+      name: '행복초 협동조합',
+      price: getCurrentStockPrice(),
+      changeRate: '+2.50%',
+      changePrice: '+30'
+    };
+  }
+  try {
+    const url = 'https://m.stock.naver.com/api/stock/' + code + '/basic';
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (res.getResponseCode() === 200) {
+      const data = JSON.parse(res.getContentText());
+      const priceStr = data.nowPrice || data.closePrice;
+      const price = Number(String(priceStr).replace(/,/g, ''));
+      const changeRate = data.fluctuationsRatio || '0.00';
+      const changePrice = data.compareToPreviousClosePrice || '0';
+      const stockName = data.stockName || code;
+      if (!isNaN(price) && price > 0) {
+        return {
+          code: code,
+          name: stockName,
+          price: price,
+          changeRate: (Number(changePrice) >= 0 ? '+' : '') + changeRate + '%',
+          changePrice: (Number(changePrice) >= 0 ? '+' : '') + changePrice
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Naver stock fetch error:', e);
+  }
+  // 기본 폴백 시세
+  const fallbacks = {
+    '005930': { name: '삼성전자', price: 74500, changeRate: '+1.20%', changePrice: '+900' },
+    '035720': { name: '카카오', price: 42800, changeRate: '-0.70%', changePrice: '-300' },
+    '035420': { name: 'NAVER', price: 172000, changeRate: '+2.10%', changePrice: '+3500' },
+    '086520': { name: '에코프로', price: 92000, changeRate: '+4.50%', changePrice: '+4000' },
+    '005380': { name: '현대차', price: 245000, changeRate: '+0.80%', changePrice: '+2000' }
+  };
+  return fallbacks[code] ? { code, ...fallbacks[code] } : { code, name: code, price: 10000, changeRate: '0.00%', changePrice: '0' };
+}
+
 function getCurrentStockPrice() {
   const sh = getOrCreateSheet(SH.STOCK);
   if (!sh || sh.getLastRow() <= 1) {
@@ -172,7 +216,6 @@ function getCurrentStockPrice() {
     return 1200;
   }
   const data = sh.getDataRange().getValues();
-  // 1. 역순으로 '주가' 또는 '현재가' 행 탐색
   for (let i = data.length - 1; i >= 1; i--) {
     const r = data[i];
     for (let c = 0; c < r.length; c++) {
@@ -182,17 +225,7 @@ function getCurrentStockPrice() {
         if (nextVal > 0) return nextVal;
       }
     }
-    // 3번째 열(인덱스 2)에 숫자가 있고 2번째 열이 주가 관련인 경우
     if (r[1] === '주가' && Number(r[2]) > 0) return Number(r[2]);
-  }
-  // 2. 헤더 기반 탐색
-  const headers = data[0].map(h => String(h).trim());
-  const priceCol = headers.findIndex(h => h.includes('현재가') || h.includes('주가') || h.includes('가격'));
-  if (priceCol >= 0) {
-    for (let i = data.length - 1; i >= 1; i--) {
-      const v = Number(data[i][priceCol]);
-      if (!isNaN(v) && v > 0) return v;
-    }
   }
   return 1200;
 }
@@ -449,86 +482,136 @@ function handleRequest(params) {
         break;
       }
 
-      // 3. 주식 시장
-      case 'getStockData': {
-        const sh = getOrCreateSheet(SH.STOCK);
-        const rows = sheetToObj(sh);
-        const curP = getCurrentStockPrice();
+      // 3. 다종목 실시간 네이버 증권 시장
+      case 'getMultiStockData': {
+        const studentName = payload.name;
+        const stockList = [
+          { code: '005930', defaultName: '삼성전자', icon: '📱' },
+          { code: '035720', defaultName: '카카오', icon: '🟡' },
+          { code: '035420', defaultName: 'NAVER', icon: '🟢' },
+          { code: '086520', defaultName: '에코프로', icon: '🔋' },
+          { code: '005380', defaultName: '현대차', icon: '🚗' },
+          { code: 'CLASS', defaultName: '행복초 협동조합', icon: '🏫' }
+        ];
 
-        const hist = [];
-        const news = [];
-
-        rows.forEach(r => {
-          const cat = String(r['카테고리'] || r['구분'] || r['종류'] || '').trim();
-          const pVal = Number(r['값1'] || r['주가'] || r['현재가'] || r['가격'] || 0);
-          const dVal = String(r['일시'] || r['날짜'] || '').slice(5, 10) || '오늘';
-
-          if (cat === '주가' || cat.includes('주가') || pVal > 0) {
-            if (pVal > 0) hist.push({ date: dVal, price: pVal });
-          }
-          if (cat === '뉴스' || r['뉴스제목'] || r['제목']) {
-            news.push({
-              제목: r['값1'] || r['뉴스제목'] || r['제목'] || '학급 경제 뉴스',
-              내용: r['값2'] || r['뉴스내용'] || r['내용'] || '',
-              영향: r['값3'] || r['영향'] || '변동'
-            });
-          }
+        const stocks = stockList.map(s => {
+          const live = fetchNaverStockPrice(s.code);
+          return {
+            code: s.code,
+            name: live.name || s.defaultName,
+            icon: s.icon,
+            price: live.price,
+            changeRate: live.changeRate,
+            changePrice: live.changePrice
+          };
         });
 
-        if (hist.length === 0) {
-          hist.push({ date: '오늘', price: curP });
-        }
+        // 사용자의 종목별 보유 수량 조회
+        const sh = getOrCreateSheet(SH.ASSETS);
+        const myStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && r['상태'] === '보유');
+        const holdings = {};
+        myStocks.forEach(r => {
+          const c = String(r['속성'] || r['아이템명']);
+          holdings[c] = (holdings[c] || 0) + Number(r['수량'] || 1);
+        });
 
         result = {
           success: true,
-          info: { 현재가: curP },
-          currentPrice: curP,
-          history: hist,
-          news: news.reverse()
+          stocks: stocks,
+          holdings: holdings
         };
         break;
       }
 
-      case 'tradeStock': {
+      case 'tradeMultiStock': {
+        const studentName = payload.name;
+        const stockCode = payload.code;
         const qty = Number(payload.qty || 1);
         const type = payload.type; // '매수' | '매도'
-        const curP = getCurrentStockPrice();
-        let st = syncStudentAssets(payload.name);
+        const live = fetchNaverStockPrice(stockCode);
+        const price = live.price;
+
+        let st = syncStudentAssets(studentName);
         if (!st) return respond({ success: false, msg: '학생 정보를 찾을 수 없습니다.' });
 
+        const sh = getOrCreateSheet(SH.ASSETS);
+
         if (type === '매수') {
-          const cost = curP * qty;
-          if (st.cash < cost) return respond({ success: false, msg: `현금 잔액이 부족합니다! (필요 금액: ${cost.toLocaleString()}원 / 보유 현금: ${st.cash.toLocaleString()}원)` });
-          updateCash(payload.name, -cost, `주식 ${qty}주 매수`, '주식');
-          updateStockQty(payload.name, qty, curP, `주식매수 ${qty}주@${curP}`);
-          st = syncStudentAssets(payload.name);
-          result = {
-            success: true,
-            msg: `주식 ${qty}주를 ${cost.toLocaleString()}원에 매수했습니다!`,
-            student: st
-          };
+          const cost = price * qty;
+          if (st.cash < cost) return respond({ success: false, msg: `현금 잔액이 부족합니다! (필요: ${cost.toLocaleString()}원 / 보유: ${st.cash.toLocaleString()}원)` });
+
+          updateCash(studentName, -cost, `[주식매수] ${live.name} ${qty}주`, '주식');
+          sh.appendRow([nowStr(), studentName, '다종목주식', live.name, price, qty, stockCode, '보유', '', '']);
+          st = syncStudentAssets(studentName);
+          result = { success: true, msg: `${live.name} ${qty}주를 매수했습니다! (총 ${cost.toLocaleString()}원)`, student: st };
         } else {
-          if (st.stockQty < qty) return respond({ success: false, msg: `보유 주식이 부족합니다! (보유: ${st.stockQty}주 / 요청: ${qty}주)` });
-          const income = curP * qty;
-          updateStockQty(payload.name, -qty, curP, `주식매도 ${qty}주@${curP}`);
-          updateCash(payload.name, income, `주식 ${qty}주 매도`, '주식');
-          st = syncStudentAssets(payload.name);
-          result = {
-            success: true,
-            msg: `주식 ${qty}주를 매도하여 ${income.toLocaleString()}원을 수령했습니다!`,
-            student: st
-          };
+          // 매도
+          const myStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && (r['속성'] === stockCode || r['아이템명'] === live.name) && r['상태'] === '보유');
+          let totalQty = 0;
+          myStocks.forEach(r => totalQty += Number(r['수량'] || 1));
+
+          if (totalQty < qty) return respond({ success: false, msg: `보유 주식이 부족합니다! (보유: ${totalQty}주 / 매도 요청: ${qty}주)` });
+
+          let rem = qty;
+          const data = sh.getDataRange().getValues();
+          for (let i = 1; i < data.length; i++) {
+            if (data[i][2] === '다종목주식' && String(data[i][1]).trim() === studentName && (data[i][6] === stockCode || data[i][3] === live.name) && data[i][7] === '보유') {
+              const rowQty = Number(data[i][5] || 1);
+              if (rowQty <= rem) {
+                sh.getRange(i + 1, 8).setValue('매도완료');
+                rem -= rowQty;
+              } else {
+                sh.getRange(i + 1, 6).setValue(rowQty - rem);
+                rem = 0;
+              }
+              if (rem <= 0) break;
+            }
+          }
+
+          const income = price * qty;
+          updateCash(studentName, income, `[주식매도] ${live.name} ${qty}주`, '주식');
+          st = syncStudentAssets(studentName);
+          result = { success: true, msg: `${live.name} ${qty}주를 매도하여 ${income.toLocaleString()}원을 수령했습니다!`, student: st };
         }
         break;
       }
 
-      case 'adminUpdateStock': {
-        const newP = Number(payload.price || 1300);
-        const title = payload.title || '학급 경제 호재';
-        const impact = payload.impact || '상승';
-        getOrCreateSheet(SH.STOCK).appendRow([nowStr(), '주가', newP, '', '']);
-        getOrCreateSheet(SH.STOCK).appendRow([nowStr(), '뉴스', title, payload.content || '', impact]);
-        result = { success: true, msg: `신규 주가(${newP}원)와 뉴스가 발행되었습니다.` };
+      // 3-1. 관리자 아이템/가구/패션 가격 & 수량 관리
+      case 'getAdminItemsList': {
+        const sh = getOrCreateSheet(SH.ASSETS);
+        const allItems = sheetToObj(sh).filter(r => r['카테고리'] === '아이템' || r['카테고리'] === '캐릭터아이템' || r['카테고리'] === '가구' || r['카테고리'] === '마트물품' || r['카테고리'] === '의상' || r['카테고리'] === '헤어');
+        result = { success: true, items: allItems };
+        break;
+      }
+
+      case 'updateItemPriceAndStock': {
+        const itemName = payload.itemName;
+        const newPrice = Number(payload.price);
+        const newStock = Number(payload.stock);
+        const sh = getOrCreateSheet(SH.ASSETS);
+        const data = sh.getDataRange().getValues();
+        let found = false;
+
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][3]).trim() === itemName) {
+            if (!isNaN(newPrice)) sh.getRange(i + 1, 5).setValue(newPrice);
+            if (!isNaN(newStock)) sh.getRange(i + 1, 6).setValue(newStock);
+            found = true;
+            break;
+          }
+        }
+        result = { success: found, msg: found ? `[${itemName}] 가격 및 수량이 변경되었습니다.` : '아이템을 찾을 수 없습니다.' };
+        break;
+      }
+
+      // 3-2. 캐릭터 외형 커스터마이징 저장 및 조회
+      case 'updateCharacterStyle': {
+        const name = payload.name;
+        const styleData = payload.style; // { hairColor, costume, hat, aura }
+        getOrCreateSheet(SH.ACTIVITY).appendRow([
+          nowStr(), name, '캐릭터스타일', JSON.stringify(styleData), '', '', 0, '적용', '', ''
+        ]);
+        result = { success: true, msg: '캐릭터 외형 스타일이 저장되었습니다!' };
         break;
       }
 

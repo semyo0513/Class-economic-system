@@ -19,11 +19,18 @@ class BootScene extends Phaser.Scene {
 
   preload() {
     try {
-      // 1. 타일 및 캐릭터 스프라이트
+      // 1. 타일 및 캐릭터 스프라이트 (저장된 스타일 적용)
       const tilesetCvs = AssetGenerator.generateTileset();
       this.textures.addCanvas('tileset', tilesetCvs);
 
-      const charCvs = AssetGenerator.generateCharacterSpritesheet();
+      const myName = GameState.student ? (GameState.student.name || GameState.student.이름 || '') : '';
+      let savedStyle = {};
+      try {
+        savedStyle = JSON.parse(localStorage.getItem(`char_style_${myName}`) || '{}');
+      } catch (_) {}
+      GameState.characterStyle = savedStyle;
+
+      const charCvs = AssetGenerator.generateCharacterSpritesheet(savedStyle);
       const charTexture = this.textures.addCanvas('character', charCvs);
       for (let row = 0; row < 4; row++) {
         for (let col = 0; col < 4; col++) {
@@ -121,6 +128,7 @@ class TownScene extends Phaser.Scene {
   }
 
   create() {
+    window.MainGameScene = this;
     const TILE_SIZE = CONFIG.GAME.TILE_SIZE;
     const mapGrid = TownMapData.createTileGrid();
 
@@ -567,6 +575,29 @@ class TownScene extends Phaser.Scene {
       targetBubble.hideTimer = setTimeout(() => {
         targetBubble.setVisible(false);
       }, 5000);
+    }
+  }
+
+  reloadPlayerTexture() {
+    try {
+      const style = GameState.characterStyle || {};
+      const newCharCvs = AssetGenerator.generateCharacterSpritesheet(style);
+
+      if (this.textures.exists('character')) {
+        this.textures.remove('character');
+      }
+      const charTexture = this.textures.addCanvas('character', newCharCvs);
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 4; col++) {
+          const frameIndex = row * 4 + col;
+          charTexture.add(frameIndex, 0, col * 32, row * 48, 32, 48);
+        }
+      }
+      if (this.player) {
+        this.player.setTexture('character', 0);
+      }
+    } catch (e) {
+      console.warn('reloadPlayerTexture error:', e);
     }
   }
 }

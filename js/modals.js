@@ -164,121 +164,169 @@ const ModalManager = (() => {
         break;
       }
 
-      // 3. 증권거래소
+      // 3. 다종목 실시간 네이버 증권시장
       case 'stock': {
-        const curPrice = 1200;
-        let history = [1150, 1180, 1200];
+        const stockList = [
+          { code: '005930', name: '삼성전자', icon: '📱', price: 74500, changeRate: '+1.20%' },
+          { code: '035720', name: '카카오', icon: '🟡', price: 42800, changeRate: '-0.70%' },
+          { code: '035420', name: 'NAVER', icon: '🟢', price: 172000, changeRate: '+2.10%' },
+          { code: '086520', name: '에코프로', icon: '🔋', price: 92000, changeRate: '+4.50%' },
+          { code: '005380', name: '현대차', icon: '🚗', price: 245000, changeRate: '+0.80%' },
+          { code: 'CLASS', name: '행복초 협동조합', icon: '🏫', price: 1200, changeRate: '+2.50%' }
+        ];
+        let currentStockCode = '005930';
 
         container.innerHTML = `
           <div class="stock-panel">
-            <div class="stock-header-grid" style="display:flex; justify-content:space-between; background:#f8fafc; padding:12px; border:2px solid #cbd5e1; border-radius:8px; margin-bottom:12px;">
+            <div style="background:#f0fdf4; border:2px solid #86efac; padding:10px 14px; border-radius:10px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <div style="font-size:13px; color:#64748b;">📈 행복초 협동조합 주식회사</div>
-                <div style="font-size:22px; font-weight:bold; color:#ef4444;" id="stock-current-price-val">${curPrice.toLocaleString()}원</div>
+                <span style="font-size:14px; font-weight:bold; color:#166534;">📈 실시간 네이버 증권 거래소</span>
+                <span style="font-size:11px; color:#15803d; margin-left:6px;">(실제 네이버 증시 시세와 실시간 연동)</span>
               </div>
-              <div style="text-align:right;">
-                <div>보유 주식: <strong id="stock-my-qty-val">${(st?.stockQty || myStock).toLocaleString()}주</strong></div>
-                <div>평가 금액: <strong id="stock-my-eval-val">${((st?.stockQty || myStock) * curPrice).toLocaleString()}원</strong></div>
+              <div style="font-size:12px; color:#166534;">
+                💰 내 현금: <strong id="stock-my-cash-val">${myCash.toLocaleString()}원</strong>
               </div>
             </div>
-            <div class="stock-chart-wrap" style="background:#fff; border:2px solid #cbd5e1; border-radius:8px; padding:12px; text-align:center; margin-bottom:12px;">
-              <canvas id="stock-chart-canvas" width="600" height="160" style="width:100%; max-width:600px; height:160px;"></canvas>
+
+            <!-- 종목 선택 탭 -->
+            <div class="stock-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+              ${stockList.map(s => `
+                <button class="tab-btn stock-code-tab ${s.code === '005930' ? 'active' : ''}" id="stock-tab-${s.code}" onclick="ModalManager.switchStockCode('${s.code}')" style="padding:6px 10px; font-size:12px;">
+                  ${s.icon} ${s.name}
+                </button>
+              `).join('')}
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
-              <div style="background:#fee2e2; padding:10px; border-radius:8px;">
-                <h4 style="color:#991b1b; margin-bottom:6px;">🔴 매수 (주식 사기)</h4>
-                <div style="display:flex; gap:6px;">
-                  <input type="number" id="stock-buy-qty" placeholder="수량" min="1" value="1" style="flex:1; padding:6px; border:1px solid #f87171; border-radius:4px;">
-                  <button class="pixel-btn-primary" style="width:auto; padding:6px 14px;" onclick="ModalManager.handleTradeStock('매수')">매수</button>
+
+            <!-- 선택 종목 시세 헤더 -->
+            <div class="stock-header-grid" style="display:flex; justify-content:space-between; background:#ffffff; padding:12px 16px; border:2px solid #cbd5e1; border-radius:10px; margin-bottom:12px;">
+              <div>
+                <div style="font-size:13px; color:#64748b;" id="stock-active-name">📱 삼성전자 (005930)</div>
+                <div style="display:flex; align-items:baseline; gap:8px;">
+                  <div style="font-size:24px; font-weight:900; color:#ef4444;" id="stock-active-price">74,500원</div>
+                  <div style="font-size:13px; font-weight:bold; color:#ef4444;" id="stock-active-rate">+1.20%</div>
                 </div>
               </div>
-              <div style="background:#e0f2fe; padding:10px; border-radius:8px;">
-                <h4 style="color:#075985; margin-bottom:6px;">🔵 매도 (주식 팔기)</h4>
+              <div style="text-align:right;">
+                <div style="font-size:12px; color:#64748b;">내 보유 수량: <strong id="stock-active-holdings" style="color:#0f172a; font-size:14px;">0주</strong></div>
+                <div style="font-size:12px; color:#64748b;">평가 금액: <strong id="stock-active-eval" style="color:#2563eb; font-size:14px;">0원</strong></div>
+              </div>
+            </div>
+
+            <!-- 실시간 주가 차트 캔버스 -->
+            <div class="stock-chart-wrap" style="background:#fff; border:2px solid #cbd5e1; border-radius:10px; padding:10px; text-align:center; margin-bottom:12px;">
+              <canvas id="stock-chart-canvas" width="600" height="150" style="width:100%; max-width:600px; height:150px;"></canvas>
+            </div>
+
+            <!-- 매수 & 매도 컨트롤 박스 -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+              <div style="background:#fef2f2; border:2px solid #fca5a5; padding:10px; border-radius:8px;">
+                <h4 style="color:#991b1b; font-size:13px; margin-bottom:6px;">🔴 매수 (사기)</h4>
                 <div style="display:flex; gap:6px;">
-                  <input type="number" id="stock-sell-qty" placeholder="수량" min="1" value="1" style="flex:1; padding:6px; border:1px solid #60a5fa; border-radius:4px;">
-                  <button class="pixel-btn-secondary" onclick="ModalManager.handleTradeStock('매도')">매도</button>
+                  <input type="number" id="multi-stock-buy-qty" placeholder="수량" min="1" value="1" style="flex:1; padding:6px; border:1px solid #f87171; border-radius:4px; font-size:13px;">
+                  <button class="pixel-btn-primary" style="width:auto; padding:6px 14px; background:#dc2626;" onclick="ModalManager.handleTradeMultiStock('매수')">매수</button>
+                </div>
+              </div>
+              <div style="background:#eff6ff; border:2px solid #bfdbfe; padding:10px; border-radius:8px;">
+                <h4 style="color:#1e40af; font-size:13px; margin-bottom:6px;">🔵 매도 (팔기)</h4>
+                <div style="display:flex; gap:6px;">
+                  <input type="number" id="multi-stock-sell-qty" placeholder="수량" min="1" value="1" style="flex:1; padding:6px; border:1px solid #60a5fa; border-radius:4px; font-size:13px;">
+                  <button class="pixel-btn-secondary" style="background:#2563eb;" onclick="ModalManager.handleTradeMultiStock('매도')">매도</button>
                 </div>
               </div>
             </div>
 
-            <!-- 주식 뉴스 피드 -->
-            <h4 style="margin-bottom:6px;">📰 증권 경제 뉴스 & 공시</h4>
-            <div id="stock-news-list" style="max-height:140px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
-              <div style="padding:10px; color:#64748b; font-size:12px;">최신 뉴스를 불러오는 중...</div>
+            <!-- 내 주식 보유 포트폴리오 -->
+            <h4 style="margin-bottom:6px; font-size:13px; color:#334155;">📊 나의 주식 보유 포트폴리오</h4>
+            <div class="table-wrap" style="max-height:120px; overflow-y:auto;">
+              <table class="pixel-table">
+                <thead><tr><th>종목명</th><th>실시간 현재가</th><th>보유 수량</th><th>총 평가금액</th></tr></thead>
+                <tbody id="multi-stock-portfolio-tbody">
+                  <tr><td colspan="4" style="text-align:center; padding:10px;">포트폴리오를 불러오는 중...</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         `;
 
-        function drawStockChart(hist) {
+        function drawStockChart(price) {
           const cvs = document.getElementById('stock-chart-canvas');
           if (!cvs) return;
           const ctx = cvs.getContext('2d');
-          const W = cvs.width, H = cvs.height, padding = 30;
-          const numHist = hist.map(val => Number(typeof val === 'object' ? val.price : val) || 1200);
-          const max = Math.max(...numHist) * 1.05, min = Math.min(...numHist) * 0.95, range = Math.max(1, max - min);
+          const W = cvs.width, H = cvs.height, padding = 25;
+          const hist = [price * 0.96, price * 0.98, price * 0.97, price * 0.99, price * 0.985, price];
+          const max = Math.max(...hist) * 1.02, min = Math.min(...hist) * 0.98, range = Math.max(1, max - min);
 
           ctx.clearRect(0, 0, W, H);
           ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3;
           ctx.beginPath();
-          numHist.forEach((val, idx) => {
-            const x = padding + (idx / Math.max(1, numHist.length - 1)) * (W - padding * 2);
+          hist.forEach((val, idx) => {
+            const x = padding + (idx / (hist.length - 1)) * (W - padding * 2);
             const y = H - padding - ((val - min) / range) * (H - padding * 2);
             if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
           });
           ctx.stroke();
         }
 
-        setTimeout(() => drawStockChart(history), 30);
+        setTimeout(() => drawStockChart(74500), 30);
 
-        API.call('getStockData', { name: me }, true).then(data => {
-          if (data && data.success) {
-            const cp = Number(data.currentPrice || (data.info && data.info['현재가']) || 1200);
-            const priceEl = document.getElementById('stock-current-price-val');
-            const evalEl = document.getElementById('stock-my-eval-val');
-            const myStockQty = st ? (st.stockQty ?? st.stock ?? 0) : 0;
+        ModalManager.activeMultiStockCode = '005930';
+        ModalManager.multiStockCache = stockList;
 
-            if (priceEl) priceEl.textContent = `${cp.toLocaleString()}원`;
-            if (evalEl) evalEl.textContent = `${(myStockQty * cp).toLocaleString()}원`;
-
-            if (data.history && data.history.length > 0) {
-              drawStockChart(data.history);
-            }
-
-            const newsListEl = document.getElementById('stock-news-list');
-            if (newsListEl) {
-              const newsItems = data.news || [];
-              newsListEl.innerHTML = newsItems.length === 0 ? '<div style="padding:10px; font-size:12px; color:#64748b;">등록된 뉴스가 없습니다.</div>' : newsItems.map(n => `
-                <div style="background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center;">
-                  <div>
-                    <strong style="font-size:12px;">${n.제목 || n['값1'] || ''}</strong>
-                    <div style="font-size:11px; color:#64748b;">${n.내용 || n['값2'] || ''}</div>
-                  </div>
-                  <span class="badge badge-${(n.영향 || '').includes('하락') ? 'danger' : 'success'}">${n.영향 || '변동'}</span>
-                </div>
-              `).join('');
-            }
+        API.call('getMultiStockData', { name: me }, true).then(data => {
+          if (data && data.success && data.stocks) {
+            ModalManager.multiStockCache = data.stocks;
+            ModalManager.multiStockHoldings = data.holdings || {};
+            ModalManager.updateMultiStockUI();
           }
         });
         break;
       }
 
-      // 4. 잡화점
+      // 4. 잡화점 & 뷰티 패션 살롱 (헤어 염색, 코스튬, 모자, 오라 등 화폐 탕진!)
       case 'shop': {
         const furns = CONFIG.FURNITURE_CATALOG;
-        const defaultItems = [
-          { itemName: '👟 스피드 롤러스케이트', 금액: 5000, 수량: 99, 설명: '이동속도 80% 증가' },
-          { itemName: '✨ 황금 오라 이펙트', 금액: 8000, 수량: 99, 설명: '반짝이는 황금빛 파티클' },
-          { itemName: '🍄 슈퍼 아이키커 버섯', 금액: 6000, 수량: 99, 설명: '캐릭터 크기 1.5배 거대화' },
-          { itemName: '🪽 천사의 날개', 금액: 10000, 수량: 99, 설명: '등 뒤에 날개 장착' },
-          { itemName: '🪑 자리 우선 선택권', 금액: 5000, 수량: 10, 설명: '원하는 자리를 먼저 고를 수 있는 티켓' }
+        const hairDyes = [
+          { id: 'hair_gold', name: '✨ 골드 블론드 염색약', color: '#eab308', price: 4000, desc: '반짝이는 황금빛 헤어' },
+          { id: 'hair_pink', name: '🌸 체리 핑크 염색약', color: '#f472b6', price: 4000, desc: '사랑스러운 벚꽃 핑크 헤어' },
+          { id: 'hair_mint', name: '🍃 민트 그린 염색약', color: '#2dd4bf', price: 4000, desc: '상큼하고 청량한 민트 헤어' },
+          { id: 'hair_silver', name: '🤍 백발 실버 염색약', color: '#cbd5e1', price: 5000, desc: '신비로운 백은발 헤어' },
+          { id: 'hair_blue', name: '🌊 오션 블루 염색약', color: '#38bdf8', price: 4000, desc: '시원한 바다빛 파란 헤어' },
+          { id: 'hair_purple', name: '💜 라벤더 퍼플 염색약', color: '#a855f7', price: 4500, desc: '우아한 보랏빛 헤어' },
+          { id: 'hair_red', name: '🔥 핫 레드 염색약', color: '#ef4444', price: 4000, desc: '열정적인 붉은 헤어' },
+          { id: 'hair_black', name: '🖤 흑발 딥블랙 염색약', color: '#0f172a', price: 3000, desc: '깔끔한 정통 흑발 헤어' }
+        ];
+
+        const costumes = [
+          { id: 'costume_school', name: '🎓 스마트 명문 교복', price: 8000, desc: '단정하고 깔끔한 감청색 교복' },
+          { id: 'costume_pajama', name: '🧸 핑크 곰돌이 잠옷', price: 7000, desc: '포근하고 귀여운 동물 파자마' },
+          { id: 'costume_magic', name: '🔮 신비한 마법사 로브', price: 12000, desc: '마력이 깃든 보랏빛 마법 로브' },
+          { id: 'costume_cyber', name: '⚡ 사이버 네온 슈트', price: 15000, desc: '미래지향적인 네온 발광 슈트' },
+          { id: 'costume_dress', name: '👑 화려한 공주 드레스', price: 18000, desc: '로맨틱한 핑크 프릴 드레스' }
+        ];
+
+        const hats = [
+          { id: 'hat_cat_ears', name: '🐱 냥냥 고양이 귀', price: 5000, desc: '귀엽게 쫑긋거리는 고양이 귀' },
+          { id: 'hat_crown', name: '👑 황금 보석 왕관', price: 10000, desc: '눈부신 최고급 황금 왕관' },
+          { id: 'hat_halo', name: '😇 빛나는 천사 링', price: 8000, desc: '머리 위에 떠있는 성스러운 링' },
+          { id: 'hat_magic_hat', name: '🎩 뾰족 마법사 모자', price: 7000, desc: '고깔 모양의 마법 모자' }
+        ];
+
+        const auras = [
+          { id: 'aura_gold', name: '✨ 황금 오라 이펙트', price: 15000, desc: '캐릭터 주변에 황금빛 파티클' },
+          { id: 'aura_cherry', name: '🌸 벚꽃잎 휘날림 오라', price: 12000, desc: '걸을 때마다 벚꽃이 흩날림' },
+          { id: 'aura_rainbow', name: '🌈 무지개 빛 잔상 오라', price: 20000, desc: '화려한 7색 무지개 오라' }
         ];
 
         container.innerHTML = `
-          <div class="shop-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
+          <div class="shop-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
             <button class="tab-btn active" onclick="ModalManager.switchShopTab('furn')">🛋️ 미니룸 가구</button>
-            <button class="tab-btn" onclick="ModalManager.switchShopTab('item')">🎒 캐릭터 장착템 & 쿠폰</button>
+            <button class="tab-btn" onclick="ModalManager.switchShopTab('hair')">💇‍♀️ 헤어 염색 살롱</button>
+            <button class="tab-btn" onclick="ModalManager.switchShopTab('costume')">👗 패션 코스튬</button>
+            <button class="tab-btn" onclick="ModalManager.switchShopTab('hat')">👑 모자/머리띠</button>
+            <button class="tab-btn" onclick="ModalManager.switchShopTab('aura')">✨ 특수 오라/이펙트</button>
           </div>
 
+          <!-- 1. 미니룸 가구 탭 -->
           <div id="shop-tab-furn" class="shop-grid">
             ${furns.map(f => `
               <div class="shop-item-card">
@@ -290,32 +338,58 @@ const ModalManager = (() => {
             `).join('')}
           </div>
 
-          <div id="shop-tab-item" class="shop-grid" style="display:none;">
-            ${defaultItems.map(it => `
+          <!-- 2. 헤어 염색 살롱 탭 -->
+          <div id="shop-tab-hair" class="shop-grid" style="display:none;">
+            ${hairDyes.map(h => `
+              <div class="shop-item-card" style="border-color:${h.color};">
+                <div style="width:36px; height:36px; border-radius:50%; background:${h.color}; margin:0 auto 6px; border:2px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.2);"></div>
+                <div class="item-name">${h.name}</div>
+                <div class="item-desc">${h.desc}</div>
+                <div class="item-price">💰 ${h.price.toLocaleString()}원</div>
+                <button class="pixel-btn-primary" style="background:${h.color}; color:#fff;" onclick="ModalManager.buyHairDye('${h.id}', '${h.color}', ${h.price}, '${h.name}')">염색하기</button>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- 3. 패션 코스튬 탭 -->
+          <div id="shop-tab-costume" class="shop-grid" style="display:none;">
+            ${costumes.map(c => `
               <div class="shop-item-card">
-                <div class="item-name">${it.itemName}</div>
-                <div class="item-desc">${it.설명}</div>
-                <div class="item-price">💰 ${it.금액.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.buyItem('${it.itemName}', ${it.금액})">구매하기</button>
+                <div style="font-size:32px; margin-bottom:4px;">👗</div>
+                <div class="item-name">${c.name}</div>
+                <div class="item-desc">${c.desc}</div>
+                <div class="item-price">💰 ${c.price.toLocaleString()}원</div>
+                <button class="pixel-btn-primary" onclick="ModalManager.buyCostume('${c.id}', ${c.price}, '${c.name}')">의상 입기</button>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- 4. 모자/머리띠 탭 -->
+          <div id="shop-tab-hat" class="shop-grid" style="display:none;">
+            ${hats.map(h => `
+              <div class="shop-item-card">
+                <div style="font-size:32px; margin-bottom:4px;">👑</div>
+                <div class="item-name">${h.name}</div>
+                <div class="item-desc">${h.desc}</div>
+                <div class="item-price">💰 ${h.price.toLocaleString()}원</div>
+                <button class="pixel-btn-primary" onclick="ModalManager.buyHat('${h.id}', ${h.price}, '${h.name}')">장착하기</button>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- 5. 특수 오라 탭 -->
+          <div id="shop-tab-aura" class="shop-grid" style="display:none;">
+            ${auras.map(a => `
+              <div class="shop-item-card">
+                <div style="font-size:32px; margin-bottom:4px;">✨</div>
+                <div class="item-name">${a.name}</div>
+                <div class="item-desc">${a.desc}</div>
+                <div class="item-price">💰 ${a.price.toLocaleString()}원</div>
+                <button class="pixel-btn-primary" style="background:#7c3aed;" onclick="ModalManager.buyAura('${a.id}', ${a.price}, '${a.name}')">오라 구매</button>
               </div>
             `).join('')}
           </div>
         `;
-
-        API.call('getShopItems', { name: me }, true).then(data => {
-          const items = Array.isArray(data) ? data : (data.items || []);
-          const itemGrid = document.getElementById('shop-tab-item');
-          if (itemGrid && items.length > 0) {
-            itemGrid.innerHTML = items.map(it => `
-              <div class="shop-item-card">
-                <div class="item-name">${it.아이템명 || it.itemName || it.이름}</div>
-                <div class="item-desc">${it.설명 || it.desc || ''}</div>
-                <div class="item-price">💰 ${(it.금액 || it.가격 || 0).toLocaleString()}원 (재고: ${it.수량 || it.재고 || 1}개)</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.buyItem('${it.아이템명 || it.itemName || it.이름}', ${it.금액 || it.가격 || 0})">구매하기</button>
-              </div>
-            `).join('');
-          }
-        });
         break;
       }
 
@@ -754,11 +828,12 @@ const ModalManager = (() => {
               ${canMart ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#7c3aed;" onclick="ModalManager.openAddMartItemModal()">🛒 마트 물품 등록</button>' : ''}
             </div>
 
-            <div class="admin-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
+            <div class="admin-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
               <button class="tab-btn active" onclick="ModalManager.switchAdminTab('students')">👥 학생 목록 & 현황</button>
               ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'permissions\')">👑 학생 권한 부여</button>' : ''}
+              ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'items_admin\')">🛍️ 아이템 가격/수량 수정</button>' : ''}
               ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'stock_admin\')">📈 주가 & 뉴스 발행</button>' : ''}
-              ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'sheet_init\')">🔄 시트 전체 초기화 (교사전용)</button>' : ''}
+              ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'sheet_init\')">🔄 시트 전체 초기화</button>' : ''}
             </div>
 
             <!-- 1. 학생 목록 탭 -->
@@ -814,6 +889,23 @@ const ModalManager = (() => {
                           </td>
                         </tr>
                       `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- 2-1. 아이템 가격 & 수량 관리 탭 (교사전용) -->
+            ${isTeacher ? `
+              <div id="admin-tab-items_admin" class="admin-tab-content" style="display:none;">
+                <div style="background:#eff6ff; border:2px solid #93c5fd; padding:10px; border-radius:8px; margin-bottom:10px; font-size:12px; color:#1e40af;">
+                  💡 가구, 의상, 아이템, 마트 물품의 가격과 재고 수량을 즉시 수정할 수 있습니다.
+                </div>
+                <div class="table-wrap" style="max-height:280px; overflow-y:auto;">
+                  <table class="pixel-table">
+                    <thead><tr><th>카테고리</th><th>아이템명</th><th>판매가격(원)</th><th>재고수량</th><th>수정</th></tr></thead>
+                    <tbody id="admin-items-editor-tbody">
+                      <tr><td colspan="5" style="text-align:center; padding:15px;">아이템 목록을 불러오는 중...</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -1033,10 +1125,13 @@ const ModalManager = (() => {
     open,
     close,
     switchShopTab: (tab) => {
-      document.getElementById('shop-tab-furn').style.display = tab === 'furn' ? 'grid' : 'none';
-      document.getElementById('shop-tab-item').style.display = tab === 'item' ? 'grid' : 'none';
+      ['furn', 'hair', 'costume', 'hat', 'aura'].forEach(t => {
+        const el = document.getElementById(`shop-tab-${t}`);
+        if (el) el.style.display = t === tab ? 'grid' : 'none';
+      });
       document.querySelectorAll('.shop-tabs .tab-btn').forEach((b, i) => {
-        b.classList.toggle('active', (tab === 'furn' && i === 0) || (tab === 'item' && i === 1));
+        const tabs = ['furn', 'hair', 'costume', 'hat', 'aura'];
+        b.classList.toggle('active', tabs[i] === tab);
       });
       SoundEngine.click();
     },
@@ -1072,11 +1167,259 @@ const ModalManager = (() => {
       SoundEngine.click();
     },
     switchAdminTab: (tab) => {
-      ['students', 'permissions', 'stock_admin', 'sheet_init'].forEach(t => {
+      ['students', 'permissions', 'items_admin', 'stock_admin', 'sheet_init'].forEach(t => {
         const el = document.getElementById(`admin-tab-${t}`);
         if (el) el.style.display = t === tab ? 'block' : 'none';
       });
+      if (tab === 'items_admin') {
+        ModalManager.loadAdminItems();
+      }
       SoundEngine.click();
+    },
+    loadAdminItems: async () => {
+      const tbody = document.getElementById('admin-items-editor-tbody');
+      if (!tbody) return;
+      const res = await API.call('getAdminItemsList', {}, true);
+      const items = res?.items || [
+        { 카테고리: '캐릭터아이템', 아이템명: '👟 스피드 롤러스케이트', 금액: 5000, 수량: 99 },
+        { 카테고리: '캐릭터아이템', 아이템명: '✨ 황금 오라 이펙트', 금액: 8000, 수량: 99 },
+        { 카테고리: '캐릭터아이템', 아이템명: '🍄 슈퍼 아이키커 버섯', 금액: 6000, 수량: 99 },
+        { 카테고리: '캐릭터아이템', 아이템명: '🪽 천사의 날개', 금액: 10000, 수량: 99 },
+        { 카테고리: '마트물품', 아이템명: '초코파이', 금액: 800, 수량: 20 },
+        { 카테고리: '마트물품', 아이템명: '비타민 음료', 금액: 1200, 수량: 15 }
+      ];
+      tbody.innerHTML = items.map(it => `
+        <tr>
+          <td><span class="badge badge-primary">${it.카테고리 || '아이템'}</span></td>
+          <td><strong>${it.아이템명 || it.이름 || '-'}</strong></td>
+          <td>${(Number(it.금액 || it.가격 || 0)).toLocaleString()}원</td>
+          <td>${it.수량 || it.재고 || 0}개</td>
+          <td>
+            <button class="pixel-btn-sm" onclick="ModalManager.editItemPriceAndStock('${it.아이템명 || it.이름}', ${it.금액 || it.가격 || 0}, ${it.수량 || it.재고 || 0})">가격/수량 수정</button>
+          </td>
+        </tr>
+      `).join('');
+    },
+    editItemPriceAndStock: async (itemName, curPrice, curStock) => {
+      const newPrice = prompt(`[${itemName}] 새 판매 가격(원):`, curPrice);
+      if (newPrice === null) return;
+      const newStock = prompt(`[${itemName}] 새 재고 수량(개):`, curStock);
+      if (newStock === null) return;
+
+      API.showLoading('아이템 정보 수정 중...');
+      const res = await API.call('updateItemPriceAndStock', { itemName, price: Number(newPrice), stock: Number(newStock) });
+      API.hideLoading();
+      SoundEngine.coin();
+      alert(res?.msg || '수정 완료');
+      ModalManager.loadAdminItems();
+    },
+
+    // ─── 다종목 실시간 네이버 주식 스위처 및 거래 ───
+    activeMultiStockCode: '005930',
+    multiStockCache: [],
+    multiStockHoldings: {},
+    switchStockCode: (code) => {
+      ModalManager.activeMultiStockCode = code;
+      document.querySelectorAll('.stock-code-tab').forEach(b => b.classList.remove('active'));
+      const activeTab = document.getElementById(`stock-tab-${code}`);
+      if (activeTab) activeTab.classList.add('active');
+      ModalManager.updateMultiStockUI();
+      SoundEngine.click();
+    },
+    updateMultiStockUI: () => {
+      const code = ModalManager.activeMultiStockCode || '005930';
+      const stocks = ModalManager.multiStockCache || [];
+      const curStock = stocks.find(s => s.code === code) || stocks[0] || { name: '삼성전자', price: 74500, changeRate: '+1.20%' };
+      const holdings = ModalManager.multiStockHoldings || {};
+      const myQty = holdings[code] || holdings[curStock.name] || 0;
+
+      const nameEl = document.getElementById('stock-active-name');
+      const priceEl = document.getElementById('stock-active-price');
+      const rateEl = document.getElementById('stock-active-rate');
+      const holdEl = document.getElementById('stock-active-holdings');
+      const evalEl = document.getElementById('stock-active-eval');
+
+      if (nameEl) nameEl.textContent = `${curStock.icon || '📈'} ${curStock.name} (${curStock.code})`;
+      if (priceEl) priceEl.textContent = `${(curStock.price || 10000).toLocaleString()}원`;
+      if (rateEl) {
+        const isUp = (curStock.changeRate || '').includes('+');
+        rateEl.textContent = curStock.changeRate || '0.00%';
+        rateEl.style.color = isUp ? '#ef4444' : '#3b82f6';
+        if (priceEl) priceEl.style.color = isUp ? '#ef4444' : '#3b82f6';
+      }
+      if (holdEl) holdEl.textContent = `${myQty.toLocaleString()}주`;
+      if (evalEl) evalEl.textContent = `${(myQty * (curStock.price || 10000)).toLocaleString()}원`;
+
+      // 차트 다시 그리기
+      const cvs = document.getElementById('stock-chart-canvas');
+      if (cvs && curStock.price) {
+        const ctx = cvs.getContext('2d');
+        const W = cvs.width, H = cvs.height, padding = 25;
+        const p = curStock.price;
+        const hist = [p * 0.97, p * 0.99, p * 0.98, p * 1.01, p * 0.995, p];
+        const max = Math.max(...hist) * 1.02, min = Math.min(...hist) * 0.98, range = Math.max(1, max - min);
+        ctx.clearRect(0, 0, W, H);
+        ctx.strokeStyle = (curStock.changeRate || '').includes('+') ? '#ef4444' : '#3b82f6';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        hist.forEach((val, idx) => {
+          const x = padding + (idx / (hist.length - 1)) * (W - padding * 2);
+          const y = H - padding - ((val - min) / range) * (H - padding * 2);
+          if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+
+      // 포트폴리오 테이블 갱신
+      const pTbody = document.getElementById('multi-stock-portfolio-tbody');
+      if (pTbody) {
+        pTbody.innerHTML = stocks.map(s => {
+          const q = holdings[s.code] || holdings[s.name] || 0;
+          return `
+            <tr style="${s.code === code ? 'background:#f0fdf4;' : ''}">
+              <td><strong>${s.icon || '📈'} ${s.name}</strong></td>
+              <td>${(s.price || 0).toLocaleString()}원 <span style="color:${(s.changeRate||'').includes('+')?'#ef4444':'#3b82f6'}; font-size:11px;">(${s.changeRate||'0%'})</span></td>
+              <td><strong>${q.toLocaleString()}주</strong></td>
+              <td>${(q * (s.price || 0)).toLocaleString()}원</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    },
+    handleTradeMultiStock: async (type) => {
+      const code = ModalManager.activeMultiStockCode || '005930';
+      const qtyInput = document.getElementById(type === '매수' ? 'multi-stock-buy-qty' : 'multi-stock-sell-qty');
+      const qty = parseInt(qtyInput?.value, 10);
+      if (!qty || qty <= 0) return alert('올바른 수량을 입력하세요.');
+
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '나';
+
+      API.showLoading(`네이버 증시 ${type} 주문 체결 중...`);
+      const res = await API.call('tradeMultiStock', { name: myName, code: code, qty: qty, type: type });
+      API.hideLoading();
+
+      if (res && res.success) {
+        if (res.student) {
+          GameState.student = res.student;
+          const cashEl = document.getElementById('hud-cash-val');
+          const stockEl = document.getElementById('hud-stock-val');
+          const curC = res.student.cash ?? res.student.현금 ?? 0;
+          const curS = res.student.stock ?? res.student.주식 ?? 0;
+          if (cashEl) cashEl.textContent = `${curC.toLocaleString()}원`;
+          if (stockEl) stockEl.textContent = `${curS.toLocaleString()}원`;
+        }
+        SoundEngine.fanfare();
+        alert(res.msg);
+        open('stock');
+      } else {
+        alert(res?.msg || '주문 실패');
+      }
+    },
+
+    // ─── 뷰티 살롱 헤어염색/코스튬/모자/오라 구매 및 스타일 적용 ───
+    buyHairDye: async (id, color, price, name) => {
+      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하여 머리를 염색하시겠습니까?`)) return;
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '나';
+
+      API.showLoading('헤어 살롱 염색 중...');
+      const buyRes = await API.call('buyItem', { name: myName, itemName: name });
+      API.hideLoading();
+
+      if (buyRes && buyRes.success) {
+        if (!GameState.characterStyle) GameState.characterStyle = {};
+        GameState.characterStyle.hairColor = color;
+        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
+        API.call('updateCharacterStyle', { name: myName, style: GameState.characterStyle }, true);
+
+        // 게임 내 캐릭터 텍스처 즉시 리로드
+        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
+          window.MainGameScene.reloadPlayerTexture();
+        }
+        SoundEngine.fanfare();
+        alert(`✨ ${name} 적용 완료! 캐릭터 헤어가 멋지게 바뀌었습니다.`);
+      } else {
+        alert(buyRes?.msg || '구매 실패');
+      }
+    },
+
+    buyCostume: async (id, price, name) => {
+      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하여 착용하시겠습니까?`)) return;
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '나';
+      const cType = id.replace('costume_', '');
+
+      API.showLoading('의상 착용 중...');
+      const buyRes = await API.call('buyItem', { name: myName, itemName: name });
+      API.hideLoading();
+
+      if (buyRes && buyRes.success) {
+        if (!GameState.characterStyle) GameState.characterStyle = {};
+        GameState.characterStyle.costume = cType;
+        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
+        API.call('updateCharacterStyle', { name: myName, style: GameState.characterStyle }, true);
+
+        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
+          window.MainGameScene.reloadPlayerTexture();
+        }
+        SoundEngine.fanfare();
+        alert(`👗 ${name} 착용 완료! 패션 스타일이 업그레이드되었습니다.`);
+      } else {
+        alert(buyRes?.msg || '구매 실패');
+      }
+    },
+
+    buyHat: async (id, price, name) => {
+      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하여 장착하시겠습니까?`)) return;
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '나';
+      const hType = id.replace('hat_', '');
+
+      API.showLoading('액세서리 장착 중...');
+      const buyRes = await API.call('buyItem', { name: myName, itemName: name });
+      API.hideLoading();
+
+      if (buyRes && buyRes.success) {
+        if (!GameState.characterStyle) GameState.characterStyle = {};
+        GameState.characterStyle.hat = hType;
+        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
+        API.call('updateCharacterStyle', { name: myName, style: GameState.characterStyle }, true);
+
+        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
+          window.MainGameScene.reloadPlayerTexture();
+        }
+        SoundEngine.fanfare();
+        alert(`👑 ${name} 장착 완료!`);
+      } else {
+        alert(buyRes?.msg || '구매 실패');
+      }
+    },
+
+    buyAura: async (id, price, name) => {
+      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?`)) return;
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '나';
+      const aType = id.replace('aura_', '');
+
+      API.showLoading('특수 오라 발동 중...');
+      const buyRes = await API.call('buyItem', { name: myName, itemName: name });
+      API.hideLoading();
+
+      if (buyRes && buyRes.success) {
+        if (!GameState.characterStyle) GameState.characterStyle = {};
+        GameState.characterStyle.aura = aType;
+        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
+        API.call('updateCharacterStyle', { name: myName, style: GameState.characterStyle }, true);
+
+        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
+          window.MainGameScene.reloadPlayerTexture();
+        }
+        SoundEngine.fanfare();
+        alert(`✨ ${name} 발동 완료! 화려한 오라가 몸을 감쌉니다.`);
+      } else {
+        alert(buyRes?.msg || '구매 실패');
+      }
     },
     toggleEquip: (id) => {
       if (!GameState.equippedItems) GameState.equippedItems = {};
