@@ -1,390 +1,39 @@
 // ============================================================
-// 14개 건물 모달 UI & 인벤토리/장착 & 우편함 & 간편모드 & 놀이기구 스릴/운세 연출 (js/modals.js)
+// 모달 및 UI 팝업 매니저 (js/modals.js)
+// 국고 공개 조회, 마트 POS 통계, 역할별 권한 부여(RBAC), 학생 선택형 벌금/경고
 // ============================================================
 
 const ModalManager = (() => {
-  let activeModalId = null;
-  let currentLotteryTxId = null;
-  let isScratchFinished = false;
+  const overlay = document.getElementById('modal-overlay');
+  const titleEl = document.getElementById('modal-title');
+  const bodyEl = document.getElementById('modal-body');
+  let currentOpenId = null;
 
-  // 행운의 운세 & 따뜻한 응원 글귀 데이터베이스
-  const FORTUNES = [
-    '🍀 오늘은 뜻밖의 행운과 횡재수가 따르는 날입니다! 복권을 긁어보세요.',
-    '📈 주식 투자에서 대박 호재를 만나 자산이 불어날 예감입니다!',
-    '🌟 친구들과 협동하면 큰 칭찬과 보상을 받게 될 멋진 하루입니다.',
-    '💡 평소 생각지 못한 기발한 아이디어로 학급에서 인정받을 거예요!',
-    '🎁 잡화점에서 마음에 쏙 드는 보물 아이템을 발견할 운세입니다.'
-  ];
-
-  const CHEER_MSGS = [
-    '✨ "오늘도 최선을 다하는 네가 가장 빛나!"',
-    '🌈 "작은 성공들이 모여 위대한 네가 될 거야!"',
-    '💖 "너의 따뜻한 미소가 우리 반을 행복하게 만들어!"',
-    '🚀 "실패를 두려워하지 마, 넌 이미 충분히 멋지니까!"',
-    '🌸 "언제나 너를 응원해! 오늘도 힘차고 즐거운 하루 보내렴!"'
-  ];
-
-  function open(buildingId, extraData) {
-    activeModalId = buildingId;
-    SoundEngine.open();
-
-    const overlay = document.getElementById('modal-overlay');
-    const titleEl = document.getElementById('modal-title');
-    const bodyEl = document.getElementById('modal-body');
-
+  function open(id) {
+    currentOpenId = id;
     if (!overlay || !titleEl || !bodyEl) return;
 
-    // 1. 간편모드 (대시보드 게시판 뷰어)
-    if (buildingId === 'quick_board') {
-      titleEl.innerHTML = `📋 클래스 타운 간편 대시보드 (게시판 모드)`;
-      overlay.style.display = 'flex';
-      renderQuickBoard(bodyEl);
-      return;
-    }
-
-    // 2. 우편함 모달
-    if (buildingId === 'mailbox') {
-      titleEl.innerHTML = `📬 나의 우편함 & 알림`;
-      overlay.style.display = 'flex';
-      renderMailboxModal(bodyEl);
-      return;
-    }
-
-    // 3. 인벤토리 & 캐릭터 장착 모달
-    if (buildingId === 'inventory') {
-      titleEl.innerHTML = `🎒 나의 가방 & 캐릭터 장착실`;
-      overlay.style.display = 'flex';
-      renderInventoryModal(bodyEl);
-      return;
-    }
-
-    // 4. 놀이기구 탑승 애니메이션 & 스릴/운세 모달
-    if (buildingId === 'ride_modal') {
-      titleEl.innerHTML = `${extraData.emoji || '🎠'} ${extraData.name}`;
-      overlay.style.display = 'flex';
-      renderRideModal(bodyEl, extraData);
-      return;
-    }
-
-    // 5. NPC 대화 모달
-    if (buildingId === 'npc_modal') {
-      titleEl.innerHTML = `💬 ${extraData.name} 와의 대화`;
-      overlay.style.display = 'flex';
-      renderNpcDialogModal(bodyEl, extraData);
-      return;
-    }
-
-    // 건물 정보 조회
-    const building = TownMapData.BUILDINGS.find(b => b.id === buildingId) || {
-      id: buildingId,
-      name: buildingId === 'admin_quick' || buildingId === 'principal' ? '교장실 (관리자 패널)' : '안내',
-      signEmoji: '🏛️'
-    };
-
-    // 권한 체크
-    const st = GameState.student;
-    const myPerm = st ? (st.permission || st.권한 || '') : '';
-    if (building.requiresPermission && (!myPerm || myPerm === '없음')) {
-      SoundEngine.enter();
-      alert('⛔ 시청은 학급 임원(권한 위임자)만 입장할 수 있습니다!');
-      return;
-    }
-
-    if (building.requiresAdmin && !GameState.isAdmin) {
-      showAdminAuthPrompt();
-      return;
-    }
-
-    titleEl.innerHTML = `${building.signEmoji} ${building.name}`;
+    SoundEngine.open();
     overlay.style.display = 'flex';
+    bodyEl.innerHTML = '';
 
-    // 지연 없이 0초 만에 즉시 렌더링
-    try {
-      renderBuildingContent(buildingId, bodyEl);
-    } catch (err) {
-      console.error('[Render Modal Error]', err);
-      bodyEl.innerHTML = `<div style="padding:20px; text-align:center;">오류가 발생하여 기본 화면을 로드합니다.</div>`;
+    const building = TownMapData.BUILDINGS.find(b => b.id === id);
+    if (building) {
+      titleEl.innerHTML = `${building.signEmoji || '🏠'} ${building.name}`;
+      renderBuildingContent(id, bodyEl);
+    } else {
+      titleEl.innerText = '상세 정보';
+      renderSpecialContent(id, bodyEl);
     }
   }
 
   function close() {
-    SoundEngine.close();
-    const overlay = document.getElementById('modal-overlay');
-    if (overlay) overlay.style.display = 'none';
-    activeModalId = null;
-
-    setTimeout(() => {
-      window.focus();
-      const canvas = document.querySelector('#game-canvas-wrap canvas');
-      if (canvas) canvas.focus();
-      if (window.GameApp) {
-        const scene = window.GameApp.scene.getScene('TownScene');
-        if (scene && scene.input && scene.input.keyboard) {
-          scene.input.keyboard.resetKeys();
-        }
-      }
-    }, 50);
-  }
-
-  function showAdminAuthPrompt() {
-    const pw = prompt('🔐 교장실 관리자 비밀번호를 입력하세요:');
-    if (!pw) return;
-
-    API.showLoading('비밀번호를 확인하는 중...');
-    API.call('adminAuth', { pw }).then(res => {
-      API.hideLoading();
-      if (res && (res.success || res.isAdmin)) {
-        GameState.isAdmin = true;
-        SoundEngine.fanfare();
-        const adminBtn = document.getElementById('hud-admin-btn');
-        if (adminBtn) adminBtn.style.display = 'inline-flex';
-        open('principal');
-      } else {
-        alert('❌ 비밀번호가 올바르지 않습니다.');
-      }
-    });
-  }
-
-  // ─── [간편모드] 맵 이동 없이 14개 건물 원클릭 사용 ───
-  function renderQuickBoard(container) {
-    container.innerHTML = `
-      <div class="quick-board-wrap">
-        <div style="background:#ecfdf5; border:2px solid #a7f3d0; padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#065f46;">
-          📌 <strong>간편모드</strong>에서는 캐릭터를 이동하지 않고도 마을의 모든 시설과 은행, 상점, 기숙사를 즉시 이용할 수 있습니다!
-        </div>
-        <div class="quick-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:10px;">
-          ${TownMapData.BUILDINGS.map(b => `
-            <div class="quick-card" style="background:#fff; border:2px solid #cbd5e1; border-radius:10px; padding:12px; text-align:center; cursor:pointer; transition:transform 0.1s;"
-                 onclick="ModalManager.open('${b.id}')" onmouseover="this.style.borderColor='#22c55e'" onmouseout="this.style.borderColor='#cbd5e1'">
-              <div style="font-size:32px; margin-bottom:4px;">${b.signEmoji}</div>
-              <div style="font-weight:bold; font-size:13px; color:#1e293b;">${b.name}</div>
-              <div style="font-size:10px; color:#64748b; margin-top:2px;">${b.desc.substring(0, 18)}...</div>
-              <button class="pixel-btn-sm" style="margin-top:8px; width:100%;">바로가기</button>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  // ─── [우편함] 송금, 칭찬카드, 부동산 요청 수신함 ───
-  async function renderMailboxModal(container) {
-    const st = GameState.student;
-    const me = st ? (st.name || st.이름 || '나') : '나';
-
-    const res = await API.call('getMailbox', { name: me });
-    const mails = Array.isArray(res) ? res : (res.mails || []);
-
-    container.innerHTML = `
-      <div class="mailbox-wrap">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <h4 style="font-size:14px; color:#1e293b;">📬 도착한 우편 & 알림 목록 (${mails.length})</h4>
-          <button class="pixel-btn-sm" onclick="ModalManager.open('postoffice')">💌 새 우편 보내기</button>
-        </div>
-        <div class="mail-list" style="display:flex; flex-direction:column; gap:8px; max-height:350px; overflow-y:auto;">
-          ${mails.length === 0 ? `
-            <div style="text-align:center; padding:30px; color:#64748b; background:#f8fafc; border-radius:8px;">
-              📭 도착한 우편이 없습니다. 친구에게 먼저 칭찬카드를 보내보세요!
-            </div>
-          ` : mails.map(m => `
-            <div class="mail-card" style="background:#fff; border:2px solid #cbd5e1; border-radius:8px; padding:12px;">
-              <div style="display:flex; justify-content:space-between; font-size:11px; color:#64748b; margin-bottom:4px;">
-                <span>${m.일시 || m.날짜 || '-'}</span>
-                <span class="badge badge-primary">${m.카테고리 || '우편'}</span>
-              </div>
-              <div style="font-weight:bold; font-size:13px; color:#1e293b; margin-bottom:4px;">
-                보낸사람: ${m.이름 || '선생님'}
-              </div>
-              <div style="font-size:12px; color:#334155; line-height:1.5;">
-                ${m.메세지 || m.내용 || '내용 없음'}
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  // ─── [인벤토리 & 캐릭터 장착실] ───
-  async function renderInventoryModal(container) {
-    const st = GameState.student;
-    const me = st ? (st.name || st.이름 || '나') : '나';
-
-    const res = await API.call('getInventory', { name: me });
-    const inv = Array.isArray(res) ? res : (res.inventory || []);
-    if (!GameState.equippedItems) GameState.equippedItems = {};
-
-    container.innerHTML = `
-      <div class="inven-panel">
-        <div class="inven-tabs" style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
-          <button class="tab-btn active" onclick="ModalManager.switchInvenTab('equips')">✨ 캐릭터 장착템</button>
-          <button class="tab-btn" onclick="ModalManager.switchInvenTab('coupons')">🎟️ 학급 쿠폰 (${inv.filter(i => i.카테고리 !== '캐릭터아이템').length})</button>
-          <button class="tab-btn" onclick="ModalManager.switchInvenTab('furns')">🛋️ 미니룸 가구</button>
-        </div>
-
-        <div id="inven-tab-equips">
-          <div style="background:#fffbeb; border:2px solid #fde68a; padding:10px; border-radius:8px; margin-bottom:10px; font-size:12px; color:#b45309;">
-            💡 장착한 아이템은 즉시 캐릭터의 이동속도, 크기, 오라 이펙트에 실시간으로 적용됩니다!
-          </div>
-          <div class="shop-grid">
-            ${[
-              { id: 'speed_shoes', name: '👟 스피드 롤러스케이트', desc: '이동속도 80% 증가', type: 'speed' },
-              { id: 'gold_aura',   name: '✨ 황금 오라 이펙트',     desc: '반짝이는 황금빛 파티클', type: 'aura' },
-              { id: 'giant_grow',  name: '🍄 슈퍼 아이키커 버섯',   desc: '캐릭터 크기 1.5배 거대화', type: 'size' },
-              { id: 'angel_wings', name: '🪽 천사의 날개',         desc: '등 뒤에 날개 장착', type: 'wings' },
-              { id: 'kickboard',   name: '🛴 네온 전동 킥보드',     desc: '특수 탈 것 탑승', type: 'mount' }
-            ].map(eq => {
-              const isEquipped = !!GameState.equippedItems[eq.id];
-              return `
-                <div class="shop-item-card" style="border-color:${isEquipped ? '#22c55e' : '#cbd5e1'}; background:${isEquipped ? '#f0fdf4' : '#fff'};">
-                  <div class="item-name">${eq.name}</div>
-                  <div class="item-desc" style="font-size:11px; color:#64748b;">${eq.desc}</div>
-                  <div style="font-size:11px; font-weight:bold; color:${isEquipped ? '#15803d' : '#94a3b8'};">
-                    ${isEquipped ? '🟢 장착중' : '⚪ 미장착'}
-                  </div>
-                  <button class="pixel-btn-primary" style="background:${isEquipped ? '#ef4444' : '#22c55e'}; border-color:${isEquipped ? '#991b1b' : '#14532d'};"
-                          onclick="ModalManager.toggleEquip('${eq.id}')">
-                    ${isEquipped ? '해제하기' : '장착하기'}
-                  </button>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        </div>
-
-        <div id="inven-tab-coupons" style="display:none;">
-          <div class="shop-grid">
-            ${inv.filter(i => i.카테고리 !== '캐릭터아이템').length === 0 ? `
-              <div style="grid-column: 1/-1; text-align:center; padding:30px; color:#64748b; background:#f8fafc; border-radius:10px;">
-                보유 중인 쿠폰이 없습니다. 잡화점에서 쿠폰을 구매해보세요!
-              </div>
-            ` : inv.filter(i => i.카테고리 !== '캐릭터아이템').map(it => `
-              <div class="shop-item-card" style="border-color:#38bdf8;">
-                <div class="item-emoji">🎟️</div>
-                <div class="item-name">${it.아이템명 || it.itemName}</div>
-                <div class="item-desc" style="font-size:11px; color:#64748b;">${it.설명 || '학급 전용 쿠폰'}</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.handleUseItem('${it.아이템명 || it.itemName}')">✨ 사용하기</button>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-
-        <div id="inven-tab-furns" style="display:none;">
-          <div class="shop-grid">
-            ${CONFIG.FURNITURE_CATALOG.map(f => `
-              <div class="shop-item-card">
-                <div class="item-emoji">${f.emoji}</div>
-                <div class="item-name">${f.name}</div>
-                <div class="item-desc" style="font-size:11px; color:#64748b;">${f.type}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  // ─── [놀이기구 화려한 캔버스 연출 & 스릴/운세/응원글귀] ───
-  function renderRideModal(container, data) {
-    SoundEngine.fanfare();
-    const thrillScore = Math.floor(Math.random() * 21) + 80; // 80~100점 스릴 점수
-    const randFortune = FORTUNES[Math.floor(Math.random() * FORTUNES.length)];
-    const randCheer = CHEER_MSGS[Math.floor(Math.random() * CHEER_MSGS.length)];
-
-    container.innerHTML = `
-      <div class="ride-modal-wrap" style="text-align:center;">
-        <div style="font-size:15px; font-weight:bold; color:#1e293b; margin-bottom:6px;">
-          ${data.rideTitle || data.name}에 탑승했습니다! 🎈✨
-        </div>
-
-        <div style="display:flex; justify-content:center; gap:8px; margin-bottom:10px;">
-          <div style="background:#fee2e2; border:1px solid #f87171; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:bold; color:#991b1b;">
-            🔥 스릴 만족도: <strong>${thrillScore}점 / 100점</strong>
-          </div>
-          <div style="background:#ecfdf5; border:1px solid #34d399; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:bold; color:#065f46;">
-            💰 보너스 용돈: <strong>+100원 지급</strong>
-          </div>
-        </div>
-
-        <div style="position:relative; display:inline-block; border:3px solid #334155; border-radius:12px; overflow:hidden; box-shadow:0 8px 16px rgba(0,0,0,0.2);">
-          <canvas id="ride-canvas" width="400" height="200" style="display:block; background:#0f172a;"></canvas>
-        </div>
-
-        <div style="margin-top:12px; background:#fffbeb; border:2px solid #fde68a; padding:10px 14px; border-radius:8px; text-align:left;">
-          <div style="font-size:12px; font-weight:bold; color:#b45309; margin-bottom:4px;">🔮 오늘의 포춘 쿠키 & 운세</div>
-          <div style="font-size:12px; color:#78350f; line-height:1.5; margin-bottom:8px;">${randFortune}</div>
-          <div style="font-size:12px; font-weight:bold; color:#0369a1; border-top:1px dashed #cbd5e1; padding-top:6px;">
-            💌 오늘의 응원: ${randCheer}
-          </div>
-        </div>
-      </div>
-    `;
-
-    // 보상금 지급
-    const st = GameState.student;
-    if (st) {
-      API.call('logEmotion', { name: st.name || st.이름, emotion: '🟢 좋음', message: `[놀이기구] ${data.name} 스릴만족(${thrillScore}점)` }, true);
+    if (overlay) {
+      SoundEngine.close();
+      overlay.style.display = 'none';
+      bodyEl.innerHTML = '';
+      currentOpenId = null;
     }
-
-    setTimeout(() => {
-      const cvs = document.getElementById('ride-canvas');
-      if (!cvs) return;
-      const ctx = cvs.getContext('2d');
-      let angle = 0;
-
-      function drawRide() {
-        if (!document.getElementById('ride-canvas')) return;
-        ctx.clearRect(0, 0, 400, 200);
-
-        ctx.fillStyle = '#f8fafc';
-        for (let i = 0; i < 20; i++) {
-          ctx.fillRect((i * 37) % 400, (i * 23) % 180, 2, 2);
-        }
-
-        ctx.save();
-        ctx.translate(200, 100);
-        ctx.rotate(angle);
-        for (let i = 0; i < 8; i++) {
-          ctx.strokeStyle = data.rideColor || '#f43f5e';
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(Math.cos(i * Math.PI / 4) * 75, Math.sin(i * Math.PI / 4) * 75);
-          ctx.stroke();
-
-          ctx.font = '22px sans-serif';
-          ctx.fillText(data.emoji || '🎠', Math.cos(i * Math.PI / 4) * 70, Math.sin(i * Math.PI / 4) * 70);
-        }
-        ctx.restore();
-
-        angle += 0.03;
-        requestAnimationFrame(drawRide);
-      }
-      drawRide();
-    }, 50);
-  }
-
-  // ─── [NPC 대화 모달] ───
-  function renderNpcDialogModal(container, npc) {
-    SoundEngine.open();
-    const dialogs = npc.dialogs || [npc.dialog || '반가워요!'];
-    container.innerHTML = `
-      <div class="npc-dialog-wrap" style="background:#fffdf7; padding:12px; border-radius:10px;">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; border-bottom:2px solid #cbd5e1; padding-bottom:10px;">
-          <div style="font-size:42px; background:#e0f2fe; padding:8px; border-radius:50%;">🐾</div>
-          <div>
-            <div style="font-size:16px; font-weight:bold; color:#1e293b;">${npc.name}</div>
-            <div style="font-size:11px; color:#64748b;">마을 주민 동물 친구</div>
-          </div>
-        </div>
-        <div class="npc-bubble" style="background:#f8fafc; border:2px solid #94a3b8; border-radius:10px; padding:14px; font-size:13px; color:#1e293b; line-height:1.6; margin-bottom:14px;">
-          ${dialogs.map(d => `<p style="margin-bottom:6px;">"${d}"</p>`).join('')}
-        </div>
-        <div style="display:flex; justify-content:flex-end; gap:8px;">
-          <button class="pixel-btn-primary" style="width:auto; padding:8px 18px;" onclick="ModalManager.close()">대화 끝내기</button>
-        </div>
-      </div>
-    `;
   }
 
   function renderBuildingContent(id, container) {
@@ -392,37 +41,66 @@ const ModalManager = (() => {
     const me = st ? (st.name || st.이름 || '나') : '나';
     const myCash = st ? (st.cash ?? st.현금 ?? 0) : 0;
     const myStock = st ? (st.stock ?? st.주식 ?? 0) : 0;
+    const myPerm = st ? (st.permission || st.권한 || '일반') : '일반';
+    const isTeacher = GameState.isAdmin || me === '선생님' || myPerm.includes('전체');
 
     switch (id) {
       case 'dormitory':
         MiniroomSystem.renderDormitoryList(container);
         break;
 
+      // 1. 은행 (개인 예금 & 학급 국고 공개 조회)
       case 'bank': {
         const rateVal = 0.05;
         container.innerHTML = `
           <div class="bank-panel">
-            <div class="stat-banner" style="background:#e0f2fe; padding:12px; border-radius:8px; margin-bottom:14px;">
-              <div>🏦 현재 정기예금 이율: <strong>연 ${(rateVal * 100).toFixed(1)}%</strong></div>
-              <div>💰 나의 현금 잔액: <strong>${myCash.toLocaleString()}원</strong></div>
+            <div class="bank-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
+              <button class="tab-btn active" onclick="ModalManager.switchBankTab('personal')">🏦 개인 예금 계좌</button>
+              <button class="tab-btn" onclick="ModalManager.switchBankTab('treasury')">🏛️ 학급 국고(재정) 현황</button>
             </div>
-            <div class="action-card-grid">
-              <div class="action-card">
-                <h4>📥 신규 예금 가입하기</h4>
-                <div class="input-group" style="display:flex; gap:8px; margin-top:8px;">
-                  <input type="number" id="deposit-amount-input" placeholder="예금할 금액 (최소 1,000원)" step="1000" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
-                  <button class="pixel-btn-primary" style="width:auto; padding:8px 16px;" onclick="ModalManager.handleDeposit()">예금하기</button>
+
+            <!-- 개인 계좌 탭 -->
+            <div id="bank-tab-personal">
+              <div class="stat-banner" style="background:#e0f2fe; padding:12px; border-radius:8px; margin-bottom:14px;">
+                <div>🏦 현재 정기예금 이율: <strong>연 ${(rateVal * 100).toFixed(1)}%</strong></div>
+                <div>💰 나의 현금 잔액: <strong>${myCash.toLocaleString()}원</strong></div>
+              </div>
+              <div class="action-card-grid">
+                <div class="action-card">
+                  <h4>📥 신규 예금 가입하기</h4>
+                  <div class="input-group" style="display:flex; gap:8px; margin-top:8px;">
+                    <input type="number" id="deposit-amount-input" placeholder="예금할 금액 (최소 1,000원)" step="1000" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+                    <button class="pixel-btn-primary" style="width:auto; padding:8px 16px;" onclick="ModalManager.handleDeposit()">예금하기</button>
+                  </div>
                 </div>
               </div>
+              <h4 style="margin-top:20px;">📜 나의 예금 계좌 목록</h4>
+              <div class="table-wrap" style="margin-top:8px;">
+                <table class="pixel-table">
+                  <thead><tr><th>가입일</th><th>원금</th><th>이율</th><th>상태</th><th>관리</th></tr></thead>
+                  <tbody id="bank-deposits-tbody">
+                    <tr><td colspan="5" style="text-align:center; padding:15px;">예금 내역을 동기화하고 있습니다...</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <h4 style="margin-top:20px;">📜 나의 예금 계좌 목록</h4>
-            <div class="table-wrap" style="margin-top:8px;" id="bank-deposits-wrap">
-              <table class="pixel-table">
-                <thead><tr><th>가입일</th><th>원금</th><th>이율</th><th>상태</th><th>관리</th></tr></thead>
-                <tbody id="bank-deposits-tbody">
-                  <tr><td colspan="5" style="text-align:center; padding:15px;">예금 내역을 동기화하고 있습니다...</td></tr>
-                </tbody>
-              </table>
+
+            <!-- 학급 국고 공개 탭 -->
+            <div id="bank-tab-treasury" style="display:none;">
+              <div style="background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border:2px solid #f59e0b; padding:16px; border-radius:10px; margin-bottom:14px; text-align:center;">
+                <div style="font-size:13px; font-weight:bold; color:#92400e;">🏛️ 행복초 학급 국고(총 자산) 잔액</div>
+                <div style="font-size:26px; font-weight:900; color:#b45309; margin:6px 0;" id="bank-treasury-balance">💰 1,000,000원</div>
+                <div style="font-size:11px; color:#78350f;">(벌금 징수액, 학급마트 수익금, 세금 등이 투명하게 국고로 귀속 관리됩니다)</div>
+              </div>
+              <h4>📜 최근 국고 수입 & 지출 내역</h4>
+              <div class="table-wrap" style="margin-top:8px; max-height:220px; overflow-y:auto;">
+                <table class="pixel-table">
+                  <thead><tr><th>일시</th><th>내용(사유)</th><th>입/출금</th><th>금액</th><th>상태</th></tr></thead>
+                  <tbody id="bank-treasury-tbody">
+                    <tr><td colspan="5" style="text-align:center; padding:15px;">국고 거래 장부를 조회하고 있습니다...</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         `;
@@ -442,9 +120,30 @@ const ModalManager = (() => {
             `).join('');
           }
         });
+
+        API.call('getTreasuryData', {}, true).then(tData => {
+          if (tData && tData.success) {
+            const bEl = document.getElementById('bank-treasury-balance');
+            if (bEl) bEl.textContent = `💰 ${(tData.balance || 1000000).toLocaleString()}원`;
+            const tTbody = document.getElementById('bank-treasury-tbody');
+            if (tTbody) {
+              const logs = tData.recentLogs || [];
+              tTbody.innerHTML = logs.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding:15px;">국고 거래 기록이 없습니다.</td></tr>' : logs.map(l => `
+                <tr>
+                  <td>${l.일시 || '2026-08-28'}</td>
+                  <td>${l.사유 || l.내용 || '국고 입출금'}</td>
+                  <td><span class="badge badge-success">입금(귀속)</span></td>
+                  <td><strong>+${(Number(l.금액) || 0).toLocaleString()}원</strong></td>
+                  <td>완료</td>
+                </tr>
+              `).join('');
+            }
+          }
+        });
         break;
       }
 
+      // 2. 증권거래소
       case 'stock': {
         const curPrice = 1200;
         let history = [1150, 1180, 1200];
@@ -516,7 +215,7 @@ const ModalManager = (() => {
         break;
       }
 
-      // 잡화점
+      // 3. 잡화점
       case 'shop': {
         const furns = CONFIG.FURNITURE_CATALOG;
         const defaultItems = [
@@ -573,8 +272,9 @@ const ModalManager = (() => {
         break;
       }
 
-      // 학급마트
+      // 4. 학급마트 & POS 포스기 관리 대시보드
       case 'mart': {
+        const hasMartPerm = isTeacher || myPerm.includes('마트관리');
         const defaultMartItems = [
           { 아이템명: '초코파이', 가격: 800, 재고: 20 },
           { 아이템명: '비타민 음료', 가격: 1200, 재고: 15 },
@@ -584,32 +284,68 @@ const ModalManager = (() => {
 
         container.innerHTML = `
           <div class="mart-panel">
-            <div style="background:#ecfdf5; border:2px solid #a7f3d0; padding:12px; border-radius:8px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <h3 style="color:#065f46; font-size:16px;">🛒 학급 마트 제로페이 간편결제</h3>
-                <p style="font-size:12px; color:#047857;">구매할 상품을 선택하거나, 직접 금액을 입력하여 결제하세요.</p>
-              </div>
-              <button class="pixel-btn-sm" onclick="ModalManager.openAddMartItemModal()">➕ 물품 등록(관리)</button>
+            <div class="mart-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
+              <button class="tab-btn active" onclick="ModalManager.switchMartTab('shop')">🛒 마트 간편 쇼핑</button>
+              ${hasMartPerm ? '<button class="tab-btn" onclick="ModalManager.switchMartTab(\'pos\')">🖥️ 마트 POS & 운영 통계</button>' : ''}
             </div>
 
-            <h4 style="margin-bottom:8px;">🛍️ 판매 중인 마트 물품</h4>
-            <div class="shop-grid" id="mart-items-grid" style="margin-bottom:16px;">
-              ${defaultMartItems.map(it => `
-                <div class="shop-item-card">
-                  <div class="item-emoji">🍎</div>
-                  <div class="item-name">${it.아이템명}</div>
-                  <div class="item-price">${it.가격.toLocaleString()}원 (재고: ${it.재고}개)</div>
-                  <button class="pixel-btn-primary" onclick="ModalManager.openMartPayModal('${it.아이템명}', ${it.가격})">구매 결제</button>
+            <!-- 1) 쇼핑 탭 -->
+            <div id="mart-tab-shop">
+              <div style="background:#ecfdf5; border:2px solid #a7f3d0; padding:12px; border-radius:8px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <h3 style="color:#065f46; font-size:15px;">🛒 학급 마트 제로페이 간편결제</h3>
+                  <p style="font-size:12px; color:#047857;">상품을 선택하여 결제하세요. (수익금은 국고로 안전하게 입금됩니다)</p>
                 </div>
-              `).join('')}
+                ${hasMartPerm ? '<button class="pixel-btn-sm" onclick="ModalManager.openAddMartItemModal()">➕ 물품 등록</button>' : ''}
+              </div>
+
+              <h4 style="margin-bottom:8px;">🛍️ 판매 중인 마트 물품</h4>
+              <div class="shop-grid" id="mart-items-grid" style="margin-bottom:16px;">
+                ${defaultMartItems.map(it => `
+                  <div class="shop-item-card">
+                    <div class="item-emoji">🍎</div>
+                    <div class="item-name">${it.아이템명}</div>
+                    <div class="item-price">${it.가격.toLocaleString()}원 (재고: ${it.재고}개)</div>
+                    <button class="pixel-btn-primary" onclick="ModalManager.openMartPayModal('${it.아이템명}', ${it.가격})">구매 결제</button>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div style="background:#f8fafc; border:2px solid #cbd5e1; padding:14px; border-radius:8px;">
+                <h4 style="margin-bottom:6px;">💳 자율 금액 결제</h4>
+                <div style="display:flex; gap:8px;">
+                  <input type="text" id="custom-mart-item" placeholder="물품명 (예: 초코파이)" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+                  <input type="number" id="custom-mart-amt" placeholder="금액(원)" style="width:120px; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+                  <button class="pixel-btn-primary" style="width:auto; padding:8px 16px;" onclick="ModalManager.handleCustomMartPay()">결제하기</button>
+                </div>
+              </div>
             </div>
 
-            <div style="background:#f8fafc; border:2px solid #cbd5e1; padding:14px; border-radius:8px;">
-              <h4 style="margin-bottom:6px;">💳 자율 금액 결제</h4>
-              <div style="display:flex; gap:8px;">
-                <input type="text" id="custom-mart-item" placeholder="물품명 (예: 초코파이)" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
-                <input type="number" id="custom-mart-amt" placeholder="금액(원)" style="width:120px; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
-                <button class="pixel-btn-primary" style="width:auto; padding:8px 16px;" onclick="ModalManager.handleCustomMartPay()">결제하기</button>
+            <!-- 2) 마트 POS 관리자 대시보드 탭 -->
+            <div id="mart-tab-pos" style="display:none;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                <div style="background:#f0fdf4; border:2px solid #86efac; padding:12px; border-radius:8px; text-align:center;">
+                  <div style="font-size:12px; color:#15803d;">💰 누적 마트 총 매출액</div>
+                  <div style="font-size:22px; font-weight:bold; color:#166534;" id="pos-total-revenue">0원</div>
+                </div>
+                <div style="background:#eff6ff; border:2px solid #93c5fd; padding:12px; border-radius:8px; text-align:center;">
+                  <div style="font-size:12px; color:#1d4ed8;">🧾 총 판매 거래 건수</div>
+                  <div style="font-size:22px; font-weight:bold; color:#1e40af;" id="pos-total-sales-count">0건</div>
+                </div>
+              </div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <h4>📊 최근 실시간 마트 판매 기록</h4>
+                <button class="pixel-btn-sm" style="background:#0284c7;" onclick="ModalManager.openAddMartItemModal()">➕ 신규 물품 등록</button>
+              </div>
+
+              <div class="table-wrap" style="max-height:220px; overflow-y:auto;">
+                <table class="pixel-table">
+                  <thead><tr><th>판매일시</th><th>구매자</th><th>품목명</th><th>결제금액</th></tr></thead>
+                  <tbody id="pos-sales-tbody">
+                    <tr><td colspan="4" style="text-align:center; padding:15px;">POS 매출 데이터를 불러오는 중...</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -629,10 +365,34 @@ const ModalManager = (() => {
             `).join('');
           }
         });
+
+        if (hasMartPerm) {
+          API.call('getMartStats', {}, true).then(stats => {
+            if (stats && stats.success) {
+              const revEl = document.getElementById('pos-total-revenue');
+              const cntEl = document.getElementById('pos-total-sales-count');
+              if (revEl) revEl.textContent = `${(stats.totalRevenue || 0).toLocaleString()}원`;
+              if (cntEl) cntEl.textContent = `${stats.totalSalesCount || 0}건`;
+
+              const posTbody = document.getElementById('pos-sales-tbody');
+              if (posTbody) {
+                const sales = stats.recentSales || [];
+                posTbody.innerHTML = sales.length === 0 ? '<tr><td colspan="4" style="text-align:center; padding:15px;">판매 내역이 없습니다.</td></tr>' : sales.map(s => `
+                  <tr>
+                    <td>${s.일시 || '-'}</td>
+                    <td><strong>${s.이름 || '-'}</strong></td>
+                    <td>${s.사유 || '-'}</td>
+                    <td><strong>${(Number(s.금액) || 0).toLocaleString()}원</strong></td>
+                  </tr>
+                `).join('');
+              }
+            }
+          });
+        }
         break;
       }
 
-      // 학교 본관 LMS
+      // 5. 학교 본관 LMS
       case 'school': {
         const defaultNotices = [
           { 날짜: '2026-08-28', 제목: '🎉 2D 동물의숲 클래스타운 개장 안내!', 내용: '기숙사 미니룸을 꾸미고 친구들과 교류해보세요.', 중요도: '긴급' },
@@ -713,7 +473,7 @@ const ModalManager = (() => {
         break;
       }
 
-      // 우체국
+      // 6. 우체국
       case 'postoffice': {
         container.innerHTML = `
           <div class="post-panel">
@@ -735,44 +495,53 @@ const ModalManager = (() => {
         break;
       }
 
-      // 시청 & 교장실 관리자 패널
+      // 7. 시청 & 교장실 관리자 패널
       case 'cityhall':
       case 'principal':
       case 'admin_quick': {
+        const canPaySalary = isTeacher || myPerm.includes('월급배부');
+        const canFine = isTeacher || myPerm.includes('벌금징수');
+        const canWarn = isTeacher || myPerm.includes('경고');
+        const canNotice = isTeacher || myPerm.includes('공지작성');
+        const canMart = isTeacher || myPerm.includes('마트관리');
+
         const students = (GameState.rankingList && GameState.rankingList.length > 0)
           ? GameState.rankingList
           : [
-              { id: 1, name: '김현주', job: '문화체육부 장관', cash: 2310000, stockQty: 50, totalAsset: 2370000 },
-              { id: 2, name: '이하진', job: '대통령(반장)', cash: 1722000, stockQty: 30, totalAsset: 1758000 },
-              { id: 3, name: '정수빈', job: '은행원', cash: 1695800, stockQty: 20, totalAsset: 1719800 },
-              { id: 4, name: '서언', job: '국세청장', cash: 1666560, stockQty: 10, totalAsset: 1678560 }
+              { id: 1, name: '김현주', job: '문화체육부 장관', cash: 2310000, stockQty: 50, totalAsset: 2370000, permission: '벌금징수,마트관리' },
+              { id: 2, name: '이하진', job: '대통령(반장)', cash: 1722000, stockQty: 30, totalAsset: 1758000, permission: '월급배부,경고' },
+              { id: 3, name: '정수빈', job: '은행원', cash: 1695800, stockQty: 20, totalAsset: 1719800, permission: '일반' },
+              { id: 4, name: '서언', job: '국세청장', cash: 1666560, stockQty: 10, totalAsset: 1678560, permission: '월급배부' }
             ];
 
         container.innerHTML = `
           <div class="admin-panel">
             <div class="admin-top-stats" style="display:flex; justify-content:space-between; background:#fee2e2; border:2px solid #fca5a5; padding:12px; border-radius:8px; margin-bottom:12px;">
               <div>👨‍🎓 등록 학생: <strong id="admin-student-count">${students.length}명</strong></div>
-              <div>⚙️ 학급 관리자 권한: <strong>승인됨</strong></div>
+              <div>⚙️ 내 직무 권한: <strong>${isTeacher ? '👑 교사(전체)' : myPerm}</strong></div>
             </div>
 
+            <!-- 관리자 핵심 액션 툴바 (권한 기반 필터링) -->
             <div class="admin-action-bar" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
-              <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#0284c7;" onclick="ModalManager.openPaySalariesModal()">💰 월급 일괄 배부</button>
-              <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#dc2626;" onclick="ModalManager.openFineModal()">⚖️ 벌금 징수</button>
-              <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#ea580c;" onclick="ModalManager.openWarnModal()">⚠️ 경고장 발송</button>
-              <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#16a34a;" onclick="ModalManager.openNoticeWriteModal()">📢 새 공지 작성</button>
-              <button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#7c3aed;" onclick="ModalManager.openAddMartItemModal()">🛒 마트 물품 등록</button>
+              ${canPaySalary ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#0284c7;" onclick="ModalManager.openPaySalariesModal()">💰 월급 일괄 배부</button>' : ''}
+              ${canFine ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#dc2626;" onclick="ModalManager.openFineModal()">⚖️ 벌금 징수</button>' : ''}
+              ${canWarn ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#ea580c;" onclick="ModalManager.openWarnModal()">⚠️ 경고장 발송</button>' : ''}
+              ${canNotice ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#16a34a;" onclick="ModalManager.openNoticeWriteModal()">📢 새 공지 작성</button>' : ''}
+              ${canMart ? '<button class="pixel-btn-primary" style="width:auto; padding:6px 12px; background:#7c3aed;" onclick="ModalManager.openAddMartItemModal()">🛒 마트 물품 등록</button>' : ''}
             </div>
 
             <div class="admin-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
-              <button class="tab-btn active" onclick="ModalManager.switchAdminTab('students')">👥 학생 자산 관리</button>
-              <button class="tab-btn" onclick="ModalManager.switchAdminTab('stock_admin')">📈 주가 & 뉴스 발행</button>
-              <button class="tab-btn" onclick="ModalManager.switchAdminTab('sheet_init')">🔄 시트 전체 초기화</button>
+              <button class="tab-btn active" onclick="ModalManager.switchAdminTab('students')">👥 학생 목록 & 현황</button>
+              ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'permissions\')">👑 학생 권한 부여</button>' : ''}
+              ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'stock_admin\')">📈 주가 & 뉴스 발행</button>' : ''}
+              ${isTeacher ? '<button class="tab-btn" onclick="ModalManager.switchAdminTab(\'sheet_init\')">🔄 시트 전체 초기화 (교사전용)</button>' : ''}
             </div>
 
+            <!-- 1. 학생 목록 탭 -->
             <div id="admin-tab-students" class="admin-tab-content">
               <div class="table-wrap" style="max-height:300px; overflow-y:auto;">
                 <table class="pixel-table">
-                  <thead><tr><th>번호</th><th>이름</th><th>직업</th><th>현금</th><th>주식수량</th><th>총자산</th><th>관리</th></tr></thead>
+                  <thead><tr><th>번호</th><th>이름</th><th>직업</th><th>현금</th><th>주식수량</th><th>총자산</th><th>부여권한</th>${isTeacher ? '<th>교사조정</th>' : ''}</tr></thead>
                   <tbody id="admin-students-tbody">
                     ${students.map((s, idx) => `
                       <tr>
@@ -782,11 +551,12 @@ const ModalManager = (() => {
                         <td>${(s.cash || s.total || 0).toLocaleString()}원</td>
                         <td>${s.stockQty || 0}주</td>
                         <td><strong>${(s.totalAsset || s.total || 0).toLocaleString()}원</strong></td>
-                        <td>
-                          <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${s.name}')">금액조정</button>
-                          <button class="pixel-btn-sm" style="background:#f87171;" onclick="ModalManager.openFineModal('${s.name}')">벌금</button>
-                          <button class="pixel-btn-sm" style="background:#fb923c;" onclick="ModalManager.openWarnModal('${s.name}')">경고</button>
-                        </td>
+                        <td><span class="badge badge-primary">${s.permission || '일반'}</span></td>
+                        ${isTeacher ? `
+                          <td>
+                            <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${s.name}')">금액조정</button>
+                          </td>
+                        ` : ''}
                       </tr>
                     `).join('')}
                   </tbody>
@@ -794,28 +564,65 @@ const ModalManager = (() => {
               </div>
             </div>
 
-            <div id="admin-tab-stock_admin" class="admin-tab-content" style="display:none;">
-              <div class="form-group" style="margin-bottom:10px;">
-                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">신규 주가 설정 (원)</label>
-                <input type="number" id="admin-new-stock-price" placeholder="예: 1300" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+            <!-- 2. 교사 전용 권한 부여 관리 탭 -->
+            ${isTeacher ? `
+              <div id="admin-tab-permissions" class="admin-tab-content" style="display:none;">
+                <div style="background:#fef3c7; border:2px solid #f59e0b; padding:10px; border-radius:8px; margin-bottom:10px; font-size:12px; color:#92400e;">
+                  💡 학생 직무에 맞춰 권한을 체크하고 [권한 저장]을 누르면 즉시 시트에 동기화됩니다.
+                </div>
+                <div class="table-wrap" style="max-height:280px; overflow-y:auto;">
+                  <table class="pixel-table">
+                    <thead><tr><th>이름</th><th>직업</th><th>부여할 권한 선택</th><th>저장</th></tr></thead>
+                    <tbody id="admin-perm-tbody">
+                      ${students.filter(s => s.name !== '선생님').map(s => `
+                        <tr>
+                          <td><strong>${s.name}</strong></td>
+                          <td>${s.job}</td>
+                          <td>
+                            <label style="margin-right:6px; font-size:11px;"><input type="checkbox" class="perm-chk-${s.name}" value="월급배부" ${(s.permission || '').includes('월급배부') ? 'checked' : ''}> 월급배부</label>
+                            <label style="margin-right:6px; font-size:11px;"><input type="checkbox" class="perm-chk-${s.name}" value="벌금징수" ${(s.permission || '').includes('벌금징수') ? 'checked' : ''}> 벌금징수</label>
+                            <label style="margin-right:6px; font-size:11px;"><input type="checkbox" class="perm-chk-${s.name}" value="경고" ${(s.permission || '').includes('경고') ? 'checked' : ''}> 경고</label>
+                            <label style="margin-right:6px; font-size:11px;"><input type="checkbox" class="perm-chk-${s.name}" value="공지작성" ${(s.permission || '').includes('공지작성') ? 'checked' : ''}> 공지작성</label>
+                            <label style="margin-right:6px; font-size:11px;"><input type="checkbox" class="perm-chk-${s.name}" value="마트관리" ${(s.permission || '').includes('마트관리') ? 'checked' : ''}> 마트관리</label>
+                          </td>
+                          <td>
+                            <button class="pixel-btn-sm" style="background:#16a34a;" onclick="ModalManager.handleSavePermission('${s.name}')">저장</button>
+                          </td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div class="form-group" style="margin-bottom:12px;">
-                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">주식 뉴스 제목</label>
-                <input type="text" id="admin-stock-news-title" placeholder="예: 학급 마트 신규 오픈 호재" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
-              </div>
-              <button class="pixel-btn-primary" onclick="ModalManager.adminUpdateStock()">주가 변동 반영</button>
-            </div>
+            ` : ''}
 
-            <div id="admin-tab-sheet_init" class="admin-tab-content" style="display:none; text-align:center; padding:20px;">
-              <p style="color:#ef4444; font-weight:bold; margin-bottom:12px;">구글 시트의 11개 시트 구조와 기본 데이터를 완전하게 재구성합니다.</p>
-              <button class="pixel-btn-primary" style="background:#ef4444; border-color:#991b1b;" onclick="ModalManager.adminInitSheets()">11개 시스템 시트 자동 초기화 실행</button>
-            </div>
+            <!-- 3. 주가 & 뉴스 발행 탭 -->
+            ${isTeacher ? `
+              <div id="admin-tab-stock_admin" class="admin-tab-content" style="display:none;">
+                <div class="form-group" style="margin-bottom:10px;">
+                  <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">신규 주가 설정 (원)</label>
+                  <input type="number" id="admin-new-stock-price" placeholder="예: 1300" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                  <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">주식 뉴스 제목</label>
+                  <input type="text" id="admin-stock-news-title" placeholder="예: 학급 마트 신규 오픈 호재" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+                </div>
+                <button class="pixel-btn-primary" onclick="ModalManager.adminUpdateStock()">주가 변동 반영</button>
+              </div>
+
+              <!-- 4. 시트 전체 초기화 탭 (교사전용) -->
+              <div id="admin-tab-sheet_init" class="admin-tab-content" style="display:none; text-align:center; padding:20px;">
+                <p style="color:#ef4444; font-weight:bold; margin-bottom:12px;">⚠️ 교사 전용 기능: 구글 시트의 11개 시트 구조와 기본 데이터를 완전하게 재구성합니다.</p>
+                <button class="pixel-btn-primary" style="background:#ef4444; border-color:#991b1b;" onclick="ModalManager.adminInitSheets()">11개 시스템 시트 자동 초기화 실행</button>
+              </div>
+            ` : ''}
           </div>
         `;
 
         API.call('adminGetAllData', {}, true).then(allData => {
           const freshStudents = allData.students || [];
           if (freshStudents.length > 0) {
+            GameState.rankingList = freshStudents;
             const countEl = document.getElementById('admin-student-count');
             if (countEl) countEl.textContent = `${freshStudents.length}명`;
             const tbody = document.getElementById('admin-students-tbody');
@@ -828,11 +635,12 @@ const ModalManager = (() => {
                   <td>${(s.cash || 0).toLocaleString()}원</td>
                   <td>${s.stockQty || 0}주</td>
                   <td><strong>${(s.totalAsset || 0).toLocaleString()}원</strong></td>
-                  <td>
-                    <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${s.name}')">금액조정</button>
-                    <button class="pixel-btn-sm" style="background:#f87171;" onclick="ModalManager.openFineModal('${s.name}')">벌금</button>
-                    <button class="pixel-btn-sm" style="background:#fb923c;" onclick="ModalManager.openWarnModal('${s.name}')">경고</button>
-                  </td>
+                  <td><span class="badge badge-primary">${s.permission || '일반'}</span></td>
+                  ${isTeacher ? `
+                    <td>
+                      <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${s.name}')">금액조정</button>
+                    </td>
+                  ` : ''}
                 </tr>
               `).join('');
             }
@@ -846,6 +654,67 @@ const ModalManager = (() => {
     }
   }
 
+  function renderSpecialContent(id, container) {
+    if (id === 'inventory') {
+      const st = GameState.student;
+      container.innerHTML = `
+        <div class="inven-panel">
+          <div class="inven-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
+            <button class="tab-btn active" onclick="ModalManager.switchInvenTab('equips')">🪽 장착 아이템</button>
+            <button class="tab-btn" onclick="ModalManager.switchInvenTab('coupons')">🎟️ 보유 쿠폰</button>
+            <button class="tab-btn" onclick="ModalManager.switchInvenTab('furns')">🛋️ 가구 보관함</button>
+          </div>
+          <div id="inven-tab-equips">
+            <div class="shop-grid">
+              <div class="shop-item-card">
+                <div class="item-emoji">👟</div>
+                <div class="item-name">스피드 롤러스케이트</div>
+                <button class="pixel-btn-primary" onclick="ModalManager.toggleEquip('speed')">장착 토글</button>
+              </div>
+              <div class="shop-item-card">
+                <div class="item-emoji">✨</div>
+                <div class="item-name">황금 오라 이펙트</div>
+                <button class="pixel-btn-primary" onclick="ModalManager.toggleEquip('aura')">장착 토글</button>
+              </div>
+              <div class="shop-item-card">
+                <div class="item-emoji">🪽</div>
+                <div class="item-name">천사의 날개</div>
+                <button class="pixel-btn-primary" onclick="ModalManager.toggleEquip('wings')">장착 토글</button>
+              </div>
+              <div class="shop-item-card">
+                <div class="item-emoji">🛴</div>
+                <div class="item-name">네온 킥보드</div>
+                <button class="pixel-btn-primary" onclick="ModalManager.toggleEquip('mount')">장착 토글</button>
+              </div>
+            </div>
+          </div>
+          <div id="inven-tab-coupons" style="display:none; padding:10px;">
+            <p style="color:#64748b;">보유 중인 쿠폰 목록입니다.</p>
+            <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
+              <div style="background:#fff; border:2px solid #cbd5e1; padding:8px 12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+                <span>🎟️ 자리 우선 선택권</span>
+                <button class="pixel-btn-sm" onclick="ModalManager.handleUseItem('자리 우선 선택권')">사용하기</button>
+              </div>
+            </div>
+          </div>
+          <div id="inven-tab-furns" style="display:none; padding:10px;">
+            <p style="color:#64748b;">기숙사 방꾸미기 모드에서 배치할 수 있습니다.</p>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  function getStudentListForSelect() {
+    const list = GameState.rankingList && GameState.rankingList.length > 0
+      ? GameState.rankingList
+      : [
+          { name: '김현주' }, { name: '이하진' }, { name: '정수빈' }, { name: '서언' },
+          { name: '고설아' }, { name: '윤선우' }, { name: '허수연' }
+        ];
+    return list.filter(s => s.name !== '선생님');
+  }
+
   return {
     open,
     close,
@@ -854,6 +723,23 @@ const ModalManager = (() => {
       document.getElementById('shop-tab-item').style.display = tab === 'item' ? 'grid' : 'none';
       document.querySelectorAll('.shop-tabs .tab-btn').forEach((b, i) => {
         b.classList.toggle('active', (tab === 'furn' && i === 0) || (tab === 'item' && i === 1));
+      });
+      SoundEngine.click();
+    },
+    switchBankTab: (tab) => {
+      document.getElementById('bank-tab-personal').style.display = tab === 'personal' ? 'block' : 'none';
+      document.getElementById('bank-tab-treasury').style.display = tab === 'treasury' ? 'block' : 'none';
+      document.querySelectorAll('.bank-tabs .tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', (tab === 'personal' && i === 0) || (tab === 'treasury' && i === 1));
+      });
+      SoundEngine.click();
+    },
+    switchMartTab: (tab) => {
+      document.getElementById('mart-tab-shop').style.display = tab === 'shop' ? 'block' : 'none';
+      const posEl = document.getElementById('mart-tab-pos');
+      if (posEl) posEl.style.display = tab === 'pos' ? 'block' : 'none';
+      document.querySelectorAll('.mart-tabs .tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', (tab === 'shop' && i === 0) || (tab === 'pos' && i === 1));
       });
       SoundEngine.click();
     },
@@ -872,7 +758,7 @@ const ModalManager = (() => {
       SoundEngine.click();
     },
     switchAdminTab: (tab) => {
-      ['students', 'stock_admin', 'sheet_init'].forEach(t => {
+      ['students', 'permissions', 'stock_admin', 'sheet_init'].forEach(t => {
         const el = document.getElementById(`admin-tab-${t}`);
         if (el) el.style.display = t === tab ? 'block' : 'none';
       });
@@ -895,7 +781,8 @@ const ModalManager = (() => {
       alert(res?.msg || '쿠폰이 사용되었습니다!');
       open('inventory');
     },
-    // 관리자 액션 핸들러들
+
+    // ─── 1. 월급 일괄 배부 모달 ───
     openPaySalariesModal: async () => {
       const amt = prompt('전체 학생에게 일괄 지급할 월급 금액을 입력하세요:', '5000');
       if (!amt || isNaN(amt)) return;
@@ -906,54 +793,180 @@ const ModalManager = (() => {
       alert(res?.msg || '월급 배부가 완료되었습니다!');
       open('principal');
     },
-    openFineModal: async (targetDefault) => {
-      const target = prompt('벌금을 부과할 학생 이름을 입력하세요:', targetDefault || '');
-      if (!target) return;
-      const amt = prompt(`${target} 학생에게 부과할 벌금 금액:`, '1000');
-      if (!amt) return;
-      const reason = prompt('벌금 부과 사유:', '학급 규칙 미준수');
+
+    // ─── 2. 학생 선택형 벌금 징수 모달 ───
+    openFineModal: (targetDefault) => {
+      const students = getStudentListForSelect();
+      const optionsHtml = students.map(s => `<option value="${s.name}" ${s.name === targetDefault ? 'selected' : ''}>${s.name} (${s.job || '학생'})</option>`).join('');
+
+      bodyEl.innerHTML = `
+        <div style="padding:10px;">
+          <h3 style="color:#dc2626; margin-bottom:12px;">⚖️ 학생 벌금 징수 (국고 귀속)</h3>
+          <p style="font-size:12px; color:#64748b; margin-bottom:14px;">징수된 벌금은 학생 계좌에서 차감되어 <strong>학급 국고</strong>로 자동 입금됩니다.</p>
+          
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">대상 학생 선택</label>
+            <select id="fine-target-select" style="width:100%; padding:10px; border:2px solid #94a3b8; border-radius:6px; font-size:14px;">
+              ${optionsHtml}
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">벌금 금액 (원)</label>
+            <input type="number" id="fine-amount-input" value="1000" step="500" style="width:100%; padding:10px; border:2px solid #94a3b8; border-radius:6px;">
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">벌금 부과 사유</label>
+            <input type="text" id="fine-reason-input" placeholder="예: 학급 규칙 미준수, 지각 등" style="width:100%; padding:10px; border:2px solid #94a3b8; border-radius:6px;">
+          </div>
+
+          <button class="pixel-btn-primary" style="background:#dc2626; border-color:#991b1b;" onclick="ModalManager.submitFine()">국고로 벌금 징수 실행</button>
+        </div>
+      `;
+      titleEl.innerText = '⚖️ 벌금 징수 관리';
+      overlay.style.display = 'flex';
+    },
+
+    submitFine: async () => {
+      const target = document.getElementById('fine-target-select')?.value;
+      const amt = Number(document.getElementById('fine-amount-input')?.value || 1000);
+      const reason = document.getElementById('fine-reason-input')?.value || '학급 규칙 위반';
+      if (!target) return alert('대상 학생을 선택하세요.');
+
+      const st = GameState.student;
+      const actor = st ? (st.name || st.이름) : '선생님';
+
       API.showLoading('벌금을 징수하는 중...');
-      const res = await API.call('adminFineStudent', { targetName: target, amount: Number(amt), reason });
+      const res = await API.call('adminFineStudent', { targetName: target, amount: amt, reason, actorName: actor });
       API.hideLoading();
       SoundEngine.coin();
-      alert(res?.msg || '벌금 징수가 완료되었습니다.');
+      alert(res?.msg || '벌금 징수가 완료되어 국고로 귀속되었습니다.');
       open('principal');
     },
-    openWarnModal: async (targetDefault) => {
-      const target = prompt('경고장을 발송할 학생 이름을 입력하세요:', targetDefault || '');
-      if (!target) return;
-      const reason = prompt('경고 주의 사유:', '수업 태도 주의');
+
+    // ─── 3. 학생 선택형 경고장 발송 모달 ───
+    openWarnModal: (targetDefault) => {
+      const students = getStudentListForSelect();
+      const optionsHtml = students.map(s => `<option value="${s.name}" ${s.name === targetDefault ? 'selected' : ''}>${s.name} (${s.job || '학생'})</option>`).join('');
+
+      bodyEl.innerHTML = `
+        <div style="padding:10px;">
+          <h3 style="color:#ea580c; margin-bottom:12px;">⚠️ 학생 경고장 발송</h3>
+          
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">대상 학생 선택</label>
+            <select id="warn-target-select" style="width:100%; padding:10px; border:2px solid #94a3b8; border-radius:6px; font-size:14px;">
+              ${optionsHtml}
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">경고 주의 사유</label>
+            <textarea id="warn-reason-input" placeholder="수업 태도 주의 및 학급 규칙 준수 당부" style="width:100%; height:80px; padding:10px; border:2px solid #94a3b8; border-radius:6px;"></textarea>
+          </div>
+
+          <button class="pixel-btn-primary" style="background:#ea580c; border-color:#9a3412;" onclick="ModalManager.submitWarn()">경고장 공식 전달</button>
+        </div>
+      `;
+      titleEl.innerText = '⚠️ 경고장 발송 관리';
+      overlay.style.display = 'flex';
+    },
+
+    submitWarn: async () => {
+      const target = document.getElementById('warn-target-select')?.value;
+      const reason = document.getElementById('warn-reason-input')?.value || '주의 조치';
+      if (!target) return alert('대상 학생을 선택하세요.');
+
+      const st = GameState.student;
+      const actor = st ? (st.name || st.이름) : '선생님';
+
       API.showLoading('경고장을 발송하는 중...');
-      const res = await API.call('adminWarnStudent', { targetName: target, reason });
+      const res = await API.call('adminWarnStudent', { targetName: target, reason, actorName: actor });
       API.hideLoading();
       SoundEngine.open();
-      alert(res?.msg || '경고장이 발송되었습니다.');
+      alert(res?.msg || '경고장이 전달되었습니다.');
       open('principal');
     },
+
+    // ─── 4. 교사 전용 권한 저장 ───
+    handleSavePermission: async (targetName) => {
+      const chks = document.querySelectorAll(`.perm-chk-${targetName}:checked`);
+      const perms = Array.from(chks).map(c => c.value).join(',');
+      const finalPerm = perms || '일반';
+
+      API.showLoading(`${targetName} 학생 권한 업데이트 중...`);
+      const res = await API.call('grantPermission', { targetName, permissions: finalPerm });
+      API.hideLoading();
+      SoundEngine.fanfare();
+      alert(res?.msg || '권한이 성공적으로 저장되었습니다!');
+      open('principal');
+    },
+
     openNoticeWriteModal: async () => {
       const title = prompt('공지사항 제목을 입력하세요:');
       if (!title) return;
       const content = prompt('공지사항 내용:');
       const isUrgent = confirm('긴급 공지로 등록하시겠습니까?');
+      const st = GameState.student;
+      const author = st ? (st.name || st.이름) : '선생님';
+
       API.showLoading('공지사항을 등록하는 중...');
-      const res = await API.call('adminAddNotice', { title, content, isUrgent });
+      const res = await API.call('adminAddNotice', { title, content, isUrgent, authorName: author });
       API.hideLoading();
       SoundEngine.fanfare();
       alert(res?.msg || '공지사항이 등록되었습니다!');
       open('school');
     },
+
     openAddMartItemModal: async () => {
       const itemName = prompt('등록할 마트 물품명을 입력하세요 (예: 맛있는 젤리):');
       if (!itemName) return;
       const price = prompt('판매 가격(원):', '1000');
       const stock = prompt('초기 입고 수량(개):', '10');
+      const st = GameState.student;
+      const owner = st ? (st.name || st.이름) : '선생님';
+
       API.showLoading('마트 물품을 등록하는 중...');
-      const res = await API.call('addMartItem', { itemName, price: Number(price), stock: Number(stock) });
+      const res = await API.call('addMartItem', { itemName, price: Number(price), stock: Number(stock), ownerName: owner });
       API.hideLoading();
       SoundEngine.fanfare();
       alert(res?.msg || '마트 물품이 성공적으로 등록되었습니다!');
       open('mart');
     },
+
+    openMartPayModal: async (itemName, price) => {
+      if (!confirm(`[${itemName}] 상품을 ${price.toLocaleString()}원에 구매 결제하시겠습니까? (수익은 국고로 입금됩니다)`)) return;
+      const st = GameState.student;
+      const buyer = st ? (st.name || st.이름) : '나';
+      API.showLoading('제로페이 결제 중...');
+      const res = await API.call('martPay', { buyerName: buyer, itemName: itemName, amount: price });
+      API.hideLoading();
+      if (res && res.success) {
+        SoundEngine.fanfare();
+        alert(`결제 완료! 🧾 영수증 번호: ${res.receipt?.id}\n${itemName} 상품이 지급되었습니다.`);
+      } else {
+        alert(res?.msg || '결제에 실패했습니다.');
+      }
+    },
+
+    handleCustomMartPay: async () => {
+      const itemName = document.getElementById('custom-mart-item')?.value || '자율간식';
+      const amt = Number(document.getElementById('custom-mart-amt')?.value || 0);
+      if (amt <= 0) return alert('결제할 금액을 입력하세요.');
+      const st = GameState.student;
+      const buyer = st ? (st.name || st.이름) : '나';
+      API.showLoading('결제 처리 중...');
+      const res = await API.call('martPay', { buyerName: buyer, itemName, amount: amt });
+      API.hideLoading();
+      if (res && res.success) {
+        SoundEngine.fanfare();
+        alert(`결제 완료! 🧾 ${itemName} (${amt.toLocaleString()}원) 결제가 완료되었습니다.`);
+      } else {
+        alert(res?.msg || '결제에 실패했습니다.');
+      }
+    },
+
     sendPraise: async () => {
       const target = document.getElementById('praise-target')?.value;
       const msg = document.getElementById('praise-msg')?.value;
@@ -968,6 +981,7 @@ const ModalManager = (() => {
       alert(res?.msg || '칭찬 카드가 배달되었습니다! 💌');
       close();
     },
+
     handleDeposit: async () => {
       const val = parseInt(document.getElementById('deposit-amount-input')?.value, 10);
       if (!val || val < 1000) return alert('최소 1,000원 이상 예금할 수 있습니다.');
@@ -981,6 +995,7 @@ const ModalManager = (() => {
         alert(res?.msg || '예금 가입 실패');
       }
     },
+
     handleWithdraw: async (idx) => {
       const st = GameState.student;
       const res = await API.call('withdrawDeposit', { name: st.name || st.이름, rowIdx: idx });
@@ -992,6 +1007,7 @@ const ModalManager = (() => {
         alert(res?.msg || '해지 실패');
       }
     },
+
     handleTradeStock: async (type) => {
       const qty = parseInt(document.getElementById(type === '매수' ? 'stock-buy-qty' : 'stock-sell-qty')?.value, 10);
       if (!qty || qty <= 0) return alert('올바른 수량을 입력하세요.');
@@ -1005,16 +1021,19 @@ const ModalManager = (() => {
         alert(res?.msg || '주문 실패');
       }
     },
+
+    // 오직 교사만 실행 가능한 직권 자산 조정
     adminAdjustCash: (name) => {
-      const delta = prompt(`${name} 학생에게 지급할 금액 (차감 시 -금액):`);
-      if (delta) {
-        API.call('updateCash', { name, delta: Number(delta), reason: '관리자 직권 조정' }).then(() => {
+      const delta = prompt(`[교사 직권 조정] ${name} 학생에게 지급할 금액 (차감 시 -금액):`);
+      if (delta && !isNaN(delta)) {
+        API.call('updateCash', { name, delta: Number(delta), reason: '교사 직권 조정' }).then(() => {
           SoundEngine.coin();
           alert('자산이 조정되었습니다.');
           open('principal');
         });
       }
     },
+
     adminUpdateStock: () => {
       const price = document.getElementById('admin-new-stock-price')?.value || 1300;
       const title = document.getElementById('admin-stock-news-title')?.value || '학급 경제 호재';
@@ -1024,10 +1043,12 @@ const ModalManager = (() => {
         open('principal');
       });
     },
+
+    // 오직 교사만 실행 가능한 시트 전체 초기화
     adminInitSheets: () => {
-      if (!confirm('11개 시스템 시트를 초기화하시겠습니까?')) return;
+      if (!confirm('⚠️ 정말로 11개 시스템 시트를 초기화하시겠습니까? (이 작업은 되돌릴 수 없습니다)')) return;
       API.showLoading('시트를 초기화하는 중...');
-      API.call('initSystemSheets').then(res => {
+      API.call('initSystemSheets', { adminPw: '0513' }).then(res => {
         API.hideLoading();
         SoundEngine.fanfare();
         alert(res?.msg || '시트가 초기화되었습니다!');

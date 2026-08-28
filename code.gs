@@ -591,7 +591,7 @@ function handleRequest(params) {
         break;
       }
 
-      // 6. 학급마트 간편결제
+      // 6. 학급마트 간편결제 & POS 관리
       case 'getMartItems': {
         const sh = getOrCreateSheet(SH.ASSETS);
         let items = sheetToObj(sh)
@@ -610,6 +610,27 @@ function handleRequest(params) {
         break;
       }
 
+      case 'getMartStats': {
+        const txRows = sheetToObj(getOrCreateSheet(SH.TX_LOG))
+          .filter(r => r['카테고리'] === '마트' || (r['카테고리'] === '국고' && String(r['사유']).includes('마트')));
+        let totalRevenue = 0;
+        const itemCounts = {};
+        txRows.forEach(tx => {
+          const amt = Number(tx['금액'] || 0);
+          totalRevenue += amt;
+          const name = String(tx['사유'] || '기타').replace('[학급마트]', '').replace('[마트매출]', '').trim();
+          itemCounts[name] = (itemCounts[name] || 0) + 1;
+        });
+        result = {
+          success: true,
+          totalRevenue: totalRevenue,
+          totalSalesCount: txRows.length,
+          itemCounts: itemCounts,
+          recentSales: txRows.slice(-15).reverse()
+        };
+        break;
+      }
+
       case 'martPay': {
         const amt = Number(payload.amount);
         const buyer = payload.buyerName;
@@ -618,8 +639,35 @@ function handleRequest(params) {
         if (!st || st.cash < amt) return respond({ success: false, msg: '현금 잔액이 부족합니다.' });
 
         updateCash(buyer, -amt, `[학급마트] ${itemName}`, '마트');
+        // 마트 수익은 국고로 입금!
+        logTx(buyer, '국고', '마트수익', amt, 1, '국고', `[마트매출] ${itemName}`, '완료');
+
         const txId = 'MART' + Date.now().toString().slice(-6);
         result = { success: true, receipt: { id: txId, item: itemName, amount: amt, date: nowStr() } };
+        break;
+      }
+
+      // 6-1. 학급 국고(National Treasury) 현황 및 공개 조회
+      case 'getTreasuryData': {
+        const txRows = sheetToObj(getOrCreateSheet(SH.TX_LOG));
+        const treasuryTxs = txRows.filter(r => r['카테고리'] === '국고' || r['상대방'] === '국고' || r['유형'] === '벌금' || r['카테고리'] === '벌금');
+        
+        let treasuryBalance = 1000000; // 학급 국고 기본 시드머니 (1,000,000원)
+        treasuryTxs.forEach(tx => {
+          const amt = Number(tx['금액'] || 0);
+          const type = String(tx['유형'] || '');
+          if (type.includes('입금') || type.includes('벌금') || type.includes('수익') || type.includes('세금')) {
+            treasuryBalance += amt;
+          } else if (type.includes('출금') || type.includes('지출')) {
+            treasuryBalance -= amt;
+          }
+        });
+
+        result = {
+          success: true,
+          balance: treasuryBalance,
+          recentLogs: treasuryTxs.slice(-20).reverse()
+        };
         break;
       }
 
@@ -659,74 +707,88 @@ function handleRequest(params) {
             id: id,
             row: Math.floor(i / 6) + 1,
             col: (i % 6) + 1,
-            owner: existing ? existing['이름'] : (students[i % students.length]?.name || ''),
-            isForSale: existing ? existing['상태'] === '매물' : (i % 5 === 0),
-            price: existing ? Number(existing['금액']) : 5000 + i * 500
+            owner: existing ? existing['소유자'] : (students[i] ? students[i].name : '빈자리'),
+            isForSale: existing ? existing['상태'] === '판매중' : true,
+            price: existing ? Number(existing['금액'] || 5000) : 5000
           };
         });
+
         result = { success: true, seats: seats };
         break;
       }
 
-      case 'requestSeatTrade': {
-        const fromName = payload.fromName;
-        const targetOwner = payload.targetOwner;
+      case 'buySeat': {
         const seatId = payload.seatId;
-        const offerPrice = Number(payload.offerPrice || 5000);
+        const buyer = payload.buyerName;
+        const price = Number(payload.price || 5000);
 
-        getOrCreateSheet(SH.ACTIVITY).appendRow([
-          nowStr(), fromName, '부동산요청', seatId, offerPrice, targetOwner, 0, '대기', `${fromName}님이 좌석 [${seatId}]을(를) ${offerPrice.toLocaleString()}원에 양도 요청했습니다.`, ''
-        ]);
+        const st = syncStudentAssets(buyer);
+        if (!st || st.cash < price) return respond({ success: false, msg: '구매 자금이 부족합니다.' });
 
-        result = { success: true, msg: `${targetOwner}님에게 좌석 [${seatId}] 구매 요청을 전송했습니다.` };
-        break;
-      }
+        updateCash(buyer, -price, `[부동산] ${seatId} 좌석 매입`, '부동산');
 
-      // 9. 우체국 & 송금 & 우편함
-      case 'transferMoney': {
-        const fromName = payload.fromName;
-        const toName = payload.toName;
-        const amt = Number(payload.amount);
-        const st = syncStudentAssets(fromName);
-        if (!st || st.cash < amt) return respond({ success: false, msg: '잔액이 부족합니다.' });
-
-        updateCash(fromName, -amt, `${toName}에게 송금`, '송금');
-        updateCash(toName, amt, `${fromName}로부터 송금`, '송금');
-
-        getOrCreateSheet(SH.ACTIVITY).appendRow([
-          nowStr(), fromName, '송금우편', amt, toName, '', 0, '완료', `${fromName}님이 ${amt.toLocaleString()}원을 송금했습니다.`, ''
-        ]);
-
-        result = { success: true, msg: `${toName}님에게 ${amt.toLocaleString()}원 송금이 완료되었습니다.` };
-        break;
-      }
-
-      case 'getMailbox': {
-        const rows = sheetToObj(getOrCreateSheet(SH.ACTIVITY))
-          .filter(r => (r['내용2'] === payload.name || r['이름'] === payload.name) && (r['카테고리'] === '송금우편' || r['카테고리'] === '칭찬카드' || r['카테고리'] === '부동산요청' || r['카테고리'] === '호출답변'))
-          .reverse();
-        result = { success: true, mails: rows };
-        break;
-      }
-
-      // 10. 미니룸 & 싸이월드 방 저장
-      case 'saveRoomData': {
-        const sh = getOrCreateSheet(SH.MINIROOM);
+        const sh = getOrCreateSheet(SH.ASSETS);
         const data = sh.getDataRange().getValues();
-        let foundRow = -1;
+        let updated = false;
+
         for (let i = 1; i < data.length; i++) {
-          if (String(data[i][0]).trim() === payload.name) {
-            foundRow = i + 1;
+          if (String(data[i][2]).trim() === '부동산좌석' && String(data[i][3]).trim() === seatId) {
+            const oldOwner = String(data[i][1]).trim();
+            if (oldOwner && oldOwner !== '선생님' && oldOwner !== buyer) {
+              updateCash(oldOwner, price, `[부동산] ${seatId} 좌석 매도 대금`, '부동산');
+            }
+            sh.getRange(i + 1, 2).setValue(buyer);
+            sh.getRange(i + 1, 8).setValue('보유');
+            updated = true;
             break;
           }
         }
-        const jsonStr = JSON.stringify(payload.roomData || {});
-        if (foundRow > 0) {
-          sh.getRange(foundRow, 2).setValue(nowStr());
-          sh.getRange(foundRow, 3).setValue(jsonStr);
-        } else {
-          sh.appendRow([payload.name, nowStr(), jsonStr]);
+
+        if (!updated) {
+          sh.appendRow([nowStr(), buyer, '부동산좌석', seatId, price, 1, '', '보유', '', '교실 지정 좌석']);
         }
+
+        result = { success: true, msg: `${seatId} 좌석을 성공적으로 매입하였습니다!` };
+        break;
+      }
+
+      // 9. 학생간 계좌 송금
+      case 'transferMoney': {
+        const fromName = payload.fromName;
+        const toName = payload.toName;
+        const amount = Number(payload.amount);
+
+        if (!fromName || !toName || amount <= 0) {
+          return respond({ success: false, msg: '올바른 송금 정보를 입력하세요.' });
+        }
+
+        const sender = syncStudentAssets(fromName);
+        if (!sender || sender.cash < amount) {
+          return respond({ success: false, msg: '송금 잔액이 부족합니다.' });
+        }
+
+        updateCash(fromName, -amount, `[계좌송금] To: ${toName}`, '송금');
+        updateCash(toName, amount, `[계좌입금] From: ${fromName}`, '송금');
+
+        result = { success: true, msg: `${toName} 님에게 ${amount.toLocaleString()}원을 송금했습니다.` };
+        break;
+      }
+
+      // 10. 미니룸 하우징 백업 & 조회
+      case 'saveRoomData': {
+        const sh = getOrCreateSheet(SH.MINIROOM);
+        const rows = sheetToObj(sh);
+        const name = payload.name;
+        const jsonStr = JSON.stringify(payload.roomData || {});
+
+        const found = rows.find(r => String(r['이름']).trim() === name);
+        if (found) {
+          sh.getRange(found._row, 3).setValue(jsonStr);
+          sh.getRange(found._row, 1).setValue(nowStr());
+        } else {
+          sh.appendRow([nowStr(), name, jsonStr, 0, '']);
+        }
+
         result = { success: true, msg: '미니룸이 시트에 안전하게 백업되었습니다.' };
         break;
       }
@@ -795,7 +857,7 @@ function handleRequest(params) {
         break;
       }
 
-      // 13. [관리 & 상호작용 코어] 월급배부, 벌금징수, 경고, 칭찬카드, 마트관리
+      // 13. [관리 & 상호작용 코어] 월급배부, 벌금징수(국고귀속), 경고장, 칭찬카드, 권한부여
       case 'adminPaySalaries': {
         const amount = Number(payload.amount || 5000);
         const students = getStudentsWithAssets();
@@ -806,7 +868,7 @@ function handleRequest(params) {
             count++;
           }
         });
-        result = { success: true, msg: `전체 ${count}명의 학생에게 월급 ${amount.toLocaleString()}원이 배부되었습니다.` };
+        result = { success: true, msg: `전체 ${count}명의 학생에게 월급 ${amount.toLocaleString()}원이 일괄 배부되었습니다.` };
         break;
       }
 
@@ -814,21 +876,28 @@ function handleRequest(params) {
         const target = payload.targetName;
         const fine = Number(payload.amount || 1000);
         const reason = payload.reason || '학급 규칙 위반';
+        const actor = payload.actorName || '선생님';
+
         updateCash(target, -fine, `[벌금징수] ${reason}`, '벌금');
+        // 벌금은 국고로 입금 귀속!
+        logTx(target, '국고', '벌금입금', fine, 1, '국고', `[벌금징수] ${reason} (${actor})`, '완료');
+
         getOrCreateSheet(SH.ACTIVITY).appendRow([
-          nowStr(), '선생님', '벌금징수', fine, target, '', 0, '완료', `[벌금 고지] ${reason} (-${fine.toLocaleString()}원)`, ''
+          nowStr(), actor, '벌금징수', fine, target, '', 0, '완료', `[벌금 고지] ${reason} (-${fine.toLocaleString()}원) -> 국고 귀속`, ''
         ]);
-        result = { success: true, msg: `${target} 학생에게 벌금 ${fine.toLocaleString()}원이 징수되었습니다.` };
+        result = { success: true, msg: `${target} 학생에게 벌금 ${fine.toLocaleString()}원이 징수되어 국고로 귀속되었습니다.` };
         break;
       }
 
       case 'adminWarnStudent': {
         const target = payload.targetName;
         const reason = payload.reason || '경고 주의 조치';
+        const actor = payload.actorName || '선생님';
+
         getOrCreateSheet(SH.ACTIVITY).appendRow([
-          nowStr(), '선생님', '경고장', '경고', target, '', 0, '완료', `⚠️ [선생님 경고장] ${reason}`, ''
+          nowStr(), actor, '경고장', '경고', target, '', 0, '완료', `⚠️ [경고장] ${reason} (발송: ${actor})`, ''
         ]);
-        result = { success: true, msg: `${target} 학생에게 경고장이 전달되었습니다.` };
+        result = { success: true, msg: `${target} 학생에게 경고장이 공식 전달되었습니다.` };
         break;
       }
 
@@ -847,6 +916,30 @@ function handleRequest(params) {
         break;
       }
 
+      // 교사 전용 권한 부여 (RBAC)
+      case 'grantPermission': {
+        const targetName = payload.targetName;
+        const permissions = payload.permissions || '일반';
+        const sh = getOrCreateSheet(SH.USERS);
+        const data = sh.getDataRange().getValues();
+        let found = false;
+
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][1]).trim() === targetName) {
+            sh.getRange(i + 1, 6).setValue(permissions);
+            found = true;
+            break;
+          }
+        }
+
+        if (found) {
+          result = { success: true, msg: `${targetName} 학생에게 [${permissions}] 권한이 부여되었습니다.` };
+        } else {
+          result = { success: false, msg: '해당 학생을 찾을 수 없습니다.' };
+        }
+        break;
+      }
+
       case 'addMartItem': {
         const itemName = payload.itemName;
         const price = Number(payload.price || 1000);
@@ -855,15 +948,16 @@ function handleRequest(params) {
         getOrCreateSheet(SH.ASSETS).appendRow([
           nowStr(), payload.ownerName || '선생님', '마트물품', itemName, price, stock, '', '판매중', '', desc
         ]);
-        result = { success: true, msg: `[${itemName}] 마트 물품이 등록되었습니다!` };
+        result = { success: true, msg: `[${itemName}] 마트 물품이 성공적으로 등록되었습니다!` };
         break;
       }
 
+      // 교사 직권 자산 조정 (오직 교사만 가능)
       case 'updateCash': {
         const name = payload.name;
         const delta = Number(payload.delta || 0);
-        const reason = payload.reason || '관리자 조정';
-        updateCash(name, delta, reason, '관리자조정');
+        const reason = payload.reason || '교사 직권 조정';
+        updateCash(name, delta, reason, '교사직권조정');
         result = { success: true, msg: `${name} 학생의 잔액이 조정되었습니다.` };
         break;
       }
