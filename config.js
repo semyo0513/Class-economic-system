@@ -5,6 +5,9 @@
 const CONFIG = {
   // 1. Google Apps Script 배포 URL (doPost/doGet 지원되는 /exec URL)
   GAS_URL: 'https://script.google.com/macros/s/AKfycbyw7jaOgOEW4BnAIt3qicTMmFDqZZ6cLM-YfY-N8I9mAVIPh37SkttzViFzu73Rptk-mg/exec',
+  API: {
+    GAS_URL: 'https://script.google.com/macros/s/AKfycbyw7jaOgOEW4BnAIt3qicTMmFDqZZ6cLM-YfY-N8I9mAVIPh37SkttzViFzu73Rptk-mg/exec'
+  },
 
   // 2. Firebase 설정 (Realtime Database & Anonymous Auth)
   // Firebase 콘솔에서 생성한 웹 앱 설정값을 입력하세요. 미입력 시에도 로컬 시뮬레이션으로 동작합니다.

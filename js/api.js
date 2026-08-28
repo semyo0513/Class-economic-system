@@ -4,6 +4,8 @@
 // ============================================================
 
 const API = (() => {
+  let loadingTimer = null;
+
   function showLoading(msg = '처리 중입니다...') {
     const el = document.getElementById('global-loading');
     const textEl = document.getElementById('global-loading-text');
@@ -11,9 +13,16 @@ const API = (() => {
       if (textEl) textEl.textContent = msg;
       el.style.display = 'flex';
     }
+    // 안전장치: 어떤 경우에도 2.5초 후 자동 닫힘
+    if (loadingTimer) clearTimeout(loadingTimer);
+    loadingTimer = setTimeout(hideLoading, 2500);
   }
 
   function hideLoading() {
+    if (loadingTimer) {
+      clearTimeout(loadingTimer);
+      loadingTimer = null;
+    }
     const el = document.getElementById('global-loading');
     if (el) el.style.display = 'none';
   }
@@ -21,15 +30,14 @@ const API = (() => {
   async function call(action, payload = {}, silent = false) {
     if (!silent) showLoading();
 
-    const gasUrl = CONFIG.API.GAS_URL;
-    if (!gasUrl || gasUrl.includes('YOUR_DEPLOYMENT_ID')) {
-      if (!silent) hideLoading();
-      return getMockResponse(action, payload);
-    }
-
     try {
+      const gasUrl = (typeof CONFIG !== 'undefined' && (CONFIG.GAS_URL || (CONFIG.API && CONFIG.API.GAS_URL))) || '';
+      if (!gasUrl || gasUrl.includes('YOUR_DEPLOYMENT_ID')) {
+        return getMockResponse(action, payload);
+      }
+
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4초 타임아웃
+      const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5초 타임아웃
 
       const response = await fetch(gasUrl, {
         method: 'POST',
@@ -39,7 +47,6 @@ const API = (() => {
       });
 
       clearTimeout(timeoutId);
-      if (!silent) hideLoading();
 
       if (!response.ok) {
         console.warn(`[API HTTP Error] ${response.status}`);
@@ -50,17 +57,19 @@ const API = (() => {
       return res;
     } catch (err) {
       console.warn(`[API Fallback] Action: ${action}, Error:`, err);
-      if (!silent) hideLoading();
       return getMockResponse(action, payload);
+    } finally {
+      if (!silent) hideLoading();
     }
   }
 
   // 모의(Mock) 데이터 생성기
   function getMockResponse(action, payload) {
+    const me = (payload && payload.name) || (GameState && GameState.student && (GameState.student.name || GameState.student.이름)) || '학생';
     const mockStudent = {
       id: 1, 번호: 1,
-      name: payload.name || '테스트학생', 이름: payload.name || '테스트학생',
-      job: '은행원', 직업명: '은행원',
+      name: me, 이름: me,
+      job: '학생', 직업명: '학생',
       cash: 50000, 현금: 50000,
       stockQty: 20, stock: 20000, 주식: 20000,
       totalAsset: 74000,
@@ -73,12 +82,14 @@ const API = (() => {
       case 'studentLogin':
         return {
           success: true,
-          student: { ...mockStudent, name: payload.name || '테스트학생', 이름: payload.name || '테스트학생' },
+          student: { ...mockStudent, name: me, 이름: me },
           settings: { 세금율: 0.1, 예금이율: 0.05, 학교명: '행복초등학교' },
           ranking: [
-            { rank: 1, name: '홍길동', total: 180000, job: '투자왕' },
-            { rank: 2, name: payload.name || '테스트학생', total: 74000, job: '은행원' },
-            { rank: 3, name: '이영희', total: 73000, job: '기자' }
+            { rank: 1, name: '김현주', total: 2310000, job: '문화체육부 장관' },
+            { rank: 2, name: '이하진', total: 1722000, job: '대통령(반장)' },
+            { rank: 3, name: '정수빈', total: 1695800, job: '은행원' },
+            { rank: 4, name: '서언', total: 1666560, job: '국세청장' },
+            { rank: 5, name: me, total: 74000, job: '학생' }
           ]
         };
       case 'adminAuth':
@@ -87,10 +98,11 @@ const API = (() => {
         return {
           success: true,
           students: [
-            { id: 1, name: '선생님', job: '교사(관리자)', cash: 999999, stockQty: 100, totalAsset: 1119999, permission: '전체' },
-            { id: 2, name: '홍길동', job: '투자왕', cash: 120000, stockQty: 50, totalAsset: 180000, permission: '은행' },
-            { id: 3, name: '김철수', job: '은행원', cash: 65000, stockQty: 20, totalAsset: 89000, permission: '은행' },
-            { id: 4, name: '이영희', job: '기자', cash: 55000, stockQty: 15, totalAsset: 73000, permission: '임원' }
+            { id: 1, name: '김현주', job: '문화체육부 장관', cash: 2310000, stockQty: 50, totalAsset: 2370000 },
+            { id: 2, name: '이하진', job: '대통령(반장)', cash: 1722000, stockQty: 30, totalAsset: 1758000 },
+            { id: 3, name: '정수빈', job: '은행원', cash: 1695800, stockQty: 20, totalAsset: 1719800 },
+            { id: 4, name: '서언', job: '국세청장', cash: 1666560, stockQty: 10, totalAsset: 1678560 },
+            { id: 5, name: '선생님', job: '교사(관리자)', cash: 999999, stockQty: 100, totalAsset: 1119999 }
           ],
           settings: { 세금율: 0.1, 예금이율: 0.05, 복권_가격: 500 }
         };
@@ -162,7 +174,7 @@ const API = (() => {
           success: true,
           seats: Array.from({ length: 24 }, (_, i) => ({
             id: `seat_${i + 1}`,
-            owner: i === 2 ? '홍길동' : (i === 4 ? payload.name : `학생${i + 1}`),
+            owner: i === 2 ? '홍길동' : (i === 4 ? me : `학생${i + 1}`),
             isForSale: i % 4 === 0,
             price: 5000 + i * 500
           }))
