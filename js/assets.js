@@ -1,6 +1,6 @@
 // ============================================================
 // 2D 픽셀아트 & 프로시저럴 그래픽 에셋 생성기 (js/assets.js)
-// 2.5D 입체 타운 맵, 캐릭터 뷰티/패션 살롱 커스터마이징, 아기자기한 파스텔 미니룸
+// 2.5D 입체 타운 맵, 14개 건물, 어트랙션, 워터파크, 캠핑장, 동물 NPC, 캐릭터 살롱
 // ============================================================
 
 const AssetGenerator = (() => {
@@ -16,7 +16,6 @@ const AssetGenerator = (() => {
     for (let i = 0; i < 16; i++) {
       ctx.fillRect((i * 7) % 30, (i * 11) % 30, 2, 2);
     }
-    // 잔디 하이라이트
     ctx.fillStyle = '#9ae6b4';
     ctx.fillRect(4, 6, 2, 1);
     ctx.fillRect(20, 18, 2, 1);
@@ -38,7 +37,6 @@ const AssetGenerator = (() => {
     ctx.strokeRect(64.5, 16.5, 31, 0);
     ctx.strokeRect(80.5, 0.5, 0, 16);
     ctx.strokeRect(72.5, 16.5, 0, 16);
-    // 상단 하이라이트 / 하단 그림자 (입체감)
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(65, 1, 30, 1);
     ctx.fillRect(65, 17, 30, 1);
@@ -67,7 +65,7 @@ const AssetGenerator = (() => {
     for (let y = 2; y < 32; y += 6) {
       ctx.fillRect(162, y, 28, 4);
       ctx.fillStyle = '#78350f';
-      ctx.fillRect(162, y + 4, 28, 1); // 판자 그림자
+      ctx.fillRect(162, y + 4, 28, 1);
       ctx.fillStyle = '#d97706';
     }
 
@@ -94,11 +92,10 @@ const AssetGenerator = (() => {
     cvs.width = 128; cvs.height = 192; // 4 cols x 4 rows (32x48 each)
     const ctx = cvs.getContext('2d');
 
-    // 스타일 파라미터 (기본값 설정)
-    const hairColor = style.hairColor || '#78350f'; // 기본 갈색 / 핑크 / 골드 / 민트 등
-    const costume = style.costume || 'default'; // 'default', 'school', 'pajama', 'magic', 'cyber', 'dress'
-    const hat = style.hat || 'none'; // 'cat_ears', 'crown', 'halo', 'magic_hat', 'cap'
-    const aura = style.aura || 'none'; // 'gold', 'cherry', 'rainbow', 'lightning'
+    const hairColor = style.hairColor || '#78350f';
+    const costume = style.costume || 'default';
+    const hat = style.hat || 'none';
+    const aura = style.aura || 'none';
 
     const dirs = ['down', 'left', 'right', 'up'];
     dirs.forEach((dir, row) => {
@@ -107,13 +104,13 @@ const AssetGenerator = (() => {
         const y = row * 48;
         const step = col % 2 === 1 ? (col === 1 ? -2 : 2) : 0;
 
-        // 1) 바닥 입체 그림자
+        // 1) 바닥 그림자
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.beginPath();
         ctx.ellipse(x + 16, y + 44, 11, 4.5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2) 특수 오라 효과 (배경 레이어)
+        // 2) 오라 효과
         if (aura === 'gold' || aura === 'aura_gold') {
           ctx.fillStyle = 'rgba(250, 204, 21, 0.35)';
           ctx.beginPath(); ctx.arc(x + 16, y + 26, 18, 0, Math.PI * 2); ctx.fill();
@@ -125,7 +122,7 @@ const AssetGenerator = (() => {
           ctx.beginPath(); ctx.arc(x + 16, y + 26, 18, 0, Math.PI * 2); ctx.fill();
         }
 
-        // 3) 발 / 신발
+        // 3) 신발
         let shoeColor = '#334155';
         if (costume === 'school') shoeColor = '#0f172a';
         else if (costume === 'pajama') shoeColor = '#fbcfe8';
@@ -135,51 +132,45 @@ const AssetGenerator = (() => {
         ctx.fillRect(x + 10 + step, y + 38, 5, 6);
         ctx.fillRect(x + 17 - step, y + 38, 5, 6);
 
-        // 4) 몸통 및 코스튬 의상
+        // 4) 코스튬 의상
         if (costume === 'school') {
-          // 스마트 교복 (감청색 재킷 + 넥타이)
           ctx.fillStyle = '#1e3a8a';
           ctx.fillRect(x + 9, y + 24, 14, 15);
-          ctx.fillStyle = '#ffffff'; // 와이셔츠
+          ctx.fillStyle = '#ffffff';
           ctx.fillRect(x + 13, y + 23, 6, 6);
-          ctx.fillStyle = '#dc2626'; // 빨간 넥타이
+          ctx.fillStyle = '#dc2626';
           ctx.fillRect(x + 15, y + 25, 2, 5);
         } else if (costume === 'pajama') {
-          // 핑크 곰돌이 잠옷
           ctx.fillStyle = '#f472b6';
           ctx.fillRect(x + 8, y + 23, 16, 16);
           ctx.fillStyle = '#fdf2f8';
-          ctx.fillRect(x + 12, y + 27, 8, 8); // 배 부분
+          ctx.fillRect(x + 12, y + 27, 8, 8);
         } else if (costume === 'magic') {
-          // 보라색 마법사 로브
           ctx.fillStyle = '#6b21a8';
           ctx.fillRect(x + 8, y + 23, 16, 16);
           ctx.fillStyle = '#facc15';
-          ctx.fillRect(x + 15, y + 24, 2, 14); // 황금 장식선
+          ctx.fillRect(x + 15, y + 24, 2, 14);
         } else if (costume === 'cyber') {
-          // 사이버펑크 네온 슈트
           ctx.fillStyle = '#0f172a';
           ctx.fillRect(x + 9, y + 24, 14, 15);
-          ctx.fillStyle = '#22d3ee'; // 네온 라인
+          ctx.fillStyle = '#22d3ee';
           ctx.fillRect(x + 10, y + 26, 12, 2);
           ctx.fillRect(x + 15, y + 28, 2, 10);
         } else if (costume === 'dress') {
-          // 우아한 공주 드레스
           ctx.fillStyle = '#fb7185';
           ctx.fillRect(x + 9, y + 24, 14, 8);
           ctx.beginPath();
           ctx.moveTo(x + 7, y + 32); ctx.lineTo(x + 25, y + 32); ctx.lineTo(x + 27, y + 40); ctx.lineTo(x + 5, y + 40); ctx.closePath();
           ctx.fill();
         } else {
-          // 기본 포근한 청멜빵
           ctx.fillStyle = '#3b82f6';
           ctx.fillRect(x + 9, y + 24, 14, 15);
-          ctx.fillStyle = '#ef4444'; // 빨간 셔츠
+          ctx.fillStyle = '#ef4444';
           ctx.fillRect(x + 11, y + 22, 10, 4);
         }
 
-        // 팔 (애니메이션)
-        ctx.fillStyle = '#fed7aa'; // 살색
+        // 팔
+        ctx.fillStyle = '#fed7aa';
         if (dir === 'left') {
           ctx.fillRect(x + 7, y + 24, 3, 8);
         } else if (dir === 'right') {
@@ -189,36 +180,32 @@ const AssetGenerator = (() => {
           ctx.fillRect(x + 23, y + 24, 3, 8);
         }
 
-        // 5) 머리 & 얼굴 (살구빛 큐트 베이스)
+        // 5) 머리 & 얼굴
         ctx.fillStyle = '#fed7aa';
         ctx.beginPath();
         ctx.arc(x + 16, y + 15, 9, 0, Math.PI * 2);
         ctx.fill();
 
-        // 6) 헤어스타일 및 헤어 염색
+        // 6) 헤어
         ctx.fillStyle = hairColor;
         ctx.beginPath();
         ctx.arc(x + 16, y + 12, 9.5, Math.PI, Math.PI * 2);
         ctx.fill();
-        // 앞머리 볼륨
         ctx.fillRect(x + 8, y + 9, 16, 5);
         ctx.fillRect(x + 7, y + 11, 4, 7);
         ctx.fillRect(x + 21, y + 11, 4, 7);
 
-        // 7) 얼굴 표정 (방향별)
+        // 7) 표정
         if (dir === 'down') {
-          // 눈 (초롱초롱)
           ctx.fillStyle = '#0f172a';
           ctx.fillRect(x + 12, y + 14, 2, 3);
           ctx.fillRect(x + 18, y + 14, 2, 3);
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(x + 12, y + 14, 1, 1);
           ctx.fillRect(x + 18, y + 14, 1, 1);
-          // 볼터치 (핑쿠)
           ctx.fillStyle = '#f472b6';
           ctx.fillRect(x + 10, y + 17, 2, 2);
           ctx.fillRect(x + 20, y + 17, 2, 2);
-          // 입
           ctx.fillStyle = '#e11d48';
           ctx.fillRect(x + 15, y + 18, 2, 1);
         } else if (dir === 'left') {
@@ -233,9 +220,8 @@ const AssetGenerator = (() => {
           ctx.fillRect(x + 20, y + 17, 2, 2);
         }
 
-        // 8) 모자 / 액세서리
+        // 8) 모자
         if (hat === 'cat_ears') {
-          // 고양이 귀
           ctx.fillStyle = hairColor;
           ctx.beginPath(); ctx.moveTo(x + 9, y + 8); ctx.lineTo(x + 12, y + 2); ctx.lineTo(x + 14, y + 8); ctx.closePath(); ctx.fill();
           ctx.beginPath(); ctx.moveTo(x + 18, y + 8); ctx.lineTo(x + 20, y + 2); ctx.lineTo(x + 23, y + 8); ctx.closePath(); ctx.fill();
@@ -243,7 +229,6 @@ const AssetGenerator = (() => {
           ctx.fillRect(x + 11, y + 4, 2, 3);
           ctx.fillRect(x + 19, y + 4, 2, 3);
         } else if (hat === 'crown') {
-          // 황금 왕관
           ctx.fillStyle = '#facc15';
           ctx.beginPath();
           ctx.moveTo(x + 10, y + 7); ctx.lineTo(x + 10, y + 1); ctx.lineTo(x + 13, y + 4);
@@ -251,11 +236,9 @@ const AssetGenerator = (() => {
           ctx.closePath(); ctx.fill();
           ctx.fillStyle = '#ef4444'; ctx.fillRect(x + 15, y + 4, 2, 2);
         } else if (hat === 'halo') {
-          // 천사 링
           ctx.strokeStyle = '#fef08a'; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.ellipse(x + 16, y + 2, 7, 2.5, 0, 0, Math.PI * 2); ctx.stroke();
         } else if (hat === 'magic_hat') {
-          // 마법사 꼬깔모자
           ctx.fillStyle = '#4c1d95';
           ctx.beginPath(); ctx.moveTo(x + 7, y + 7); ctx.lineTo(x + 16, y - 4); ctx.lineTo(x + 25, y + 7); ctx.closePath(); ctx.fill();
           ctx.fillStyle = '#facc15'; ctx.fillRect(x + 9, y + 5, 14, 2);
@@ -266,8 +249,19 @@ const AssetGenerator = (() => {
     return cvs;
   }
 
-  // 3. 건물 2.5D 입체 텍스처 (타원형 그림자 & 지붕 입체 광택)
-  function generateBuildingSprite(name, color, roofColor, width = 96, height = 96, emoji = '🏠', title = '건물') {
+  // 3. 건물 2.5D 입체 텍스처 (유연한 인자 처리)
+  function generateBuildingSprite(roofColor = '#3b82f6', title = '건물', emoji = '🏠', width = 140, height = 120, wallColor = '#f8fafc') {
+    // 만약 첫 번째 인자가 객체로 전달된 경우
+    if (typeof roofColor === 'object' && roofColor !== null) {
+      const b = roofColor;
+      roofColor = b.roofColor || '#3b82f6';
+      title = b.signTitle || b.name || '건물';
+      emoji = b.signEmoji || '🏠';
+      width = b.w || 140;
+      height = b.h || 120;
+      wallColor = b.wallColor || '#fed7aa';
+    }
+
     const cvs = document.createElement('canvas');
     cvs.width = width; cvs.height = height + 10;
     const ctx = cvs.getContext('2d');
@@ -279,7 +273,7 @@ const AssetGenerator = (() => {
     ctx.fill();
 
     // 2) 벽체 바디
-    ctx.fillStyle = color;
+    ctx.fillStyle = wallColor || '#fed7aa';
     ctx.fillRect(8, 36, width - 16, height - 40);
     ctx.strokeStyle = '#334155'; ctx.lineWidth = 2.5;
     ctx.strokeRect(8, 36, width - 16, height - 40);
@@ -295,62 +289,59 @@ const AssetGenerator = (() => {
     ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 3;
     ctx.stroke();
 
-    // 지붕 입체 하이라이트 & 텍스처 라인
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    // 지붕 입체 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
     ctx.beginPath();
     ctx.moveTo(8, 38); ctx.lineTo(width / 2, 9); ctx.lineTo(width / 2, 38); ctx.closePath();
     ctx.fill();
 
     // 4) 문 & 손잡이
     ctx.fillStyle = '#78350f';
-    ctx.fillRect(width / 2 - 12, height - 32, 24, 28);
+    ctx.fillRect(width / 2 - 14, height - 34, 28, 30);
     ctx.strokeStyle = '#451a03'; ctx.lineWidth = 2;
-    ctx.strokeRect(width / 2 - 12, height - 32, 24, 28);
+    ctx.strokeRect(width / 2 - 14, height - 34, 28, 30);
     ctx.fillStyle = '#fde047';
-    ctx.beginPath(); ctx.arc(width / 2 + 7, height - 18, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(width / 2 + 8, height - 20, 2.5, 0, Math.PI * 2); ctx.fill();
 
-    // 5) 창문 (반사광 효과)
+    // 5) 창문
     ctx.fillStyle = '#bae6fd';
-    ctx.fillRect(16, 48, 18, 18);
-    ctx.fillRect(width - 34, 48, 18, 18);
+    ctx.fillRect(16, 48, 20, 20);
+    ctx.fillRect(width - 36, 48, 20, 20);
     ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 2;
-    ctx.strokeRect(16, 48, 18, 18);
-    ctx.strokeRect(width - 34, 48, 18, 18);
+    ctx.strokeRect(16, 48, 20, 20);
+    ctx.strokeRect(width - 36, 48, 20, 20);
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(18, 50, 4, 14);
-    ctx.fillRect(width - 32, 50, 4, 14);
+    ctx.fillRect(18, 50, 4, 16);
+    ctx.fillRect(width - 34, 50, 4, 16);
 
-    // 6) 간판 엠블럼 뱃지
+    // 6) 간판 엠블럼
     ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
     ctx.beginPath();
-    ctx.roundRect(width / 2 - 40, 24, 80, 22, 6);
+    ctx.roundRect(width / 2 - 45, 22, 90, 22, 6);
     ctx.fill();
     ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 1.5; ctx.stroke();
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 11px "Pretendard", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${emoji} ${title}`, width / 2, 39);
+    ctx.fillText(`${emoji} ${title}`, width / 2, 37);
 
     return cvs;
   }
 
-  // 4. 화려한 벚꽃나무 스프라이트 (입체 그림자 포함)
+  // 4. 나무 스프라이트
   function generateTreeSprite(isPink = true) {
     const cvs = document.createElement('canvas');
     cvs.width = 64; cvs.height = 84;
     const ctx = cvs.getContext('2d');
 
-    // 나무 바닥 그림자
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath(); ctx.ellipse(32, 78, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
 
-    // 기둥
     ctx.fillStyle = '#78350f';
     ctx.fillRect(26, 44, 12, 32);
     ctx.strokeStyle = '#451a03'; ctx.lineWidth = 2; ctx.strokeRect(26, 44, 12, 32);
 
-    // 풍성한 나뭇잎 구름
     const leafColor = isPink ? '#ffb7b2' : '#22c55e';
     const darkLeaf = isPink ? '#ff9aa2' : '#15803d';
 
@@ -361,7 +352,6 @@ const AssetGenerator = (() => {
     ctx.beginPath(); ctx.arc(20, 32, 14, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(44, 32, 14, 0, Math.PI * 2); ctx.fill();
 
-    // 꽃잎 반짝임
     ctx.fillStyle = isPink ? '#ffffff' : '#86efac';
     ctx.fillRect(28, 20, 3, 3);
     ctx.fillRect(38, 26, 3, 3);
@@ -370,7 +360,7 @@ const AssetGenerator = (() => {
     return cvs;
   }
 
-  // 5. 대형 분수대 스프라이트
+  // 5. 분수대
   function generateFountainSprite() {
     const cvs = document.createElement('canvas');
     cvs.width = 96; cvs.height = 84;
@@ -397,7 +387,40 @@ const AssetGenerator = (() => {
     return cvs;
   }
 
-  // 6. 놀이동산 어트랙션 (대관람차, 회전목마, 롤러코스터, 서커스텐트, 팝콘)
+  // 6. 환경 소품 (가로등, 벤치, 우체통 등)
+  function generatePropSprite(type) {
+    const cvs = document.createElement('canvas');
+    const ctx = cvs.getContext('2d');
+
+    if (type === 'lamp') {
+      cvs.width = 32; cvs.height = 48;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath(); ctx.ellipse(16, 45, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#334155'; ctx.fillRect(14, 10, 4, 34);
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath(); ctx.arc(16, 10, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f59e0b'; ctx.fillRect(10, 4, 12, 3);
+    } else if (type === 'bench') {
+      cvs.width = 48; cvs.height = 32;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath(); ctx.ellipse(24, 28, 18, 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#b45309';
+      ctx.fillRect(6, 10, 36, 6);
+      ctx.fillRect(6, 18, 36, 6);
+      ctx.fillStyle = '#451a03';
+      ctx.fillRect(8, 16, 4, 12); ctx.fillRect(36, 16, 4, 12);
+    } else if (type === 'mailbox') {
+      cvs.width = 32; cvs.height = 40;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath(); ctx.ellipse(16, 38, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#dc2626'; ctx.fillRect(8, 10, 16, 18);
+      ctx.fillStyle = '#991b1b'; ctx.fillRect(10, 14, 12, 2);
+      ctx.fillStyle = '#334155'; ctx.fillRect(14, 28, 4, 10);
+    }
+    return cvs;
+  }
+
+  // 7. 놀이동산 어트랙션
   function generateAmusementSprite(type) {
     const cvs = document.createElement('canvas');
     const ctx = cvs.getContext('2d');
@@ -457,7 +480,7 @@ const AssetGenerator = (() => {
 
       ctx.fillStyle = '#dc2626'; ctx.fillRect(15, 50, 70, 35);
       ctx.fillStyle = '#fde047'; ctx.fillRect(50, 8, 3, 10);
-    } else if (type === 'popcorn') {
+    } else if (type === 'popcorn_cart' || type === 'popcorn') {
       cvs.width = 60; cvs.height = 65;
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.beginPath(); ctx.ellipse(30, 58, 20, 5, 0, 0, Math.PI * 2); ctx.fill();
@@ -470,8 +493,51 @@ const AssetGenerator = (() => {
     return cvs;
   }
 
-  // 7. 동물 주민 NPC (곰돌이 촌장, 토끼 은행원, 야옹 상인, 판다 선생님, 여우 투자가)
-  function generateAnimalNpcSprite(type) {
+  // 8. 워터파크 & 캠핑장 오브젝트
+  function generateWaterparkSprite(type) {
+    const cvs = document.createElement('canvas');
+    const ctx = cvs.getContext('2d');
+
+    if (type === 'water_slide') {
+      cvs.width = 110; cvs.height = 100;
+      ctx.strokeStyle = '#06b6d4'; ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.moveTo(20, 20); ctx.bezierCurveTo(80, 20, 30, 80, 90, 80); ctx.stroke();
+      ctx.fillStyle = '#e2e8f0'; ctx.fillRect(14, 20, 12, 65);
+    } else if (type === 'duck_boat') {
+      cvs.width = 48; cvs.height = 40;
+      ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.ellipse(24, 24, 18, 12, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f97316'; ctx.fillRect(6, 18, 8, 5); // 오리 부리
+    } else if (type === 'beach_umbrella') {
+      cvs.width = 60; cvs.height = 70;
+      ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(30, 24, 24, Math.PI, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(30, 24, 16, Math.PI, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(30, 24, 8, Math.PI, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#64748b'; ctx.fillRect(28, 24, 4, 42);
+    }
+    return cvs;
+  }
+
+  function generateCampingSprite(type) {
+    const cvs = document.createElement('canvas');
+    const ctx = cvs.getContext('2d');
+
+    if (type === 'camp_tent') {
+      cvs.width = 70; cvs.height = 65;
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath(); ctx.moveTo(10, 55); ctx.lineTo(35, 10); ctx.lineTo(60, 55); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#78350f';
+      ctx.beginPath(); ctx.moveTo(25, 55); ctx.lineTo(35, 25); ctx.lineTo(45, 55); ctx.closePath(); ctx.fill();
+    } else if (type === 'campfire') {
+      cvs.width = 40; cvs.height = 40;
+      ctx.fillStyle = '#78350f'; ctx.fillRect(8, 28, 24, 5);
+      ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(20, 20, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(20, 20, 6, 0, Math.PI * 2); ctx.fill();
+    }
+    return cvs;
+  }
+
+  // 9. 동물 NPC 스프라이트
+  function generateAnimalNPCSprite(type) {
     const cvs = document.createElement('canvas');
     cvs.width = 48; cvs.height = 54;
     const ctx = cvs.getContext('2d');
@@ -479,7 +545,7 @@ const AssetGenerator = (() => {
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath(); ctx.ellipse(24, 48, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
 
-    if (type === 'bear_mayor') {
+    if (type === 'bear') {
       ctx.fillStyle = '#92400e';
       ctx.beginPath(); ctx.arc(24, 20, 12, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(14, 10, 5, 0, Math.PI * 2); ctx.fill();
@@ -488,21 +554,21 @@ const AssetGenerator = (() => {
       ctx.fillStyle = '#0f172a'; ctx.fillRect(23, 20, 2, 2);
       ctx.fillStyle = '#1e3a8a'; ctx.fillRect(14, 30, 20, 16);
       ctx.fillStyle = '#dc2626'; ctx.fillRect(23, 30, 2, 6);
-    } else if (type === 'rabbit_banker') {
+    } else if (type === 'rabbit') {
       ctx.fillStyle = '#f8fafc';
       ctx.beginPath(); ctx.arc(24, 22, 10, 0, Math.PI * 2); ctx.fill();
       ctx.fillRect(16, 4, 4, 14); ctx.fillRect(28, 4, 4, 14);
       ctx.fillStyle = '#f472b6'; ctx.fillRect(17, 6, 2, 10); ctx.fillRect(29, 6, 2, 10);
       ctx.fillStyle = '#0f172a'; ctx.fillRect(20, 20, 2, 2); ctx.fillRect(26, 20, 2, 2);
       ctx.fillStyle = '#16a34a'; ctx.fillRect(14, 32, 20, 14);
-    } else if (type === 'cat_merchant') {
+    } else if (type === 'cat') {
       ctx.fillStyle = '#f97316';
       ctx.beginPath(); ctx.arc(24, 22, 10, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.moveTo(14, 14); ctx.lineTo(16, 6); ctx.lineTo(21, 14); ctx.closePath(); ctx.fill();
       ctx.beginPath(); ctx.moveTo(34, 14); ctx.lineTo(32, 6); ctx.lineTo(27, 14); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#0f172a'; ctx.fillRect(20, 20, 2, 2); ctx.fillRect(26, 20, 2, 2);
       ctx.fillStyle = '#eab308'; ctx.fillRect(14, 32, 20, 14);
-    } else if (type === 'panda_teacher') {
+    } else if (type === 'panda') {
       ctx.fillStyle = '#f8fafc';
       ctx.beginPath(); ctx.arc(24, 22, 10, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#0f172a';
@@ -511,7 +577,7 @@ const AssetGenerator = (() => {
       ctx.beginPath(); ctx.ellipse(19, 21, 3, 4, -0.2, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.ellipse(29, 21, 3, 4, 0.2, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#7c3aed'; ctx.fillRect(14, 32, 20, 14);
-    } else if (type === 'fox_investor') {
+    } else if (type === 'fox') {
       ctx.fillStyle = '#ea580c';
       ctx.beginPath(); ctx.arc(24, 22, 10, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.moveTo(15, 14); ctx.lineTo(17, 4); ctx.lineTo(22, 14); ctx.closePath(); ctx.fill();
@@ -523,13 +589,39 @@ const AssetGenerator = (() => {
     return cvs;
   }
 
+  // 10. 장착 아이템 오버레이 (날개, 킥보드)
+  function generateEquipOverlay(type) {
+    const cvs = document.createElement('canvas');
+    cvs.width = 48; cvs.height = 48;
+    const ctx = cvs.getContext('2d');
+
+    if (type === 'wings_angel') {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(14, 20, 12, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(34, 20, 12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#bae6fd';
+      ctx.beginPath(); ctx.arc(14, 24, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(34, 24, 8, 0, Math.PI * 2); ctx.fill();
+    } else if (type === 'mount_kickboard') {
+      ctx.fillStyle = '#06b6d4'; ctx.fillRect(8, 38, 32, 4);
+      ctx.fillStyle = '#334155'; ctx.fillRect(10, 42, 6, 6); ctx.fillRect(32, 42, 6, 6);
+      ctx.fillStyle = '#06b6d4'; ctx.fillRect(32, 20, 3, 20);
+      ctx.fillRect(26, 20, 14, 3);
+    }
+    return cvs;
+  }
+
   return {
     generateTileset,
     generateCharacterSpritesheet,
     generateBuildingSprite,
     generateTreeSprite,
     generateFountainSprite,
+    generatePropSprite,
     generateAmusementSprite,
-    generateAnimalNpcSprite
+    generateWaterparkSprite,
+    generateCampingSprite,
+    generateAnimalNPCSprite,
+    generateEquipOverlay
   };
 })();

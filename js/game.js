@@ -47,10 +47,14 @@ class BootScene extends Phaser.Scene {
       this.textures.addCanvas('prop_bench', AssetGenerator.generatePropSprite('bench'));
       this.textures.addCanvas('prop_mailbox', AssetGenerator.generatePropSprite('mailbox'));
 
-      // 3. 14개 건물
+      // 3. 14개 건물 (2.5D 입체 텍스처)
       TownMapData.BUILDINGS.forEach(b => {
-        const bCvs = AssetGenerator.generateBuildingSprite(b.roofColor, b.signTitle, b.signEmoji, b.w, b.h);
-        this.textures.addCanvas(`building_${b.id}`, bCvs);
+        try {
+          const bCvs = AssetGenerator.generateBuildingSprite(b);
+          this.textures.addCanvas(`building_${b.id}`, bCvs);
+        } catch (err) {
+          console.error(`Failed to create texture for building_${b.id}:`, err);
+        }
       });
 
       // 4. 놀이동산 오브젝트
