@@ -18,30 +18,38 @@ class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    // 런타임 캔버스 픽셀 에셋 동적 생성 및 등록
-    const tilesetImg = AssetGenerator.generateTileset();
-    const charImg = AssetGenerator.generateCharacterSpritesheet();
-    const treePinkImg = AssetGenerator.generateTreeSprite(true);
-    const treeGreenImg = AssetGenerator.generateTreeSprite(false);
-    const fountainImg = AssetGenerator.generateFountainSprite();
-    const lampImg = AssetGenerator.generatePropSprite('lamp');
-    const benchImg = AssetGenerator.generatePropSprite('bench');
-    const mailboxImg = AssetGenerator.generatePropSprite('mailbox');
+    // 캔버스 기반 텍스처 동기적 즉시 등록
+    try {
+      const tilesetCvs = AssetGenerator.generateTileset();
+      this.textures.addCanvas('tileset', tilesetCvs);
 
-    this.textures.addBase64('tileset', tilesetImg);
-    this.textures.addBase64('character', charImg);
-    this.textures.addBase64('tree_pink', treePinkImg);
-    this.textures.addBase64('tree_green', treeGreenImg);
-    this.textures.addBase64('fountain', fountainImg);
-    this.textures.addBase64('prop_lamp', lampImg);
-    this.textures.addBase64('prop_bench', benchImg);
-    this.textures.addBase64('prop_mailbox', mailboxImg);
+      // 캐릭터 스프라이트시트 텍스처 및 프레임 등록
+      const charCvs = AssetGenerator.generateCharacterSpritesheet();
+      const charTexture = this.textures.addCanvas('character', charCvs);
+      // 4x4 프레임 (각 32x48 px) 분할 등록
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 4; col++) {
+          const frameIndex = row * 4 + col;
+          charTexture.add(frameIndex, 0, col * 32, row * 48, 32, 48);
+        }
+      }
 
-    // 14개 건물 텍스처 등록
-    TownMapData.BUILDINGS.forEach(b => {
-      const bImg = AssetGenerator.generateBuildingSprite(b.roofColor, b.signTitle, b.signEmoji, b.w, b.h);
-      this.textures.addBase64(`building_${b.id}`, bImg);
-    });
+      // 환경 소품 캔버스 등록
+      this.textures.addCanvas('tree_pink', AssetGenerator.generateTreeSprite(true));
+      this.textures.addCanvas('tree_green', AssetGenerator.generateTreeSprite(false));
+      this.textures.addCanvas('fountain', AssetGenerator.generateFountainSprite());
+      this.textures.addCanvas('prop_lamp', AssetGenerator.generatePropSprite('lamp'));
+      this.textures.addCanvas('prop_bench', AssetGenerator.generatePropSprite('bench'));
+      this.textures.addCanvas('prop_mailbox', AssetGenerator.generatePropSprite('mailbox'));
+
+      // 14개 건물 텍스처 등록
+      TownMapData.BUILDINGS.forEach(b => {
+        const bCvs = AssetGenerator.generateBuildingSprite(b.roofColor, b.signTitle, b.signEmoji, b.w, b.h);
+        this.textures.addCanvas(`building_${b.id}`, bCvs);
+      });
+    } catch (e) {
+      console.error('[BootScene Texture Error]', e);
+    }
   }
 
   create() {
@@ -52,7 +60,12 @@ class BootScene extends Phaser.Scene {
     dirs.forEach((dir, row) => {
       anims.create({
         key: `walk_${dir}`,
-        frames: anims.generateFrameNumbers('character', { start: row * 4, end: row * 4 + 3 }),
+        frames: [
+          { key: 'character', frame: row * 4 },
+          { key: 'character', frame: row * 4 + 1 },
+          { key: 'character', frame: row * 4 + 2 },
+          { key: 'character', frame: row * 4 + 3 }
+        ],
         frameRate: 8,
         repeat: -1
       });
@@ -159,7 +172,9 @@ class TownScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.buildingGroup);
 
     // 플레이어 닉네임 / 직업 태그
-    this.playerNameTag = this.add.text(spawnX, spawnY - 32, GameState.student ? `${GameState.student.이름} (${GameState.student.직업명})` : '나', {
+    const st = GameState.student;
+    const myDispName = st ? `${st.name || st.이름} (${st.job || st.직업명 || '학생'})` : '나';
+    this.playerNameTag = this.add.text(spawnX, spawnY - 32, myDispName, {
       fontSize: '11px',
       fill: '#ffffff',
       backgroundColor: 'rgba(0,0,0,0.6)',
@@ -206,8 +221,9 @@ class TownScene extends Phaser.Scene {
 
     // 멀티플레이어 리스너 초기화
     if (GameState.student) {
+      const studentName = GameState.student.name || GameState.student.이름;
       Realtime.init(
-        GameState.student.이름,
+        studentName,
         (players) => this.handleRemotePlayers(players),
         (chat) => this.handleChatMessage(chat)
       );
@@ -215,13 +231,12 @@ class TownScene extends Phaser.Scene {
   }
 
   createCherryBlossomParticles() {
-    // 가벼운 꽃잎 떨어지는 애니메이션
     const cvs = document.createElement('canvas');
     cvs.width = 8; cvs.height = 8;
     const ctx = cvs.getContext('2d');
     ctx.fillStyle = '#ffb7b2';
     ctx.beginPath(); ctx.ellipse(4, 4, 3, 2, Math.PI / 4, 0, Math.PI * 2); ctx.fill();
-    this.textures.addBase64('petal', cvs.toDataURL());
+    this.textures.addCanvas('petal', cvs);
 
     this.add.particles(0, 0, 'petal', {
       x: { min: 0, max: TownMapData.WIDTH * 32 },
@@ -344,14 +359,14 @@ class TownScene extends Phaser.Scene {
 
   // 원격 플레이어 렌더링 동기화
   handleRemotePlayers(players) {
-    const myName = GameState.student ? GameState.student.이름 : '';
+    const st = GameState.student;
+    const myName = st ? (st.name || st.이름) : '';
 
     Object.keys(players).forEach(name => {
       if (name === myName) return;
       const p = players[name];
 
       if (!this.otherPlayerSprites[name]) {
-        // 새 플레이어 생성
         const spr = this.physics.add.sprite(p.x, p.y, 'character', 0);
         spr.body.setImmovable(true);
         const tag = this.add.text(p.x, p.y - 30, `${p.name} (${p.job || '학생'})`, {
@@ -375,7 +390,6 @@ class TownScene extends Phaser.Scene {
 
       const remote = this.otherPlayerSprites[name];
       if (remote) {
-        // 위치 보간
         remote.spr.setPosition(p.x, p.y);
         remote.spr.setDepth(p.y + 20);
         remote.tag.setPosition(p.x, p.y - 30);
@@ -392,7 +406,6 @@ class TownScene extends Phaser.Scene {
 
   // 채팅 메시지 수신 및 말풍선 팝업
   handleChatMessage(chat) {
-    // 하단 채팅창에 로그 추가
     const chatList = document.getElementById('chat-messages-list');
     if (chatList) {
       const el = document.createElement('div');
@@ -402,8 +415,8 @@ class TownScene extends Phaser.Scene {
       chatList.scrollTop = chatList.scrollHeight;
     }
 
-    // 캐릭터 머리 위 말풍선 렌더링
-    const myName = GameState.student ? GameState.student.이름 : '';
+    const st = GameState.student;
+    const myName = st ? (st.name || st.이름) : '';
     let targetBubble = null;
 
     if (chat.name === myName) {
@@ -425,6 +438,10 @@ class TownScene extends Phaser.Scene {
 
 // 게임 인스턴스 초기화 함수
 function initPhaserGame() {
+  if (window.GameApp) {
+    window.GameApp.destroy(true);
+  }
+
   const config = {
     type: Phaser.AUTO,
     parent: 'game-canvas-wrap',

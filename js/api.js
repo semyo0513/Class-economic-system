@@ -23,15 +23,21 @@ const API = (() => {
   function getMockResponse(action, payload) {
     console.log(`[API Mock] Action: ${action}`, payload);
     const mockStudent = {
-      번호: 1, 이름: payload.name || '테스트학생', 직업명: '은행원',
-      현금: 50000, 주식: 20000, 상태: '정상', 레벨: '골드(Lv.3)', 권한: '전체'
+      id: 1, 번호: 1,
+      name: payload.name || '테스트학생', 이름: payload.name || '테스트학생',
+      job: '은행원', 직업명: '은행원',
+      cash: 50000, 현금: 50000,
+      stock: 20000, 주식: 20000,
+      status: '정상', 상태: '정상',
+      level: '골드(Lv.3)', 레벨: '골드(Lv.3)',
+      permission: '전체', 권한: '전체'
     };
 
     switch (action) {
       case 'studentLogin':
         return {
           success: true,
-          student: { ...mockStudent, 이름: payload.name },
+          student: { ...mockStudent, name: payload.name || '테스트학생', 이름: payload.name || '테스트학생' },
           settings: { 세금율: 0.1, 예금이율: 0.05, 학교명: '행복초등학교' },
           ranking: [
             { rank: 1, name: '홍길동', total: 120000, job: '투자왕' },
@@ -155,9 +161,9 @@ const API = (() => {
         return {
           success: true,
           students: [
-            { 번호: 1, 이름: '홍길동', 직업명: '투자왕', 현금: 120000, 주식: 30000, 레벨: '다이아', 권한: '전체' },
-            { 번호: 2, 이름: '김철수', 직업명: '은행원', 현금: 50000, 주식: 20000, 레벨: '골드', 권한: '은행' },
-            { 번호: 3, 이름: '이영희', 직업명: '기자', 현금: 65000, 주식: 15000, 레벨: '실버', 권한: '없음' }
+            { id: 1, 번호: 1, name: '홍길동', 이름: '홍길동', job: '투자왕', 직업명: '투자왕', cash: 120000, 현금: 120000, stock: 30000, 주식: 30000, level: '다이아', 레벨: '다이아', permission: '전체', 권한: '전체' },
+            { id: 2, 번호: 2, name: '김철수', 이름: '김철수', job: '은행원', 직업명: '은행원', cash: 50000, 현금: 50000, stock: 20000, 주식: 20000, level: '골드', 레벨: '골드', permission: '은행', 권한: '은행' },
+            { id: 3, 번호: 3, name: '이영희', 이름: '이영희', job: '기자', 직업명: '기자', cash: 65000, 현금: 65000, stock: 15000, 주식: 15000, level: '실버', 레벨: '실버', permission: '없음', 권한: '없음' }
           ],
           settings: { 급여: 5000, 세금율: 0.1, 예금이율: 0.05 }
         };

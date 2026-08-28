@@ -847,14 +847,20 @@
       document.getElementById('login-screen').style.display = 'none';
 
       // 상단 HUD 데이터 바인딩
-      const st = GameState.student;
-      document.getElementById('hud-player-name').innerHTML = `👤 <strong>${st.이름}</strong>`;
-      document.getElementById('hud-job-badge').textContent = `직업: ${st.직업명 || '학생'}`;
-      document.getElementById('hud-cash-val').textContent = `${(st.현금 || 0).toLocaleString()}원`;
-      document.getElementById('hud-stock-val').textContent = `${(st.주식 || 0).toLocaleString()}원`;
+      const st = GameState.student || {};
+      const name = st.name || st.이름 || '학생';
+      const job = st.job || st.직업명 || '학생';
+      const cash = st.cash ?? st.현금 ?? 0;
+      const stock = st.stock ?? st.주식 ?? 0;
+
+      document.getElementById('hud-player-name').innerHTML = `👤 <strong>${name}</strong>`;
+      document.getElementById('hud-job-badge').textContent = `직업: ${job}`;
+      document.getElementById('hud-cash-val').textContent = `${cash.toLocaleString()}원`;
+      document.getElementById('hud-stock-val').textContent = `${stock.toLocaleString()}원`;
 
       // 관리자인 경우 상단 [🏫 교장실] 퀵 버튼 노출
-      if (GameState.isAdmin) {
+      if (GameState.isAdmin || st.permission === '전체' || st.권한 === '전체') {
+        GameState.isAdmin = true;
         document.getElementById('hud-admin-btn').style.display = 'inline-flex';
       }
 

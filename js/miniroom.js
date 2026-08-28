@@ -53,7 +53,7 @@ const MiniroomSystem = (() => {
 
   // 기숙사 메인 모달 렌더링 (호실 목록)
   function renderDormitoryList(container) {
-    const me = GameState.student ? GameState.student.이름 : '나';
+    const me = GameState.student ? (GameState.student.name || GameState.student.이름 || '나') : '나';
     const students = GameState.rankingList.length > 0
       ? GameState.rankingList
       : [
@@ -100,7 +100,7 @@ const MiniroomSystem = (() => {
     isEditing = false;
     SoundEngine.open();
 
-    const isMe = GameState.student && GameState.student.이름 === ownerName;
+    const isMe = GameState.student && (GameState.student.name || GameState.student.이름) === ownerName;
     const room = getRoomData(ownerName);
     const modalBody = document.getElementById('modal-body-dormitory');
     if (!modalBody) return;
@@ -241,7 +241,7 @@ const MiniroomSystem = (() => {
     const input = document.getElementById('guestbook-msg-input');
     if (!input || !input.value.trim()) return;
 
-    const myName = GameState.student ? GameState.student.이름 : '익명';
+    const myName = GameState.student ? (GameState.student.name || GameState.student.이름 || '익명') : '익명';
     const room = getRoomData(currentRoomOwner);
     if (!room.guestbook) room.guestbook = [];
 
@@ -264,7 +264,7 @@ const MiniroomSystem = (() => {
 
   // 좋아요 누르기
   function likeRoom(ownerName) {
-    const myName = GameState.student ? GameState.student.이름 : '나';
+    const myName = GameState.student ? (GameState.student.name || GameState.student.이름 || '나') : '나';
     const room = getRoomData(ownerName);
     if (!room.likedBy) room.likedBy = [];
 

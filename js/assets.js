@@ -14,7 +14,7 @@ const AssetGenerator = (() => {
     return { cvs, ctx };
   }
 
-  // 1. 기본 지형 타일셋 생성 (Grass, Dirt, Stone, Water, Flowers)
+  // 1. 기본 지형 타일셋 생성 (Grass, Dirt, Stone, Water, Flowers, Bridge)
   function generateTileset() {
     const { cvs, ctx } = createCanvas(256, 256); // 8x8 타일 (32px 단위)
 
@@ -60,7 +60,6 @@ const AssetGenerator = (() => {
     // (4,0) 알록달록 꽃밭 잔디
     ctx.fillStyle = '#88d49e';
     ctx.fillRect(128, 0, 32, 32);
-    // 빨간꽃, 노란꽃, 흰꽃
     ctx.fillStyle = '#ff6b6b'; ctx.fillRect(132, 8, 4, 4);
     ctx.fillStyle = '#feca57'; ctx.fillRect(148, 14, 4, 4);
     ctx.fillStyle = '#ff9ff3'; ctx.fillRect(138, 22, 4, 4);
@@ -74,7 +73,7 @@ const AssetGenerator = (() => {
     ctx.fillRect(160, 28, 32, 4);
     ctx.fillRect(174, 4, 4, 24);
 
-    return cvs.toDataURL();
+    return cvs;
   }
 
   // 2. 캐릭터 4방향 스프라이트시트 (4행 4열 = 16프레임, 32x48 px 단위)
@@ -166,7 +165,7 @@ const AssetGenerator = (() => {
       }
     });
 
-    return cvs.toDataURL();
+    return cvs;
   }
 
   // 3. 14개 건물 스프라이트 템플릿 생성
@@ -224,18 +223,16 @@ const AssetGenerator = (() => {
     const winW = 22;
     const winH = 24;
     const winY = wallY + 18;
-    // 좌측 창문
     ctx.fillStyle = '#bae6fd';
     ctx.fillRect(28, winY, winW, winH);
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.strokeRect(28, winY, winW, winH);
-    // 우측 창문
     ctx.fillStyle = '#bae6fd';
     ctx.fillRect(width - 28 - winW, winY, winW, winH);
     ctx.strokeRect(width - 28 - winW, winY, winW, winH);
 
-    // 건물 간판 (상단 돌출 간판)
+    // 건물 간판
     const signW = Math.min(width - 30, 110);
     const signH = 26;
     const signX = (width - signW) / 2;
@@ -254,7 +251,7 @@ const AssetGenerator = (() => {
     ctx.fillStyle = '#ffffff';
     ctx.fillText(`${signEmoji} ${signTitle}`, width / 2, signY + signH / 2);
 
-    return cvs.toDataURL();
+    return cvs;
   }
 
   // 4. 대형 벚꽃/단풍 나무 스프라이트 (64x80 px)
@@ -273,12 +270,11 @@ const AssetGenerator = (() => {
     ctx.fillStyle = '#92400e';
     ctx.fillRect(28, 44, 4, 30);
 
-    // 잎사귀 덩어리들
+    // 잎사귀
     const mainColor = isPink ? '#f472b6' : '#4ade80';
     const lightColor = isPink ? '#fbcfe8' : '#86efac';
     const darkColor = isPink ? '#db2777' : '#22c55e';
 
-    // 메인 풍성 원형들
     ctx.fillStyle = darkColor;
     ctx.beginPath();
     ctx.arc(32, 36, 24, 0, Math.PI * 2);
@@ -299,14 +295,13 @@ const AssetGenerator = (() => {
     ctx.arc(38, 24, 8, 0, Math.PI * 2);
     ctx.fill();
 
-    return cvs.toDataURL();
+    return cvs;
   }
 
   // 5. 분수대 스프라이트 (64x64 px)
   function generateFountainSprite() {
     const { cvs, ctx } = createCanvas(64, 64);
 
-    // 바닥 수조
     ctx.fillStyle = '#94a3b8';
     ctx.beginPath();
     ctx.ellipse(32, 42, 28, 16, 0, 0, Math.PI * 2);
@@ -317,7 +312,6 @@ const AssetGenerator = (() => {
     ctx.ellipse(32, 40, 24, 12, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 중앙 기둥 & 상단 수조
     ctx.fillStyle = '#cbd5e1';
     ctx.fillRect(28, 20, 8, 20);
 
@@ -325,14 +319,13 @@ const AssetGenerator = (() => {
     ctx.ellipse(32, 20, 14, 7, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 물줄기
     ctx.fillStyle = '#e0f2fe';
     ctx.fillRect(30, 8, 4, 12);
     ctx.beginPath();
     ctx.arc(32, 8, 5, 0, Math.PI * 2);
     ctx.fill();
 
-    return cvs.toDataURL();
+    return cvs;
   }
 
   // 6. 가로등 / 벤치 / 우체통 소품
@@ -340,11 +333,9 @@ const AssetGenerator = (() => {
     const { cvs, ctx } = createCanvas(32, 48);
 
     if (type === 'lamp') {
-      // 가로등
       ctx.fillStyle = '#334155';
       ctx.fillRect(14, 12, 4, 34);
       ctx.fillRect(10, 44, 12, 4);
-      // 전등
       ctx.fillStyle = '#fef08a';
       ctx.beginPath();
       ctx.arc(16, 12, 7, 0, Math.PI * 2);
@@ -352,7 +343,6 @@ const AssetGenerator = (() => {
       ctx.fillStyle = '#334155';
       ctx.fillRect(10, 5, 12, 4);
     } else if (type === 'bench') {
-      // 벤치
       ctx.fillStyle = '#a16207';
       ctx.fillRect(4, 24, 24, 6);
       ctx.fillRect(4, 14, 24, 6);
@@ -360,7 +350,6 @@ const AssetGenerator = (() => {
       ctx.fillRect(6, 30, 3, 10);
       ctx.fillRect(23, 30, 3, 10);
     } else if (type === 'mailbox') {
-      // 우체통
       ctx.fillStyle = '#ef4444';
       ctx.fillRect(8, 16, 16, 18);
       ctx.fillStyle = '#ffffff';
@@ -369,7 +358,7 @@ const AssetGenerator = (() => {
       ctx.fillRect(14, 34, 4, 12);
     }
 
-    return cvs.toDataURL();
+    return cvs;
   }
 
   return {
