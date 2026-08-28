@@ -133,6 +133,20 @@ const API = (() => {
         return { success: true, msg: `아이템을 성공적으로 사용했습니다!` };
       case 'logEmotion':
         return { success: true, msg: `오늘의 기분 [${payload.emotion}] 등록 완료! +500원 보상이 지급되었습니다.` };
+      case 'getMailbox':
+        return {
+          success: true,
+          mails: [
+            { 일시: '2026-08-28 09:30', 이름: '김철수', 카테고리: '칭찬카드', 메세지: '항상 밝은 미소로 청소를 도와줘서 고마워! 👍' },
+            { 일시: '2026-08-28 09:10', 이름: '선생님', 카테고리: '송금우편', 메세지: '학급 자치활동 우수 장학금 5,000원이 입금되었습니다.' }
+          ]
+        };
+      case 'requestSeatTrade':
+        return { success: true, msg: `${payload.targetOwner}님에게 좌석 [${payload.seatId}] 구매 요청을 전송했습니다.` };
+      case 'initSystemSheets':
+        return { success: true, msg: '11개 시스템 시트가 완벽하게 초기화되었습니다.' };
+      case 'logChat':
+        return { success: true };
       case 'getMarketItems':
         return {
           success: true,

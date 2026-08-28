@@ -667,10 +667,18 @@
         <span>📈 주식: <strong id="hud-stock-val" style="color:#0284c7;">0원</strong></span>
       </div>
 
-      <div style="display:flex; gap:6px;">
-        <!-- 상단 가방 (쿠폰 및 인벤토리) 버튼 -->
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <!-- 상단 간편모드 (게시판 모드) 버튼 -->
+        <button class="hud-btn" style="background:#fef3c7; color:#b45309; border-color:#d97706; font-weight:bold;" onclick="ModalManager.open('quick_board')">
+          📋 간편모드
+        </button>
+        <!-- 상단 우편함 버튼 -->
+        <button class="hud-btn" style="background:#fdf2f8; color:#be185d; border-color:#db2777; font-weight:bold;" onclick="ModalManager.open('mailbox')">
+          📬 우편함
+        </button>
+        <!-- 상단 인벤토리 (가방/장착) 버튼 -->
         <button class="hud-btn" style="background:#e0f2fe; color:#0369a1; border-color:#0284c7; font-weight:bold;" onclick="ModalManager.open('inventory')">
-          🎒 가방
+          🎒 인벤토리
         </button>
         <!-- 상단 교장실 (관리자 설정) 퀵 버튼 -->
         <button class="hud-btn hud-admin-btn" id="hud-admin-btn" style="display:none;" onclick="ModalManager.open('principal')">
@@ -828,7 +836,12 @@
     function sendChat() {
       const input = document.getElementById('chat-input');
       if (!input || !input.value.trim()) return;
-      Realtime.sendMessage(input.value.trim());
+      const msg = input.value.trim();
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름 || '익명') : '익명';
+
+      Realtime.sendMessage(msg);
+      API.call('logChat', { name: myName, msg: msg }, true);
       input.value = '';
     }
 

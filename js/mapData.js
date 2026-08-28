@@ -1,5 +1,5 @@
 // ============================================================
-// 2D 타운 맵 레이아웃 & 건물 & 놀이동산 & NPC 정의 (js/mapData.js)
+// 2D 타운 맵 레이아웃 & 6대 테마 구역 & 건물 & 놀이동산 & 워터파크 & 캠핑장 (js/mapData.js)
 // 100 x 80 타일 (3200 x 2560 px)
 // ============================================================
 
@@ -25,7 +25,7 @@ const TownMapData = (() => {
       zone: '주거구역'
     },
 
-    // 2. 금융구역
+    // 2. 금융 & 행정 구역
     {
       id: 'bank',
       name: '은행',
@@ -57,7 +57,7 @@ const TownMapData = (() => {
       name: '부동산 중개소',
       signTitle: '부동산 중개소',
       signEmoji: '🏢',
-      desc: '교실 자리배치도 확인 및 좌석 매매',
+      desc: '교실 자리배치도 확인 및 좌석 구매 요청',
       roofColor: '#e67e22',
       tileX: 81,
       tileY: 28,
@@ -72,7 +72,7 @@ const TownMapData = (() => {
       name: '잡화점 & 가구점',
       signTitle: '잡화점 & 가구점',
       signEmoji: '🛋️',
-      desc: '학급 아이템 및 미니룸 가구/인테리어 구매',
+      desc: '학급 아이템, 캐릭터 장착템, 미니룸 가구 구매',
       roofColor: '#e84393',
       tileX: 18,
       tileY: 54,
@@ -85,7 +85,7 @@ const TownMapData = (() => {
       name: '학급마트',
       signTitle: '학급마트',
       signEmoji: '🛒',
-      desc: '마트 간식/학용품 간편 결제',
+      desc: '마트 간식/학용품 제로페이 간편 결제',
       roofColor: '#00cec9',
       tileX: 32,
       tileY: 54,
@@ -207,24 +207,89 @@ const TownMapData = (() => {
     }
   ];
 
-  // 놀이동산 특수 어트랙션 배치 (맵 동북쪽 구역)
+  // 놀이동산 어트랙션 (탑승 애니메이션 모달 지원)
   const AMUSEMENTS = [
-    { type: 'ferris_wheel', x: 86 * TILE_SIZE, y: 38 * TILE_SIZE, name: '🎡 드림 대관람차' },
-    { type: 'carousel',    x: 74 * TILE_SIZE, y: 38 * TILE_SIZE, name: '🎠 무지개 회전목마' },
-    { type: 'circus_tent', x: 92 * TILE_SIZE, y: 28 * TILE_SIZE, name: '🎪 매직 서커스' },
-    { type: 'popcorn_cart',x: 79 * TILE_SIZE, y: 44 * TILE_SIZE, name: '🍿 달콤 팝콘 카트' }
+    { type: 'ferris_wheel', x: 86 * TILE_SIZE, y: 38 * TILE_SIZE, name: '🎡 드림 대관람차', emoji: '🎡', rideTitle: '하늘 높이 올라가는 대관람차', rideColor: '#f43f5e' },
+    { type: 'carousel',    x: 74 * TILE_SIZE, y: 38 * TILE_SIZE, name: '🎠 무지개 회전목마', emoji: '🎠', rideTitle: '빙글빙글 즐거운 회전목마', rideColor: '#f59e0b' },
+    { type: 'roller_coaster', x: 92 * TILE_SIZE, y: 44 * TILE_SIZE, name: '🎢 스피드 롤러코스터', emoji: '🎢', rideTitle: '짜릿한 초고속 롤러코스터', rideColor: '#e11d48' },
+    { type: 'circus_tent', x: 92 * TILE_SIZE, y: 28 * TILE_SIZE, name: '🎪 매직 서커스', emoji: '🎪', rideTitle: '환상의 마술 서커스 공연', rideColor: '#7c3aed' },
+    { type: 'popcorn_cart',x: 79 * TILE_SIZE, y: 44 * TILE_SIZE, name: '🍿 달콤 팝콘 카트', emoji: '🍿', rideTitle: '고소한 버터 팝콘 스탠드', rideColor: '#facc15' }
   ];
 
-  // 인터랙티브 동물 주민 NPC 목록
+  // 워터파크 어트랙션
+  const WATERPARK = [
+    { type: 'water_slide', x: 44 * TILE_SIZE, y: 60 * TILE_SIZE, name: '🏄‍♂️ 익스트림 워터슬라이드', emoji: '🏄‍♂️' },
+    { type: 'duck_boat',   x: 54 * TILE_SIZE, y: 60 * TILE_SIZE, name: '🦆 호숫가 오리배', emoji: '🦆' },
+    { type: 'beach_umbrella', x: 40 * TILE_SIZE, y: 55 * TILE_SIZE, name: '⛱️ 힐링 비치 파라솔', emoji: '⛱️' }
+  ];
+
+  // 캠핑장 & 피크닉
+  const CAMPING = [
+    { type: 'camp_tent', x: 12 * TILE_SIZE, y: 36 * TILE_SIZE, name: '⛺ 숲속 캠핑 텐트', emoji: '⛺' },
+    { type: 'campfire',  x: 18 * TILE_SIZE, y: 38 * TILE_SIZE, name: '🔥 따뜻한 모닥불 캠프파이어', emoji: '🔥' }
+  ];
+
+  // 인터랙티브 동물 주민 NPC 목록 (대화형 모달 지원)
   const NPCS = [
-    { id: 'npc_bear',   name: '곰돌이 촌장', type: 'bear',   x: 52 * TILE_SIZE, y: 42 * TILE_SIZE, dialog: '안녕! 우리 클래스 타운에 온 걸 환영해 🐻 기숙사에서 나만의 멋진 미니룸을 꾸며보고 친구 방에도 놀러가보렴!' },
-    { id: 'npc_rabbit', name: '토끼 은행원', type: 'rabbit', x: 72 * TILE_SIZE, y: 22 * TILE_SIZE, dialog: '용돈이 생기면 은행에 예금해보세요! 🐰 매일 이자가 쑥쑥 붙는답니다.' },
-    { id: 'npc_cat',    name: '야옹 상인',   type: 'cat',    x: 22 * TILE_SIZE, y: 60 * TILE_SIZE, dialog: '잡화점에 예쁜 가구와 귀여운 펫이 새로 들어왔다냥! 🐱' },
-    { id: 'npc_panda',  name: '판다 선생님', type: 'panda',  x: 48 * TILE_SIZE, y: 20 * TILE_SIZE, dialog: '오늘의 과제와 공지사항을 확인했나요? 🐼 학교 본관에서 제출할 수 있어요!' },
-    { id: 'npc_fox',    name: '여우 투자가', type: 'fox',    x: 92 * TILE_SIZE, y: 22 * TILE_SIZE, dialog: '주식 뉴스를 잘 읽어보면 대박 호재를 찾을 수 있지! 🦊' }
+    {
+      id: 'npc_bear',
+      name: '곰돌이 촌장',
+      type: 'bear',
+      x: 52 * TILE_SIZE,
+      y: 42 * TILE_SIZE,
+      dialogs: [
+        '안녕! 우리 클래스 타운에 온 걸 환영해 🐻',
+        '기숙사에서 멋진 미니룸을 꾸미고 친구 방에도 놀러가보렴!',
+        '상점에서 캐릭터 스피드 신발이나 날개를 장착하면 훨씬 빠르게 달릴 수 있어!'
+      ]
+    },
+    {
+      id: 'npc_rabbit',
+      name: '토끼 은행원',
+      type: 'rabbit',
+      x: 72 * TILE_SIZE,
+      y: 22 * TILE_SIZE,
+      dialogs: [
+        '용돈이 생기면 은행에 정기예금을 해보세요! 🐰',
+        '매일매일 이자가 복리로 쑥쑥 불어난답니다.'
+      ]
+    },
+    {
+      id: 'npc_cat',
+      name: '야옹 상인',
+      type: 'cat',
+      x: 22 * TILE_SIZE,
+      y: 60 * TILE_SIZE,
+      dialogs: [
+        '잡화점에 예쁜 가구와 캐릭터 장착 아이템이 새로 입고됐다냥! 🐱',
+        '황금 오라와 천사의 날개를 장착해보라냥!'
+      ]
+    },
+    {
+      id: 'npc_panda',
+      name: '판다 선생님',
+      type: 'panda',
+      x: 48 * TILE_SIZE,
+      y: 20 * TILE_SIZE,
+      dialogs: [
+        '오늘의 과제와 공지사항을 확인했나요? 🐼',
+        '마음 상담실에서 감정신호등을 체크하면 장학금도 지급돼요!'
+      ]
+    },
+    {
+      id: 'npc_fox',
+      name: '여우 투자가',
+      type: 'fox',
+      x: 92 * TILE_SIZE,
+      y: 22 * TILE_SIZE,
+      dialogs: [
+        '주식 뉴스를 꼼꼼히 읽어보면 대박 호재를 찾을 수 있지! 🦊',
+        '싸게 사서 비싸게 파는 것이 투자의 정석!'
+      ]
+    }
   ];
 
-  // 환경 장식 요소 (분수, 가로등, 벤치, 우체통 등)
+  // 환경 장식
   const PROPS = [
     { type: 'fountain', x: 50 * TILE_SIZE, y: 40 * TILE_SIZE },
     { type: 'lamp', x: 46 * TILE_SIZE, y: 38 * TILE_SIZE },
@@ -239,7 +304,7 @@ const TownMapData = (() => {
     { type: 'mailbox', x: 15 * TILE_SIZE, y: 21 * TILE_SIZE }
   ];
 
-  // 벚꽃/녹색 나무 배치 목록
+  // 벚꽃 나무
   const TREES = [];
   for (let x = 2; x < WIDTH - 2; x += 3) {
     TREES.push({ x: x * TILE_SIZE, y: 3 * TILE_SIZE, isPink: x % 6 === 0 });
@@ -250,28 +315,28 @@ const TownMapData = (() => {
     TREES.push({ x: (WIDTH - 4) * TILE_SIZE, y: y * TILE_SIZE, isPink: y % 6 === 0 });
   }
   for (let tx = 42; tx <= 58; tx += 4) {
-    TREES.push({ x: tx * TILE_SIZE, y: 54 * TILE_SIZE, isPink: true });
-    TREES.push({ x: tx * TILE_SIZE, y: 74 * TILE_SIZE, isPink: true });
+    TREES.push({ x: tx * TILE_SIZE, y: 52 * TILE_SIZE, isPink: true });
+    TREES.push({ x: tx * TILE_SIZE, y: 72 * TILE_SIZE, isPink: true });
   }
 
-  // 타일맵 2차원 배열 생성
+  // 타일 그리드
   function createTileGrid() {
     const grid = Array.from({ length: HEIGHT }, () => Array(WIDTH).fill(0));
 
-    // 호수 구역
-    for (let y = 56; y <= 62; y++) {
-      for (let x = 42; x <= 58; x++) {
-        grid[y][x] = 3; // Water
+    // 워터파크 & 호수 구역 (y: 56~64, x: 38~62)
+    for (let y = 55; y <= 64; y++) {
+      for (let x = 38; x <= 62; x++) {
+        grid[y][x] = (y === 55 || y === 64 || x === 38 || x === 62) ? 6 : 3; // 모래사장(6) & 맑은 물(3)
       }
     }
     // 다리
     for (let x = 48; x <= 52; x++) {
-      grid[59][x] = 5; // Bridge
+      grid[59][x] = 5;
     }
 
-    // 메인 도로망
+    // 메인 도로망 (십자 중심로)
     for (let y = 8; y <= 72; y++) {
-      grid[y][49] = 2; // Stone
+      grid[y][49] = 2;
       grid[y][50] = 2;
       grid[y][51] = 2;
     }
@@ -282,12 +347,22 @@ const TownMapData = (() => {
     }
 
     // 놀이동산 구역 도로
-    for (let y = 32; y <= 46; y++) {
-      grid[y][80] = 1;
-      grid[y][81] = 1;
+    for (let y = 30; y <= 48; y++) {
+      grid[y][72] = 1;
+      grid[y][85] = 1;
+    }
+    for (let x = 72; x <= 96; x++) {
+      grid[34][x] = 1;
+      grid[48][x] = 1;
     }
 
-    // 구역별 보조 흙길
+    // 캠핑장 구역 잔디/흙길
+    for (let y = 32; y <= 42; y++) {
+      grid[y][14] = 1;
+      grid[y][15] = 1;
+    }
+
+    // 보조 흙길
     for (let x = 14; x <= 36; x++) {
       grid[24][x] = 1;
       grid[60][x] = 1;
@@ -317,6 +392,8 @@ const TownMapData = (() => {
     SPAWN_Y: 42 * TILE_SIZE,
     BUILDINGS,
     AMUSEMENTS,
+    WATERPARK,
+    CAMPING,
     NPCS,
     PROPS,
     TREES,

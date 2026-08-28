@@ -1,13 +1,13 @@
 // ============================================================
-// Phaser 3 게임 메인 루프 & 타운 씬 & 미니맵 HUD (js/game.js)
+// Phaser 3 메인 루프 & 6대 테마 타운 & 캐릭터 장착 아이템 시스템 (js/game.js)
 // ============================================================
 
-// 전역 게임 상태
 const GameState = {
   student: null,
   rankingList: [],
   settings: {},
   isAdmin: false,
+  equippedItems: {},
   remotePlayers: {},
   chatBubbles: {}
 };
@@ -19,7 +19,7 @@ class BootScene extends Phaser.Scene {
 
   preload() {
     try {
-      // 1. 기본 타일 및 캐릭터 스프라이트
+      // 1. 타일 및 캐릭터 스프라이트
       const tilesetCvs = AssetGenerator.generateTileset();
       this.textures.addCanvas('tileset', tilesetCvs);
 
@@ -46,21 +46,33 @@ class BootScene extends Phaser.Scene {
         this.textures.addCanvas(`building_${b.id}`, bCvs);
       });
 
-      // 4. 놀이동산 어트랙션 텍스처
+      // 4. 놀이동산 오브젝트
       this.textures.addCanvas('amuse_ferris_wheel', AssetGenerator.generateAmusementSprite('ferris_wheel'));
       this.textures.addCanvas('amuse_carousel', AssetGenerator.generateAmusementSprite('carousel'));
+      this.textures.addCanvas('amuse_roller_coaster', AssetGenerator.generateAmusementSprite('roller_coaster'));
       this.textures.addCanvas('amuse_circus_tent', AssetGenerator.generateAmusementSprite('circus_tent'));
       this.textures.addCanvas('amuse_popcorn_cart', AssetGenerator.generateAmusementSprite('popcorn_cart'));
 
-      // 5. 동물 NPC 텍스처
+      // 5. 워터파크 & 캠핑장 오브젝트
+      this.textures.addCanvas('wp_water_slide', AssetGenerator.generateWaterparkSprite('water_slide'));
+      this.textures.addCanvas('wp_duck_boat', AssetGenerator.generateWaterparkSprite('duck_boat'));
+      this.textures.addCanvas('wp_beach_umbrella', AssetGenerator.generateWaterparkSprite('beach_umbrella'));
+      this.textures.addCanvas('camp_tent', AssetGenerator.generateCampingSprite('camp_tent'));
+      this.textures.addCanvas('campfire', AssetGenerator.generateCampingSprite('campfire'));
+
+      // 6. 동물 NPC
       this.textures.addCanvas('npc_bear', AssetGenerator.generateAnimalNPCSprite('bear'));
       this.textures.addCanvas('npc_rabbit', AssetGenerator.generateAnimalNPCSprite('rabbit'));
       this.textures.addCanvas('npc_cat', AssetGenerator.generateAnimalNPCSprite('cat'));
       this.textures.addCanvas('npc_panda', AssetGenerator.generateAnimalNPCSprite('panda'));
       this.textures.addCanvas('npc_fox', AssetGenerator.generateAnimalNPCSprite('fox'));
 
+      // 7. 장착 아이템 오버레이
+      this.textures.addCanvas('equip_wings', AssetGenerator.generateEquipOverlay('wings_angel'));
+      this.textures.addCanvas('equip_kickboard', AssetGenerator.generateEquipOverlay('mount_kickboard'));
+
     } catch (e) {
-      console.error('[BootScene Texture Error]', e);
+      console.error('[BootScene Error]', e);
     }
   }
 
@@ -95,6 +107,9 @@ class TownScene extends Phaser.Scene {
   constructor() {
     super('TownScene');
     this.player = null;
+    this.wingsSprite = null;
+    this.mountSprite = null;
+    this.auraEmitter = null;
     this.cursors = null;
     this.wasd = null;
     this.interactKey = null;
@@ -164,50 +179,73 @@ class TownScene extends Phaser.Scene {
       });
     });
 
-    // 4. 놀이동산 어트랙션 배치
-    if (TownMapData.AMUSEMENTS) {
-      TownMapData.AMUSEMENTS.forEach(a => {
-        const aSpr = this.physics.add.staticSprite(a.x, a.y, `amuse_${a.type}`);
-        aSpr.setDepth(a.y + 20);
-        this.interactTargets.push({
-          type: 'dialog',
-          id: a.type,
-          name: a.name,
-          emoji: '🎈',
-          dialog: `${a.name}에 탑승했습니다! 신나는 음악이 흘러나옵니다 🎶`,
-          x: a.x,
-          y: a.y + 30,
-          radius: 60
-        });
+    // 4. 놀이동산 어트랙션 (화려한 캔버스 연출 모달 연동)
+    TownMapData.AMUSEMENTS.forEach(a => {
+      const aSpr = this.physics.add.staticSprite(a.x, a.y, `amuse_${a.type}`);
+      aSpr.setDepth(a.y + 20);
+      this.interactTargets.push({
+        type: 'ride',
+        data: a,
+        name: a.name,
+        emoji: a.emoji,
+        x: a.x,
+        y: a.y + 30,
+        radius: 65
       });
-    }
+    });
 
-    // 5. 동물 NPC 배치
-    if (TownMapData.NPCS) {
-      TownMapData.NPCS.forEach(n => {
-        const npcSpr = this.physics.add.staticSprite(n.x, n.y, `npc_${n.type}`);
-        npcSpr.setDepth(n.y + 15);
-        this.add.text(n.x, n.y - 30, n.name, {
-          fontSize: '10px',
-          fill: '#fef08a',
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          padding: { x: 4, y: 2 }
-        }).setOrigin(0.5).setDepth(9999);
-
-        this.interactTargets.push({
-          type: 'dialog',
-          id: n.id,
-          name: n.name,
-          emoji: '💬',
-          dialog: n.dialog,
-          x: n.x,
-          y: n.y + 10,
-          radius: 55
-        });
+    // 5. 워터파크 & 캠핑장
+    TownMapData.WATERPARK.forEach(w => {
+      const wSpr = this.physics.add.staticSprite(w.x, w.y, `wp_${w.type}`);
+      wSpr.setDepth(w.y + 20);
+      this.interactTargets.push({
+        type: 'ride',
+        data: { name: w.name, emoji: w.emoji, rideTitle: w.name, rideColor: '#0284c7' },
+        name: w.name,
+        emoji: w.emoji,
+        x: w.x,
+        y: w.y + 20,
+        radius: 60
       });
-    }
+    });
 
-    // 6. 플레이어 생성
+    TownMapData.CAMPING.forEach(c => {
+      const cSpr = this.physics.add.staticSprite(c.x, c.y, c.type);
+      cSpr.setDepth(c.y + 20);
+      this.interactTargets.push({
+        type: 'ride',
+        data: { name: c.name, emoji: c.emoji, rideTitle: c.name, rideColor: '#10b981' },
+        name: c.name,
+        emoji: c.emoji,
+        x: c.x,
+        y: c.y + 20,
+        radius: 55
+      });
+    });
+
+    // 6. 동물 NPC (대화 모달 연동)
+    TownMapData.NPCS.forEach(n => {
+      const npcSpr = this.physics.add.staticSprite(n.x, n.y, `npc_${n.type}`);
+      npcSpr.setDepth(n.y + 15);
+      this.add.text(n.x, n.y - 30, n.name, {
+        fontSize: '10px',
+        fill: '#fef08a',
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        padding: { x: 4, y: 2 }
+      }).setOrigin(0.5).setDepth(9999);
+
+      this.interactTargets.push({
+        type: 'npc',
+        data: n,
+        name: n.name,
+        emoji: '💬',
+        x: n.x,
+        y: n.y + 10,
+        radius: 55
+      });
+    });
+
+    // 7. 플레이어 생성 & 장착 오버레이
     const spawnX = TownMapData.SPAWN_X;
     const spawnY = TownMapData.SPAWN_Y;
 
@@ -218,6 +256,10 @@ class TownScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.groundLayer);
     this.physics.add.collider(this.player, this.buildingGroup);
+
+    // 날개 & 킥보드 오버레이 스프라이트
+    this.wingsSprite = this.add.sprite(spawnX, spawnY - 10, 'equip_wings').setDepth(9990).setVisible(false);
+    this.mountSprite = this.add.sprite(spawnX, spawnY + 14, 'equip_kickboard').setDepth(9991).setVisible(false);
 
     const st = GameState.student;
     const myDispName = st ? `${st.name || st.이름} (${st.job || st.직업명 || '학생'})` : '나';
@@ -245,12 +287,11 @@ class TownScene extends Phaser.Scene {
       padding: { x: 8, y: 4 }
     }).setOrigin(0.5).setDepth(10001).setVisible(false);
 
-    // 7. 카메라
+    // 8. 카메라 & 입력 키
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.cameras.main.setBounds(0, 0, worldW, worldH);
     this.cameras.main.setZoom(CONFIG.GAME.CAMERA_ZOOM);
 
-    // 8. 입력 키
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -305,46 +346,50 @@ class TownScene extends Phaser.Scene {
       return;
     }
 
-    const speed = CONFIG.GAME.MOVE_SPEED;
-    let vx = 0;
-    let vy = 0;
-    let moving = false;
+    // ─── 캐릭터 장착 아이템 효과 실시간 반영 ───
+    const equips = GameState.equippedItems || {};
+    let speedMult = 1.0;
+
+    if (equips.speed_shoes) speedMult = 1.8;
+    if (equips.giant_grow) this.player.setScale(1.5);
+    else this.player.setScale(1.0);
+
+    if (this.wingsSprite) {
+      this.wingsSprite.setVisible(!!equips.angel_wings);
+      this.wingsSprite.setPosition(this.player.x, this.player.y - (equips.giant_grow ? 15 : 10));
+      this.wingsSprite.setDepth(this.player.depth - 1);
+    }
+
+    if (this.mountSprite) {
+      this.mountSprite.setVisible(!!equips.kickboard);
+      this.mountSprite.setPosition(this.player.x, this.player.y + (equips.giant_grow ? 20 : 14));
+      this.mountSprite.setDepth(this.player.depth + 1);
+    }
+
+    const speed = CONFIG.GAME.MOVE_SPEED * speedMult;
+    let vx = 0, vy = 0, moving = false;
 
     if (this.cursors.left.isDown || this.wasd.left.isDown) {
-      vx = -speed;
-      this.currentDirection = 'left';
-      moving = true;
+      vx = -speed; this.currentDirection = 'left'; moving = true;
     } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
-      vx = speed;
-      this.currentDirection = 'right';
-      moving = true;
+      vx = speed; this.currentDirection = 'right'; moving = true;
     }
 
     if (this.cursors.up.isDown || this.wasd.up.isDown) {
-      vy = -speed;
-      this.currentDirection = 'up';
-      moving = true;
+      vy = -speed; this.currentDirection = 'up'; moving = true;
     } else if (this.cursors.down.isDown || this.wasd.down.isDown) {
-      vy = speed;
-      this.currentDirection = 'down';
-      moving = true;
+      vy = speed; this.currentDirection = 'down'; moving = true;
     }
 
     if (window.MobileJoystickVector && (window.MobileJoystickVector.x !== 0 || window.MobileJoystickVector.y !== 0)) {
       vx = window.MobileJoystickVector.x * speed;
       vy = window.MobileJoystickVector.y * speed;
       moving = true;
-      if (Math.abs(vx) > Math.abs(vy)) {
-        this.currentDirection = vx > 0 ? 'right' : 'left';
-      } else {
-        this.currentDirection = vy > 0 ? 'down' : 'up';
-      }
+      if (Math.abs(vx) > Math.abs(vy)) this.currentDirection = vx > 0 ? 'right' : 'left';
+      else this.currentDirection = vy > 0 ? 'down' : 'up';
     }
 
-    if (vx !== 0 && vy !== 0) {
-      vx *= 0.7071;
-      vy *= 0.7071;
-    }
+    if (vx !== 0 && vy !== 0) { vx *= 0.7071; vy *= 0.7071; }
 
     this.player.body.setVelocity(vx, vy);
 
@@ -356,9 +401,8 @@ class TownScene extends Phaser.Scene {
     }
 
     this.player.setDepth(this.player.y + 20);
-
-    this.playerNameTag.setPosition(this.player.x, this.player.y - 30);
-    this.playerBubble.setPosition(this.player.x, this.player.y - 50);
+    this.playerNameTag.setPosition(this.player.x, this.player.y - (equips.giant_grow ? 40 : 30));
+    this.playerBubble.setPosition(this.player.x, this.player.y - (equips.giant_grow ? 60 : 50));
 
     Realtime.updatePosition(this.player.x, this.player.y, this.currentDirection, moving);
 
@@ -382,25 +426,34 @@ class TownScene extends Phaser.Scene {
     this.nearTarget = found;
 
     if (found) {
-      const actionText = found.type === 'building' ? `${found.emoji} [E] ${found.name} 입장` : `${found.emoji} [E] ${found.name} 대화하기`;
+      let actionText = `${found.emoji} [E] ${found.name} 입장`;
+      if (found.type === 'ride') actionText = `${found.emoji} [E] ${found.name} 탑승하기`;
+      if (found.type === 'npc') actionText = `${found.emoji} [E] ${found.name} 대화하기`;
+
       this.interactPrompt.setText(actionText);
       this.interactPrompt.setPosition(px, py - 45);
       this.interactPrompt.setVisible(true);
 
       if (Phaser.Input.Keyboard.JustDown(this.interactKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-        if (found.type === 'building') {
-          ModalManager.open(found.id);
-        } else if (found.type === 'dialog') {
-          SoundEngine.open();
-          alert(`[${found.name}]\n\n"${found.dialog}"`);
-        }
+        this.executeInteraction(found);
       }
     } else {
       this.interactPrompt.setVisible(false);
     }
   }
 
-  // 실시간 미니맵 렌더러
+  executeInteraction(target) {
+    if (!target) return;
+    if (target.type === 'building') {
+      ModalManager.open(target.id);
+    } else if (target.type === 'ride') {
+      ModalManager.open('ride_modal', target.data);
+    } else if (target.type === 'npc') {
+      ModalManager.open('npc_modal', target.data);
+    }
+  }
+
+  // 실시간 미니맵 레이더
   updateMinimap() {
     const now = Date.now();
     if (now - this.lastMinimapUpdate < 150) return;
@@ -409,63 +462,41 @@ class TownScene extends Phaser.Scene {
     const cvs = document.getElementById('minimap-canvas');
     if (!cvs) return;
     const ctx = cvs.getContext('2d');
-    const W = cvs.width;
-    const H = cvs.height;
-
-    const worldW = TownMapData.WIDTH * 32;
-    const worldH = TownMapData.HEIGHT * 32;
+    const W = cvs.width, H = cvs.height;
+    const worldW = TownMapData.WIDTH * 32, worldH = TownMapData.HEIGHT * 32;
 
     ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#88d49e'; ctx.fillRect(0, 0, W, H);
 
-    // 맵 배경
-    ctx.fillStyle = '#88d49e';
-    ctx.fillRect(0, 0, W, H);
+    // 워터파크 호수
+    const lakeX = (38 / 100) * W, lakeY = (55 / 80) * H, lakeW = (24 / 100) * W, lakeH = (9 / 80) * H;
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(lakeX, lakeY, lakeW, lakeH);
 
-    // 호수
-    const lakeX = (42 / 100) * W;
-    const lakeY = (56 / 80) * H;
-    const lakeW = (16 / 100) * W;
-    const lakeH = (7 / 80) * H;
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(lakeX, lakeY, lakeW, lakeH);
-
-    // 건물 위치 (노란색 사각형)
+    // 건물 (노란 점)
     TownMapData.BUILDINGS.forEach(b => {
-      const bx = (b.tileX / 100) * W;
-      const by = (b.tileY / 80) * H;
-      ctx.fillStyle = '#f59e0b';
-      ctx.fillRect(bx - 2, by - 2, 4, 4);
+      const bx = (b.tileX / 100) * W, by = (b.tileY / 80) * H;
+      ctx.fillStyle = '#f59e0b'; ctx.fillRect(bx - 2, by - 2, 4, 4);
     });
 
-    // NPC 위치 (초록 점)
-    if (TownMapData.NPCS) {
-      TownMapData.NPCS.forEach(n => {
-        const nx = (n.x / worldW) * W;
-        const ny = (n.y / worldH) * H;
-        ctx.fillStyle = '#10b981';
-        ctx.beginPath(); ctx.arc(nx, ny, 2, 0, Math.PI * 2); ctx.fill();
-      });
-    }
+    // NPC & 놀이기구 (초록 점)
+    TownMapData.NPCS.forEach(n => {
+      const nx = (n.x / worldW) * W, ny = (n.y / worldH) * H;
+      ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(nx, ny, 2, 0, Math.PI * 2); ctx.fill();
+    });
 
     // 다른 플레이어 (파란 점)
     Object.values(this.otherPlayerSprites).forEach(p => {
       if (p.spr) {
-        const ox = (p.spr.x / worldW) * W;
-        const oy = (p.spr.y / worldH) * H;
-        ctx.fillStyle = '#3b82f6';
-        ctx.beginPath(); ctx.arc(ox, oy, 2.5, 0, Math.PI * 2); ctx.fill();
+        const ox = (p.spr.x / worldW) * W, oy = (p.spr.y / worldH) * H;
+        ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(ox, oy, 2.5, 0, Math.PI * 2); ctx.fill();
       }
     });
 
-    // 내 위치 (빨간색 빛나는 점)
+    // 내 위치 (빨간 점)
     if (this.player) {
-      const px = (this.player.x / worldW) * W;
-      const py = (this.player.y / worldH) * H;
-      ctx.fillStyle = '#ef4444';
-      ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      const px = (this.player.x / worldW) * W, py = (this.player.y / worldH) * H;
+      ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; ctx.stroke();
     }
   }
 
@@ -506,11 +537,8 @@ class TownScene extends Phaser.Scene {
         remote.tag.setPosition(p.x, p.y - 30);
         remote.bubble.setPosition(p.x, p.y - 50);
 
-        if (p.moving) {
-          remote.spr.anims.play(`walk_${p.dir || 'down'}`, true);
-        } else {
-          remote.spr.anims.play(`idle_${p.dir || 'down'}`, true);
-        }
+        if (p.moving) remote.spr.anims.play(`walk_${p.dir || 'down'}`, true);
+        else remote.spr.anims.play(`idle_${p.dir || 'down'}`, true);
       }
     });
   }
@@ -529,11 +557,8 @@ class TownScene extends Phaser.Scene {
     const myName = st ? (st.name || st.이름) : '';
     let targetBubble = null;
 
-    if (chat.name === myName) {
-      targetBubble = this.playerBubble;
-    } else if (this.otherPlayerSprites[chat.name]) {
-      targetBubble = this.otherPlayerSprites[chat.name].bubble;
-    }
+    if (chat.name === myName) targetBubble = this.playerBubble;
+    else if (this.otherPlayerSprites[chat.name]) targetBubble = this.otherPlayerSprites[chat.name].bubble;
 
     if (targetBubble) {
       targetBubble.setText(chat.msg);
@@ -547,9 +572,7 @@ class TownScene extends Phaser.Scene {
 }
 
 function initPhaserGame() {
-  if (window.GameApp) {
-    window.GameApp.destroy(true);
-  }
+  if (window.GameApp) window.GameApp.destroy(true);
 
   const config = {
     type: Phaser.AUTO,
