@@ -218,8 +218,8 @@ const ModalManager = (() => {
               <div>
                 <div style="font-size:13px; color:#64748b;" id="stock-active-name">📱 삼성전자 (005930)</div>
                 <div style="display:flex; align-items:baseline; gap:8px;">
-                  <div style="font-size:24px; font-weight:900; color:#ef4444;" id="stock-active-price">74,500원</div>
-                  <div style="font-size:13px; font-weight:bold; color:#ef4444;" id="stock-active-rate">+1.20%</div>
+                  <div style="font-size:24px; font-weight:900; color:#ef4444;" id="stock-active-price">시세 불러오는 중...</div>
+                  <div style="font-size:13px; font-weight:bold; color:#ef4444;" id="stock-active-rate">...</div>
                 </div>
               </div>
               <div style="text-align:right;">

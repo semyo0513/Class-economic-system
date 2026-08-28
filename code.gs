@@ -229,7 +229,7 @@ function logTreasury(category, type, amount, person, reason) {
 }
 
 /* ══════════════════════════════════════════════
-   네이버 실시간 증권 크롤러 & 주식 모드 엔진
+   네이버 실시간 증권 크롤러 & 3중 실시간 시세 엔진
 ══════════════════════════════════════════════ */
 function fetchNaverStockPrice(code) {
   const cfg = getSettings();
@@ -247,36 +247,105 @@ function fetchNaverStockPrice(code) {
     };
   }
 
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
+    'Referer': 'https://m.stock.naver.com/',
+    'Accept': 'application/json, text/plain, */*'
+  };
+
+  // 1. 네이버 실시간 polling API (가장 빠르고 정확한 실시간 시세)
   try {
-    const url = 'https://m.stock.naver.com/api/stock/' + code + '/basic';
-    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    const pollUrl = 'https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:' + code;
+    const res = UrlFetchApp.fetch(pollUrl, { headers: headers, muteHttpExceptions: true });
     if (res.getResponseCode() === 200) {
-      const data = JSON.parse(res.getContentText());
-      const priceStr = data.nowPrice || data.closePrice;
-      const price = Number(String(priceStr).replace(/,/g, ''));
-      const changeRate = data.fluctuationsRatio || '0.00';
-      const changePrice = data.compareToPreviousClosePrice || '0';
-      const stockName = data.stockName || code;
-      if (!isNaN(price) && price > 0) {
-        return {
-          code: code,
-          name: stockName,
-          price: price,
-          changeRate: (Number(changePrice) >= 0 ? '+' : '') + changeRate + '%',
-          changePrice: (Number(changePrice) >= 0 ? '+' : '') + changePrice
-        };
+      const json = JSON.parse(res.getContentText());
+      if (json.result && json.result.areas && json.result.areas[0] && json.result.areas[0].datas && json.result.areas[0].datas[0]) {
+        const item = json.result.areas[0].datas[0];
+        const price = Number(item.nv); // 실시간 현재가
+        const rate = (Number(item.cr) || 0).toFixed(2); // 실시간 등락률
+        const cPrice = Number(item.cv) || 0; // 전일비
+        const sName = item.nm || code;
+        if (!isNaN(price) && price > 0) {
+          const isUp = cPrice >= 0;
+          return {
+            code: code,
+            name: sName,
+            price: price,
+            changeRate: (isUp ? '+' : '') + rate + '%',
+            changePrice: (isUp ? '+' : '') + cPrice.toLocaleString()
+          };
+        }
       }
     }
-  } catch (e) {
-    console.warn('Naver stock fetch error:', e);
+  } catch (e1) {
+    console.warn('Naver polling fetch error:', e1);
+  }
+
+  // 2. 네이버 모바일 basic API
+  try {
+    const url = 'https://m.stock.naver.com/api/stock/' + code + '/basic';
+    const res = UrlFetchApp.fetch(url, { headers: headers, muteHttpExceptions: true });
+    if (res.getResponseCode() === 200) {
+      const data = JSON.parse(res.getContentText());
+      const pStr = data.nowPrice || data.closePrice;
+      if (pStr) {
+        const price = Number(String(pStr).replace(/,/g, ''));
+        const changeRate = data.fluctuationsRatio || '0.00';
+        const changePrice = data.compareToPreviousClosePrice || '0';
+        const stockName = data.stockName || code;
+        if (!isNaN(price) && price > 0) {
+          const isUp = Number(String(changePrice).replace(/,/g, '')) >= 0;
+          return {
+            code: code,
+            name: stockName,
+            price: price,
+            changeRate: (isUp ? '+' : '') + changeRate + '%',
+            changePrice: (isUp ? '+' : '') + changePrice
+          };
+        }
+      }
+    }
+  } catch (e2) {
+    console.warn('Naver m.stock fetch error:', e2);
+  }
+
+  // 3. 구글 스프레드시트 GOOGLEFINANCE 실시간 연동
+  try {
+    const ss = getSpreadsheet();
+    let tempSheet = ss.getSheetByName('_StockSync');
+    if (!tempSheet) {
+      tempSheet = ss.insertSheet('_StockSync');
+      tempSheet.hideSheet();
+    }
+    tempSheet.getRange('A1').setFormula(`=GOOGLEFINANCE("KRX:${code}", "price")`);
+    tempSheet.getRange('B1').setFormula(`=GOOGLEFINANCE("KRX:${code}", "changepct")`);
+    tempSheet.getRange('C1').setFormula(`=GOOGLEFINANCE("KRX:${code}", "name")`);
+    SpreadsheetApp.flush();
+
+    const gPrice = Number(tempSheet.getRange('A1').getValue());
+    const gChange = Number(tempSheet.getRange('B1').getValue());
+    const gName = String(tempSheet.getRange('C1').getValue());
+
+    if (!isNaN(gPrice) && gPrice > 0) {
+      const isUp = gChange >= 0;
+      return {
+        code: code,
+        name: gName || code,
+        price: gPrice,
+        changeRate: (isUp ? '+' : '') + (gChange * 100).toFixed(2) + '%',
+        changePrice: (isUp ? '+' : '-') + Math.abs(Math.round(gPrice * gChange))
+      };
+    }
+  } catch (e3) {
+    console.warn('GoogleFinance fetch error:', e3);
   }
 
   const fallbacks = {
-    '005930': { name: '삼성전자', price: 74500, changeRate: '+1.20%', changePrice: '+900' },
-    '035720': { name: '카카오', price: 42800, changeRate: '-0.70%', changePrice: '-300' },
-    '035420': { name: 'NAVER', price: 172000, changeRate: '+2.10%', changePrice: '+3500' },
-    '086520': { name: '에코프로', price: 92000, changeRate: '+4.50%', changePrice: '+4000' },
-    '005380': { name: '현대차', price: 245000, changeRate: '+0.80%', changePrice: '+2000' }
+    '005930': { name: '삼성전자', price: 60500, changeRate: '+1.51%', changePrice: '+900' },
+    '035720': { name: '카카오', price: 38200, changeRate: '-0.52%', changePrice: '-200' },
+    '035420': { name: 'NAVER', price: 168500, changeRate: '+2.12%', changePrice: '+3500' },
+    '086520': { name: '에코프로', price: 89400, changeRate: '+3.85%', changePrice: '+3300' },
+    '005380': { name: '현대차', price: 238500, changeRate: '+0.85%', changePrice: '+2000' }
   };
   return fallbacks[code] ? { code, ...fallbacks[code] } : { code, name: code, price: 10000, changeRate: '0.00%', changePrice: '0' };
 }
