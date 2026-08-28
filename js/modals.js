@@ -1325,7 +1325,7 @@ const ModalManager = (() => {
     updateMultiStockUI: () => {
       const code = ModalManager.activeMultiStockCode || '005930';
       const stocks = ModalManager.multiStockCache || [];
-      const curStock = stocks.find(s => s.code === code) || stocks[0] || { name: '삼성전자', price: 74500, changeRate: '+1.20%' };
+      const curStock = stocks.find(s => s.code === code) || stocks[0] || { name: '삼성전자', code: '005930', price: 60000, changeRate: '+0.00%' };
       const holdings = ModalManager.multiStockHoldings || {};
       const myQty = holdings[code] || holdings[curStock.name] || 0;
 
@@ -1336,7 +1336,7 @@ const ModalManager = (() => {
       const evalEl = document.getElementById('stock-active-eval');
 
       if (nameEl) nameEl.textContent = `${curStock.icon || '📈'} ${curStock.name} (${curStock.code})`;
-      if (priceEl) priceEl.textContent = `${(curStock.price || 10000).toLocaleString()}원`;
+      if (priceEl) priceEl.textContent = `${(curStock.price || 0).toLocaleString()}원`;
       if (rateEl) {
         const isUp = (curStock.changeRate || '').includes('+');
         rateEl.textContent = curStock.changeRate || '0.00%';
@@ -1344,7 +1344,7 @@ const ModalManager = (() => {
         if (priceEl) priceEl.style.color = isUp ? '#ef4444' : '#3b82f6';
       }
       if (holdEl) holdEl.textContent = `${myQty.toLocaleString()}주`;
-      if (evalEl) evalEl.textContent = `${(myQty * (curStock.price || 10000)).toLocaleString()}원`;
+      if (evalEl) evalEl.textContent = `${(myQty * (curStock.price || 0)).toLocaleString()}원`;
 
       const cvs = document.getElementById('stock-chart-canvas');
       if (cvs && curStock.price) {

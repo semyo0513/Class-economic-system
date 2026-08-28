@@ -229,7 +229,7 @@ function logTreasury(category, type, amount, person, reason) {
 }
 
 /* ══════════════════════════════════════════════
-   네이버 실시간 증권 크롤러 & 3중 실시간 시세 엔진
+   구글 & 야후 & 다음 실시간 증권 4중 검색 크롤러
 ══════════════════════════════════════════════ */
 function fetchNaverStockPrice(code) {
   const cfg = getSettings();
@@ -247,69 +247,115 @@ function fetchNaverStockPrice(code) {
     };
   }
 
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
-    'Referer': 'https://m.stock.naver.com/',
-    'Accept': 'application/json, text/plain, */*'
+  const stockNames = {
+    '005930': '삼성전자',
+    '035720': '카카오',
+    '035420': 'NAVER',
+    '086520': '에코프로',
+    '005380': '현대차',
+    '000660': 'SK하이닉스'
   };
+  const defaultName = stockNames[code] || code;
 
-  // 1. 네이버 실시간 polling API (가장 빠르고 정확한 실시간 시세)
+  // 1. Google Finance 실시간 웹 크롤링
   try {
-    const pollUrl = 'https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:' + code;
-    const res = UrlFetchApp.fetch(pollUrl, { headers: headers, muteHttpExceptions: true });
+    const exchange = code === '086520' ? 'KOSDAQ' : 'KRX';
+    const gUrl = 'https://www.google.com/finance/quote/' + code + ':' + exchange + '?hl=ko';
+    const res = UrlFetchApp.fetch(gUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
+      },
+      muteHttpExceptions: true
+    });
     if (res.getResponseCode() === 200) {
-      const json = JSON.parse(res.getContentText());
-      if (json.result && json.result.areas && json.result.areas[0] && json.result.areas[0].datas && json.result.areas[0].datas[0]) {
-        const item = json.result.areas[0].datas[0];
-        const price = Number(item.nv); // 실시간 현재가
-        const rate = (Number(item.cr) || 0).toFixed(2); // 실시간 등락률
-        const cPrice = Number(item.cv) || 0; // 전일비
-        const sName = item.nm || code;
-        if (!isNaN(price) && price > 0) {
-          const isUp = cPrice >= 0;
+      const html = res.getContentText();
+      const priceMatch = html.match(/class="YMlKec fxKbKc"[^>]*>([₩\d,]+)<\/div>/i);
+      const rateMatch = html.match(/class="JwB6be"[^>]*>([+-]?[\d\.]+%?)<\/div>/i) || html.match(/aria-label="[^"]*([+-]?[\d\.]+%)[^"]*"/i);
+
+      if (priceMatch && priceMatch[1]) {
+        const pNum = Number(priceMatch[1].replace(/[₩,]/g, '').trim());
+        if (!isNaN(pNum) && pNum > 0) {
+          const rateStr = rateMatch ? rateMatch[1] : '0.00%';
           return {
             code: code,
-            name: sName,
-            price: price,
-            changeRate: (isUp ? '+' : '') + rate + '%',
-            changePrice: (isUp ? '+' : '') + cPrice.toLocaleString()
+            name: defaultName,
+            price: pNum,
+            changeRate: rateStr.startsWith('+') || rateStr.startsWith('-') ? rateStr : ('+' + rateStr),
+            changePrice: rateStr
           };
         }
       }
     }
   } catch (e1) {
-    console.warn('Naver polling fetch error:', e1);
+    console.warn('Google Finance scrape error:', e1);
   }
 
-  // 2. 네이버 모바일 basic API
+  // 2. Yahoo Finance 실시간 v8 Chart API
   try {
-    const url = 'https://m.stock.naver.com/api/stock/' + code + '/basic';
-    const res = UrlFetchApp.fetch(url, { headers: headers, muteHttpExceptions: true });
-    if (res.getResponseCode() === 200) {
-      const data = JSON.parse(res.getContentText());
-      const pStr = data.nowPrice || data.closePrice;
-      if (pStr) {
-        const price = Number(String(pStr).replace(/,/g, ''));
-        const changeRate = data.fluctuationsRatio || '0.00';
-        const changePrice = data.compareToPreviousClosePrice || '0';
-        const stockName = data.stockName || code;
-        if (!isNaN(price) && price > 0) {
-          const isUp = Number(String(changePrice).replace(/,/g, '')) >= 0;
+    const yfSuffix = code === '086520' ? '.KQ' : '.KS';
+    const yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + code + yfSuffix + '?interval=1d';
+    const yRes = UrlFetchApp.fetch(yUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+      },
+      muteHttpExceptions: true
+    });
+    if (yRes.getResponseCode() === 200) {
+      const yData = JSON.parse(yRes.getContentText());
+      if (yData.chart && yData.chart.result && yData.chart.result[0]) {
+        const meta = yData.chart.result[0].meta;
+        const curPrice = Number(meta.regularMarketPrice);
+        const prevClose = Number(meta.previousClose || meta.chartPreviousClose || curPrice);
+        if (!isNaN(curPrice) && curPrice > 0) {
+          const diff = curPrice - prevClose;
+          const pct = ((diff / prevClose) * 100).toFixed(2);
+          const isUp = diff >= 0;
           return {
             code: code,
-            name: stockName,
-            price: price,
-            changeRate: (isUp ? '+' : '') + changeRate + '%',
-            changePrice: (isUp ? '+' : '') + changePrice
+            name: defaultName,
+            price: curPrice,
+            changeRate: (isUp ? '+' : '') + pct + '%',
+            changePrice: (isUp ? '+' : '') + Math.round(diff).toLocaleString()
           };
         }
       }
     }
   } catch (e2) {
-    console.warn('Naver m.stock fetch error:', e2);
+    console.warn('Yahoo Finance fetch error:', e2);
   }
 
-  // 3. 구글 스프레드시트 GOOGLEFINANCE 실시간 연동
+  // 3. Daum 실시간 금융 API
+  try {
+    const dUrl = 'https://finance.daum.net/api/quotes/A' + code + '?summary=false&changeOver=false';
+    const dRes = UrlFetchApp.fetch(dUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://finance.daum.net/'
+      },
+      muteHttpExceptions: true
+    });
+    if (dRes.getResponseCode() === 200) {
+      const dJson = JSON.parse(dRes.getContentText());
+      const dPrice = Number(dJson.tradePrice);
+      const dRate = (Number(dJson.changeRate) * 100).toFixed(2);
+      const dChange = Number(dJson.changePrice);
+      if (!isNaN(dPrice) && dPrice > 0) {
+        const isUp = dChange >= 0;
+        return {
+          code: code,
+          name: dJson.name || defaultName,
+          price: dPrice,
+          changeRate: (isUp ? '+' : '') + dRate + '%',
+          changePrice: (isUp ? '+' : '') + dChange.toLocaleString()
+        };
+      }
+    }
+  } catch (e3) {
+    console.warn('Daum finance fetch error:', e3);
+  }
+
+  // 4. 구글 스프레드시트 GOOGLEFINANCE 수식
   try {
     const ss = getSpreadsheet();
     let tempSheet = ss.getSheetByName('_StockSync');
@@ -319,35 +365,26 @@ function fetchNaverStockPrice(code) {
     }
     tempSheet.getRange('A1').setFormula(`=GOOGLEFINANCE("KRX:${code}", "price")`);
     tempSheet.getRange('B1').setFormula(`=GOOGLEFINANCE("KRX:${code}", "changepct")`);
-    tempSheet.getRange('C1').setFormula(`=GOOGLEFINANCE("KRX:${code}", "name")`);
     SpreadsheetApp.flush();
 
     const gPrice = Number(tempSheet.getRange('A1').getValue());
     const gChange = Number(tempSheet.getRange('B1').getValue());
-    const gName = String(tempSheet.getRange('C1').getValue());
 
     if (!isNaN(gPrice) && gPrice > 0) {
       const isUp = gChange >= 0;
       return {
         code: code,
-        name: gName || code,
+        name: defaultName,
         price: gPrice,
         changeRate: (isUp ? '+' : '') + (gChange * 100).toFixed(2) + '%',
-        changePrice: (isUp ? '+' : '-') + Math.abs(Math.round(gPrice * gChange))
+        changePrice: (isUp ? '+' : '-') + Math.abs(Math.round(gPrice * gChange)).toLocaleString()
       };
     }
-  } catch (e3) {
-    console.warn('GoogleFinance fetch error:', e3);
+  } catch (e4) {
+    console.warn('GoogleFinance formula error:', e4);
   }
 
-  const fallbacks = {
-    '005930': { name: '삼성전자', price: 60500, changeRate: '+1.51%', changePrice: '+900' },
-    '035720': { name: '카카오', price: 38200, changeRate: '-0.52%', changePrice: '-200' },
-    '035420': { name: 'NAVER', price: 168500, changeRate: '+2.12%', changePrice: '+3500' },
-    '086520': { name: '에코프로', price: 89400, changeRate: '+3.85%', changePrice: '+3300' },
-    '005380': { name: '현대차', price: 238500, changeRate: '+0.85%', changePrice: '+2000' }
-  };
-  return fallbacks[code] ? { code, ...fallbacks[code] } : { code, name: code, price: 10000, changeRate: '0.00%', changePrice: '0' };
+  return { code: code, name: defaultName, price: 60000, changeRate: '+0.00%', changePrice: '0' };
 }
 
 function getCurrentStockPrice() {
