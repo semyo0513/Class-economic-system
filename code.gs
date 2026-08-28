@@ -691,7 +691,7 @@ function handleRequest(payload) {
       }
 
       case 'login': {
-        const name = String(payload.name).trim();
+        const name = String(payload.name || '').trim();
         const pwd = String(payload.password || '1234').trim();
 
         if (name === '선생님') {
@@ -699,28 +699,47 @@ function handleRequest(payload) {
             result = {
               success: true,
               isAdmin: true,
-              student: { name: '선생님', job: '교사(관리자)', permission: '전체', cash: 9999999, stockQty: 100, totalAsset: 9999999 }
+              student: { name: '선생님', job: '교사(관리자)', permission: '전체', cash: 99999999, stockQty: 100, totalAsset: 99999999 }
             };
           } else {
-            result = { success: false, msg: '교사 비밀번호가 일치하지 않습니다.' };
+            result = { success: false, msg: '교사 비밀번호(0513)가 일치하지 않습니다.' };
           }
           break;
         }
 
         const sh = getOrCreateSheet(SH.USERS);
-        const rows = sheetToObj(sh);
-        let user = rows.find(r => String(r['이름']).trim() === name);
+        const data = sh.getDataRange().getValues();
+        const headers = data[0].map(h => String(h).trim());
+        const nameCol = headers.findIndex(h => h === '이름' || h === '학생명' || h === '성명');
+        const pwCol = headers.findIndex(h => h === '비밀번호' || h === '암호' || h === 'PW');
+        const nIdx = nameCol >= 0 ? nameCol : 1;
+        const pIdx = pwCol >= 0 ? pwCol : 2;
 
-        if (!user) {
-          const newId = rows.length + 1;
-          sh.appendRow([newId, name, pwd, '학생', '브론즈(Lv.1)', '일반', 100000, 0, 0, 100000]);
-          user = { 번호: newId, 이름: name, 비밀번호: pwd, 직업명: '학생', 레벨: '브론즈(Lv.1)', 권한: '일반', 현금: 100000, 주식수량: 0, 총자산: 100000 };
-        } else if (String(user['비밀번호']).trim() !== pwd && pwd !== '1234') {
-          return respond({ success: false, msg: '비밀번호가 일치하지 않습니다.' });
+        let found = false;
+        const cleanTarget = name.replace(/\s+/g, '');
+
+        for (let i = 1; i < data.length; i++) {
+          const rowName = String(data[i][nIdx] || '').trim().replace(/\s+/g, '');
+          if (rowName === cleanTarget) {
+            found = true;
+            const sheetPw = String(data[i][pIdx] || '1234').trim();
+            if (sheetPw && pwd && sheetPw !== pwd && pwd !== '1234') {
+              result = { success: false, msg: '비밀번호가 일치하지 않습니다.' };
+              break;
+            }
+            const st = syncStudentAssets(String(data[i][nIdx]).trim());
+            result = { success: true, isAdmin: (st.permission === '전체'), student: st };
+            break;
+          }
         }
 
-        const st = syncStudentAssets(name);
-        result = { success: true, isAdmin: false, student: st };
+        if (!found) {
+          // 시트에 없는 신규 학생 등록
+          const newId = data.length;
+          sh.appendRow([newId, name, pwd, '학생', '브론즈(Lv.1)', '일반', 100000, 0, 0, 100000]);
+          const st = syncStudentAssets(name);
+          result = { success: true, isAdmin: false, student: st };
+        }
         break;
       }
 

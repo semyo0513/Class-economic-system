@@ -897,29 +897,33 @@
       const pwInput = document.getElementById('login-pw-input');
       const isAdminCheck = document.getElementById('admin-login-checkbox').checked;
 
-      const name = nameInput.value.trim() || (isAdminCheck ? '선생님' : '학생1');
+      const name = nameInput.value.trim() || (isAdminCheck ? '선생님' : '김현주');
       const pw = pwInput.value.trim() || (isAdminCheck ? '0513' : '1234');
 
-      // 1. 임시 학생 객체로 게임 화면 즉시 진입 (멈춤/지연 0%)
-      if (isAdminCheck) {
-        GameState.isAdmin = true;
-        GameState.student = { name: '선생님', 이름: '선생님', job: '교사(관리자)', 직업명: '교사(관리자)', cash: 999999, 현금: 999999, stock: 999999, 주식: 999999, permission: '전체', 권한: '전체' };
-      } else {
-        GameState.isAdmin = false;
-        GameState.student = {
-          id: 1, name: name, 이름: name,
-          job: '학생', 직업명: '학생',
-          cash: 50000, 현금: 50000,
-          stock: 20000, 주식: 20000, stockQty: 10,
-          totalAsset: 70000,
-          permission: '일반', 권한: '일반'
-        };
-      }
+      API.showLoading('구글 시트에서 학생 자산 및 정보 동기화 중...');
 
-      startGameAfterLogin();
-
-      // 2. 백그라운드에서 구글 시트 실제 자산, 설정, 학교명 및 랭킹 비동기 동기화
       try {
+        const loginRes = await API.call('login', { name: name, password: pw });
+        if (loginRes && loginRes.success && loginRes.student) {
+          GameState.student = loginRes.student;
+          GameState.isAdmin = loginRes.isAdmin || loginRes.student.permission === '전체' || name === '선생님';
+        } else if (isAdminCheck && name === '선생님') {
+          GameState.isAdmin = true;
+          GameState.student = { name: '선생님', 이름: '선생님', job: '교사(관리자)', 직업명: '교사(관리자)', cash: 99999999, 현금: 99999999, stock: 1000000, 주식: 1000000, permission: '전체', 권한: '전체' };
+        } else {
+          // 비상 폴백
+          GameState.isAdmin = false;
+          GameState.student = {
+            id: 1, name: name, 이름: name,
+            job: '학생', 직업명: '학생',
+            cash: 100000, 현금: 100000,
+            stock: 0, 주식: 0, stockQty: 0,
+            totalAsset: 100000,
+            permission: '일반', 권한: '일반'
+          };
+        }
+
+        // 초기 시스템 설정 동기화
         API.call('initData', {}, true).then(res => {
           if (res && res.settings) {
             GameState.settings = res.settings;
@@ -934,47 +938,13 @@
             GameState.rankingList = res.ranking;
           }
         });
-
-        if (isAdminCheck) {
-          API.call('login', { name: '선생님', password: pw }, true).then(res => {
-            if (res && (res.success || res.isAdmin)) {
-              GameState.isAdmin = true;
-              const adminBtn = document.getElementById('hud-admin-btn');
-              if (adminBtn) adminBtn.style.display = 'inline-flex';
-            }
-          });
-        } else {
-          API.call('login', { name, password: pw }, true).then(res => {
-            if (res && res.success && res.student) {
-              GameState.student = res.student;
-              const perm = res.student.permission || res.student.권한 || '일반';
-              if (perm === '전체' || res.student.name === '선생님') {
-                GameState.isAdmin = true;
-                const adminBtn = document.getElementById('hud-admin-btn');
-                if (adminBtn) adminBtn.style.display = 'inline-flex';
-              } else {
-                GameState.isAdmin = false;
-                const adminBtn = document.getElementById('hud-admin-btn');
-                if (adminBtn) adminBtn.style.display = 'none';
-              }
-              // HUD 갱신
-              const cash = res.student.cash ?? res.student.현금 ?? 0;
-              const stock = res.student.stock ?? res.student.주식 ?? 0;
-              const job = res.student.job || res.student.직업명 || '학생';
-              const nameEl = document.getElementById('hud-player-name');
-              const jobEl = document.getElementById('hud-job-badge');
-              const cashEl = document.getElementById('hud-cash-val');
-              const stockEl = document.getElementById('hud-stock-val');
-              if (nameEl) nameEl.innerHTML = `👤 <strong>${res.student.name || name}</strong>`;
-              if (jobEl) jobEl.textContent = `${job}`;
-              if (cashEl) cashEl.textContent = `${cash.toLocaleString()}원`;
-              if (stockEl) stockEl.textContent = `${stock.toLocaleString()}원`;
-            }
-          });
-        }
       } catch (err) {
-        console.warn('[Sync in background failed]', err);
+        console.warn('[Login sync error]', err);
+        GameState.student = { name: name, job: '학생', cash: 100000, stock: 0, permission: '일반' };
       }
+
+      API.hideLoading();
+      startGameAfterLogin();
     }
 
     function startGameAfterLogin() {
