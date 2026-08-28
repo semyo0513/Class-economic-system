@@ -97,9 +97,8 @@ const ModalManager = (() => {
 
     titleEl.innerHTML = `${building.signEmoji} ${building.name}`;
     overlay.style.display = 'flex';
-    bodyEl.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;">데이터를 불러오는 중입니다...</div>';
 
-    // 안전한 렌더링 호출
+    // 지연 없이 0초 만에 즉시 렌더링
     try {
       renderBuildingContent(buildingId, bodyEl);
     } catch (err) {

@@ -77,24 +77,20 @@ const MiniroomSystem = (() => {
     saveRoomData(studentName, room);
   }
 
-  // 기숙사 메인 모달 렌더링 (호실 목록)
-  async function renderDormitoryList(container) {
+  // 기숙사 메인 모달 렌더링 (호실 목록 즉시 0초 렌더링)
+  function renderDormitoryList(container) {
     const me = GameState.student ? (GameState.student.name || GameState.student.이름 || '나') : '나';
-    
-    // 시트에서 미니룸 데이터 가져오기
-    const cloudRes = await API.call('getRoomData', { name: me }, true);
-    if (cloudRes && cloudRes.success && cloudRes.roomData) {
-      localStorage.setItem(`classbank_room_${me}`, JSON.stringify(cloudRes.roomData));
-    }
 
-    const students = GameState.rankingList.length > 0
+    // 1. 학생 목록 구성
+    const students = (GameState.rankingList && GameState.rankingList.length > 0)
       ? GameState.rankingList
       : [
           { name: me, job: '학생' },
-          { name: '김철수', job: '은행원' },
-          { name: '이영희', job: '기자' },
-          { name: '박민우', job: '환경미화' },
-          { name: '최수진', job: '우체부' }
+          { name: '김현주', job: '문화체육부 장관' },
+          { name: '이하진', job: '대통령(반장)' },
+          { name: '정수빈', job: '은행원' },
+          { name: '서언', job: '국세청장' },
+          { name: '홍길동', job: '학생' }
         ];
 
     let html = `
@@ -116,7 +112,7 @@ const MiniroomSystem = (() => {
           <div class="dorm-card-avatar">🏠</div>
           <div class="dorm-card-name">${sName}</div>
           <div class="dorm-card-job">${sJob}</div>
-          <div class="dorm-card-msg">"${(room.statusMsg || '').substring(0, 22)}..."</div>
+          <div class="dorm-card-msg">"${(room.statusMsg || '즐거운 하루!').substring(0, 22)}..."</div>
           <div class="dorm-card-footer">
             <span>❤️ ${room.likes || 0}</span>
             <span>💬 방명록 ${(room.guestbook || []).length}</span>
@@ -127,6 +123,13 @@ const MiniroomSystem = (() => {
 
     html += `</div>`;
     container.innerHTML = html;
+
+    // 2. 백그라운드에서 시트 최신 미니룸 데이터 동기화
+    API.call('getRoomData', { name: me }, true).then(cloudRes => {
+      if (cloudRes && cloudRes.success && cloudRes.roomData) {
+        localStorage.setItem(`classbank_room_${me}`, JSON.stringify(cloudRes.roomData));
+      }
+    });
   }
 
   // 특정 학생의 미니룸 화면 오픈
