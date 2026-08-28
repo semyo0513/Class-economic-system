@@ -448,28 +448,64 @@ function fetchNeisTimetable(dateStr) {
 }
 
 /* ══════════════════════════════════════════════
-   학생 자산 및 동기화
+   학생 자산 및 동기화 (동적 헤더 인덱스 매핑)
 ══════════════════════════════════════════════ */
 function syncStudentAssets(studentName) {
+  const nameTrim = String(studentName || '').trim();
+  if (!nameTrim) return null;
+
+  if (nameTrim === '선생님') {
+    return {
+      id: 1,
+      name: '선생님',
+      job: '교사(관리자)',
+      level: '다이아(Lv.5)',
+      permission: '전체',
+      cash: 99999999,
+      stockQty: 1000,
+      stockVal: 1000000,
+      totalAsset: 99999999
+    };
+  }
+
   const sh = getOrCreateSheet(SH.USERS);
   const data = sh.getDataRange().getValues();
+  if (data.length <= 1) {
+    initSystemSheets();
+    return syncStudentAssets(studentName);
+  }
+
+  const headers = data[0].map(h => String(h).trim());
+  const nameCol = headers.findIndex(h => h === '이름' || h === '학생명' || h === '성명');
+  const cashCol = headers.findIndex(h => h === '현금' || h === '잔액' || h === '보유현금');
+  const stockCol = headers.findIndex(h => h === '주식수량' || h === '주식' || h === '보유주식');
+  const stockValCol = headers.findIndex(h => h === '주식현재총금액' || h === '주식평가금액');
+  const totalCol = headers.findIndex(h => h === '총자산' || h === '총금액');
+  const jobCol = headers.findIndex(h => h === '직업명' || h === '직업');
+  const permCol = headers.findIndex(h => h === '권한' || h === '직무권한');
+  const idCol = headers.findIndex(h => h === '번호' || h === 'ID' || h === '학번');
+
   const curStockPrice = getCurrentStockPrice();
 
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][1]).trim() === studentName) {
-      const cash = Number(data[i][6]) || 0;
-      const stockQty = Number(data[i][7]) || 0;
+    const rowName = String(data[i][nameCol >= 0 ? nameCol : 1]).trim();
+    if (rowName === nameTrim) {
+      const cIdx = cashCol >= 0 ? cashCol : 6;
+      const sIdx = stockCol >= 0 ? stockCol : 7;
+      const cash = Number(data[i][cIdx]) || 0;
+      const stockQty = Number(data[i][sIdx]) || 0;
       const stockVal = stockQty * curStockPrice;
       const totalAsset = cash + stockVal;
 
-      sh.getRange(i + 1, 9).setValue(stockVal);
-      sh.getRange(i + 1, 10).setValue(totalAsset);
+      if (stockValCol >= 0) sh.getRange(i + 1, stockValCol + 1).setValue(stockVal);
+      if (totalCol >= 0) sh.getRange(i + 1, totalCol + 1).setValue(totalAsset);
+
       return {
-        id: data[i][0],
-        name: data[i][1],
-        job: data[i][3] || '학생',
+        id: data[i][idCol >= 0 ? idCol : 0] || i,
+        name: rowName,
+        job: data[i][jobCol >= 0 ? jobCol : 3] || '학생',
         level: data[i][4] || '브론즈',
-        permission: data[i][5] || '일반',
+        permission: data[i][permCol >= 0 ? permCol : 5] || '일반',
         cash: cash,
         stockQty: stockQty,
         stockVal: stockVal,
@@ -477,65 +513,93 @@ function syncStudentAssets(studentName) {
       };
     }
   }
-  return null;
+
+  // 시트에 없는 학생인 경우 자동 신규 등록 (기본 지원금 100,000원)
+  const newId = data.length;
+  sh.appendRow([newId, nameTrim, '1234', '학생', '브론즈(Lv.1)', '일반', 100000, 0, 0, 100000]);
+  return {
+    id: newId,
+    name: nameTrim,
+    job: '학생',
+    level: '브론즈(Lv.1)',
+    permission: '일반',
+    cash: 100000,
+    stockQty: 0,
+    stockVal: 0,
+    totalAsset: 100000
+  };
 }
 
 function getStudentsWithAssets() {
   const sh = getOrCreateSheet(SH.USERS);
-  if (sh.getLastRow() <= 1) {
-    const defaultStudents = [
-      [1, '선생님', '0513', '교사(관리자)', '다이아(Lv.5)', '전체', 999999, 100, 120000, 1119999],
-      [2, '김현주', '1234', '문화체육부 장관', '골드(Lv.3)', '벌금징수,마트관리', 2310000, 50, 60000, 2370000],
-      [3, '이하진', '1234', '대통령(반장)', '골드(Lv.3)', '월급배부,경고', 1722000, 30, 36000, 1758000],
-      [4, '정수빈', '1234', '은행원', '실버(Lv.2)', '일반', 1695800, 20, 24000, 1719800],
-      [5, '서언', '1234', '국세청장', '실버(Lv.2)', '월급배부', 1666560, 10, 12000, 1678560],
-      [6, '고설아', '1234', '학생', '브론즈(Lv.1)', '일반', 120000, 10, 12000, 132000]
-    ];
-    defaultStudents.forEach(r => sh.appendRow(r));
+  const data = sh.getDataRange().getValues();
+  if (data.length <= 1) {
+    initSystemSheets();
+    return getStudentsWithAssets();
   }
 
+  const headers = data[0].map(h => String(h).trim());
+  const nameCol = headers.findIndex(h => h === '이름' || h === '학생명' || h === '성명');
+  const cashCol = headers.findIndex(h => h === '현금' || h === '잔액' || h === '보유현금');
+  const stockCol = headers.findIndex(h => h === '주식수량' || h === '주식' || h === '보유주식');
+  const jobCol = headers.findIndex(h => h === '직업명' || h === '직업');
+  const permCol = headers.findIndex(h => h === '권한' || h === '직무권한');
+  const idCol = headers.findIndex(h => h === '번호' || h === 'ID' || h === '학번');
+
   const curPrice = getCurrentStockPrice();
-  const rows = sheetToObj(sh);
   const result = [];
 
-  rows.forEach(r => {
-    const cash = Number(r['현금'] || 0);
-    const stockQty = Number(r['주식수량'] || 0);
+  for (let i = 1; i < data.length; i++) {
+    const rowName = String(data[i][nameCol >= 0 ? nameCol : 1]).trim();
+    if (!rowName) continue;
+    const cash = Number(data[i][cashCol >= 0 ? cashCol : 6]) || 0;
+    const stockQty = Number(data[i][stockCol >= 0 ? stockCol : 7]) || 0;
     const stockVal = stockQty * curPrice;
     const totalAsset = cash + stockVal;
 
     result.push({
-      id: r['번호'] || r._row - 1,
-      name: String(r['이름']).trim(),
-      job: r['직업명'] || '학생',
-      level: r['레벨'] || '브론즈',
-      permission: r['권한'] || '일반',
+      id: data[i][idCol >= 0 ? idCol : 0] || i,
+      name: rowName,
+      job: data[i][jobCol >= 0 ? jobCol : 3] || '학생',
+      level: data[i][4] || '브론즈',
+      permission: data[i][permCol >= 0 ? permCol : 5] || '일반',
       cash: cash,
       stockQty: stockQty,
       stockVal: stockVal,
       totalAsset: totalAsset
     });
-  });
+  }
 
   return result.sort((a, b) => b.totalAsset - a.totalAsset);
 }
 
 function updateCash(studentName, amount, reason, category) {
+  const nameTrim = String(studentName || '').trim();
+  if (nameTrim === '선생님') return 99999999;
+
   const sh = getOrCreateSheet(SH.USERS);
   const data = sh.getDataRange().getValues();
+  const headers = data[0].map(h => String(h).trim());
+  const nameCol = headers.findIndex(h => h === '이름' || h === '학생명' || h === '성명');
+  const cashCol = headers.findIndex(h => h === '현금' || h === '잔액' || h === '보유현금');
+  const cIdx = cashCol >= 0 ? cashCol : 6;
+  const nIdx = nameCol >= 0 ? nameCol : 1;
 
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][1]).trim() === studentName) {
-      const curCash = Number(data[i][6]) || 0;
+    if (String(data[i][nIdx]).trim() === nameTrim) {
+      const curCash = Number(data[i][cIdx]) || 0;
       const newCash = Math.max(0, curCash + amount);
-      sh.getRange(i + 1, 7).setValue(newCash);
+      sh.getRange(i + 1, cIdx + 1).setValue(newCash);
 
-      logTx(studentName, category || '입출금', amount >= 0 ? '입금' : '출금', Math.abs(amount), 1, '', reason || '', '완료');
-      syncStudentAssets(studentName);
+      logTx(nameTrim, category || '입출금', amount >= 0 ? '입금' : '출금', Math.abs(amount), 1, '', reason || '', '완료');
+      syncStudentAssets(nameTrim);
       return newCash;
     }
   }
-  return null;
+
+  // 등록되지 않은 경우 신규 등록 후 처리
+  syncStudentAssets(nameTrim);
+  return updateCash(nameTrim, amount, reason, category);
 }
 
 function logTx(name, category, type, amount, qty, target, reason, status) {

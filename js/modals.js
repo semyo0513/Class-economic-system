@@ -1159,6 +1159,11 @@ const ModalManager = (() => {
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
+        if (buyRes.student) {
+          GameState.student = buyRes.student;
+          const cashEl = document.getElementById('hud-cash-val');
+          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        }
         if (!GameState.characterStyle) GameState.characterStyle = {};
         GameState.characterStyle.hairColor = color;
         localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
@@ -1185,6 +1190,11 @@ const ModalManager = (() => {
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
+        if (buyRes.student) {
+          GameState.student = buyRes.student;
+          const cashEl = document.getElementById('hud-cash-val');
+          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        }
         if (!GameState.characterStyle) GameState.characterStyle = {};
         GameState.characterStyle.costume = cType;
         localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
@@ -1211,6 +1221,11 @@ const ModalManager = (() => {
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
+        if (buyRes.student) {
+          GameState.student = buyRes.student;
+          const cashEl = document.getElementById('hud-cash-val');
+          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        }
         if (!GameState.characterStyle) GameState.characterStyle = {};
         GameState.characterStyle.hat = hType;
         localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
@@ -1237,6 +1252,11 @@ const ModalManager = (() => {
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
+        if (buyRes.student) {
+          GameState.student = buyRes.student;
+          const cashEl = document.getElementById('hud-cash-val');
+          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        }
         if (!GameState.characterStyle) GameState.characterStyle = {};
         GameState.characterStyle.aura = aType;
         localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
@@ -1262,6 +1282,11 @@ const ModalManager = (() => {
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
+        if (buyRes.student) {
+          GameState.student = buyRes.student;
+          const cashEl = document.getElementById('hud-cash-val');
+          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        }
         MiniroomSystem.addFurnitureToInventory(myName, id);
         SoundEngine.fanfare();
         alert(`🛋️ ${name} 구매 완료! 미니룸 인벤토리에 보관되었습니다.`);
