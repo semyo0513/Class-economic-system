@@ -10,6 +10,28 @@ const ModalManager = (() => {
   let currentOpenId = null;
 
   function open(id) {
+    const st = GameState.student;
+    const me = st ? (st.name || st.이름 || '나') : '나';
+    const myPerm = st ? (st.permission || st.권한 || '일반') : '일반';
+    const isTeacher = GameState.isAdmin || me === '선생님' || myPerm.includes('전체');
+
+    // 🔒 교장실 접근 통제: 오직 교사(관리자)만 입장 가능
+    if (id === 'principal' && !isTeacher) {
+      SoundEngine.snap();
+      alert('⚠️ 교장실은 선생님(관리자) 전용 공간입니다.\n교사 모드로 로그인해주세요.');
+      return;
+    }
+
+    // 🔒 시청(위임관청) 접근 통제: 학급 직무 권한 소지자 또는 교사만 입장 가능
+    if (id === 'cityhall') {
+      const hasAnyPerm = isTeacher || myPerm.includes('월급배부') || myPerm.includes('벌금징수') || myPerm.includes('경고') || myPerm.includes('공지작성') || myPerm.includes('마트관리');
+      if (!hasAnyPerm) {
+        SoundEngine.snap();
+        alert(`⚠️ 시청은 직무 권한(월급배부, 벌금징수, 경고 등)을 부여받은 임원만 입장할 수 있습니다.\n(현재 내 권한: ${myPerm})`);
+        return;
+      }
+    }
+
     currentOpenId = id;
     if (!overlay || !titleEl || !bodyEl) return;
 

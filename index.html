@@ -905,6 +905,7 @@
         GameState.isAdmin = true;
         GameState.student = { name: '선생님', 이름: '선생님', job: '교사(관리자)', 직업명: '교사(관리자)', cash: 999999, 현금: 999999, stock: 999999, 주식: 999999, permission: '전체', 권한: '전체' };
       } else {
+        GameState.isAdmin = false;
         GameState.student = {
           id: 1, name: name, 이름: name,
           job: '학생', 직업명: '학생',
@@ -933,10 +934,15 @@
               GameState.student = res.student;
               GameState.rankingList = res.ranking || [];
               GameState.settings = res.settings || {};
-              if (res.student.permission === '전체' || res.student.권한 === '전체') {
+              const perm = res.student.permission || res.student.권한 || '일반';
+              if (perm === '전체' || res.student.name === '선생님') {
                 GameState.isAdmin = true;
                 const adminBtn = document.getElementById('hud-admin-btn');
                 if (adminBtn) adminBtn.style.display = 'inline-flex';
+              } else {
+                GameState.isAdmin = false;
+                const adminBtn = document.getElementById('hud-admin-btn');
+                if (adminBtn) adminBtn.style.display = 'none';
               }
               // HUD 갱신
               const cash = res.student.cash ?? res.student.현금 ?? 0;
@@ -974,9 +980,14 @@
       document.getElementById('hud-cash-val').textContent = `${cash.toLocaleString()}원`;
       document.getElementById('hud-stock-val').textContent = `${stock.toLocaleString()}원`;
 
-      if (GameState.isAdmin || st.permission === '전체' || st.권한 === '전체') {
-        GameState.isAdmin = true;
-        document.getElementById('hud-admin-btn').style.display = 'inline-flex';
+      const adminBtn = document.getElementById('hud-admin-btn');
+      if (adminBtn) {
+        if (GameState.isAdmin || st.permission === '전체' || st.권한 === '전체' || name === '선생님') {
+          GameState.isAdmin = true;
+          adminBtn.style.display = 'inline-flex';
+        } else {
+          adminBtn.style.display = 'none';
+        }
       }
 
       initPhaserGame();
