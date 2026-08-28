@@ -544,6 +544,14 @@ function handleRequest(params) {
         break;
       }
 
+      case 'getUserInventory': {
+        const name = payload.name;
+        const sh = getOrCreateSheet(SH.ASSETS);
+        const rows = sheetToObj(sh).filter(r => String(r['소유자'] || r['이름']).trim() === name && (r['카테고리'] === '아이템' || r['카테고리'] === '캐릭터아이템' || r['카테고리'] === '가구') && r['상태'] === '보유');
+        result = { success: true, inventory: rows };
+        break;
+      }
+
       // 5. 복권 시스템
       case 'getLotteryInfo': {
         const cfg = getSettings();
@@ -559,6 +567,8 @@ function handleRequest(params) {
 
         const txId = 'LOT' + Date.now().toString().slice(-6);
         updateCash(payload.name, -price, '복권 구매', '복권');
+        // 복권 판매금은 국고로 입금!
+        logTx(payload.name, '국고', '복권판매수익', price, 1, '국고', `[복권판매] ${txId}`, '완료');
         result = { success: true, txId: txId, msg: '복권 구매 완료' };
         break;
       }
@@ -607,6 +617,46 @@ function handleRequest(params) {
           items = sheetToObj(sh).filter(r => r['카테고리'] === '마트물품' && r['상태'] === '판매중');
         }
         result = { success: true, items: items };
+        break;
+      }
+
+      case 'updateMartItem': {
+        const itemName = payload.itemName;
+        const newPrice = Number(payload.price);
+        const newStock = Number(payload.stock);
+        const newStatus = payload.status || '판매중';
+
+        const sh = getOrCreateSheet(SH.ASSETS);
+        const data = sh.getDataRange().getValues();
+        let found = false;
+
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][2]).trim() === '마트물품' && String(data[i][3]).trim() === itemName) {
+            if (!isNaN(newPrice)) sh.getRange(i + 1, 5).setValue(newPrice);
+            if (!isNaN(newStock)) sh.getRange(i + 1, 6).setValue(newStock);
+            sh.getRange(i + 1, 8).setValue(newStatus);
+            found = true;
+            break;
+          }
+        }
+        result = { success: found, msg: found ? `[${itemName}] 물품 정보가 수정되었습니다.` : '해당 물품을 찾을 수 없습니다.' };
+        break;
+      }
+
+      case 'deleteMartItem': {
+        const itemName = payload.itemName;
+        const sh = getOrCreateSheet(SH.ASSETS);
+        const data = sh.getDataRange().getValues();
+        let found = false;
+
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][2]).trim() === '마트물품' && String(data[i][3]).trim() === itemName) {
+            sh.deleteRow(i + 1);
+            found = true;
+            break;
+          }
+        }
+        result = { success: found, msg: found ? `[${itemName}] 물품이 삭제되었습니다.` : '해당 물품을 찾을 수 없습니다.' };
         break;
       }
 
@@ -749,6 +799,103 @@ function handleRequest(params) {
         }
 
         result = { success: true, msg: `${seatId} 좌석을 성공적으로 매입하였습니다!` };
+        break;
+      }
+
+      // 8-1. 중고 벼룩시장
+      case 'getFleaMarketItems': {
+        const sh = getOrCreateSheet(SH.ASSETS);
+        let rows = sheetToObj(sh).filter(r => r['카테고리'] === '벼룩시장' && r['상태'] === '판매중');
+        if (rows.length === 0) {
+          sh.appendRow([nowStr(), '김현주', '벼룩시장', '빈티지 곰인형', 3000, 1, '', '판매중', '', '포근하고 귀여운 곰인형']);
+          sh.appendRow([nowStr(), '이하진', '벼룩시장', '행운의 네잎클로버', 2000, 1, '', '판매중', '', '지갑에 넣고 다니는 행운 부적']);
+          rows = sheetToObj(sh).filter(r => r['카테고리'] === '벼룩시장' && r['상태'] === '판매중');
+        }
+        result = { success: true, items: rows };
+        break;
+      }
+
+      case 'addFleaMarketItem': {
+        const seller = payload.sellerName;
+        const itemName = payload.itemName;
+        const price = Number(payload.price || 1000);
+        const desc = payload.desc || '중고 물품';
+        getOrCreateSheet(SH.ASSETS).appendRow([
+          nowStr(), seller, '벼룩시장', itemName, price, 1, '', '판매중', '', desc
+        ]);
+        result = { success: true, msg: `[${itemName}] 물품이 벼룩시장에 등록되었습니다!` };
+        break;
+      }
+
+      case 'buyFleaMarketItem': {
+        const itemId = payload.itemName;
+        const buyer = payload.buyerName;
+        const price = Number(payload.price || 1000);
+        const seller = payload.sellerName;
+
+        const st = syncStudentAssets(buyer);
+        if (!st || st.cash < price) return respond({ success: false, msg: '구매 잔액이 부족합니다.' });
+
+        const sh = getOrCreateSheet(SH.ASSETS);
+        const data = sh.getDataRange().getValues();
+        let found = false;
+
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][2]).trim() === '벼룩시장' && String(data[i][3]).trim() === itemId && data[i][7] === '판매중') {
+            sh.getRange(i + 1, 8).setValue('판매완료');
+            updateCash(buyer, -price, `[벼룩시장구매] ${itemId}`, '벼룩시장');
+            if (seller && seller !== buyer) {
+              updateCash(seller, price, `[벼룩시장판매] ${itemId}`, '벼룩시장');
+            }
+            // 구매자 인벤토리에 아이템 추가
+            sh.appendRow([nowStr(), buyer, '아이템', itemId, price, 1, '', '보유', '', '벼룩시장 중고 구매']);
+            found = true;
+            break;
+          }
+        }
+        result = { success: found, msg: found ? `[${itemId}] 물품을 성공적으로 구매했습니다!` : '이미 판매되었거나 존재하지 않는 상품입니다.' };
+        break;
+      }
+
+      // 8-2. 고용센터 1인 1직업
+      case 'getJobs': {
+        const defaultJobs = [
+          { jobTitle: '대통령(반장)', salary: 7000, desc: '학급 자치 회의 주재 및 총괄' },
+          { jobTitle: '국세청장', salary: 6000, desc: '월급 일괄 배부 및 세금 징수' },
+          { jobTitle: '법무부 장관/경찰', salary: 6000, desc: '학급 규칙 준수 점검 및 벌금 징수' },
+          { jobTitle: '창순마트 사장', salary: 5500, desc: '학급 마트 재고 및 판매 POS 관리' },
+          { jobTitle: '은행원', salary: 5500, desc: '학급 은행 정기예금 상담 및 국고 관리' },
+          { jobTitle: '방송/공보관', salary: 5000, desc: '학급 공지사항 및 뉴스 작성 발행' }
+        ];
+        result = { success: true, jobs: defaultJobs };
+        break;
+      }
+
+      case 'applyJob': {
+        const name = payload.name;
+        const jobTitle = payload.jobTitle;
+        const sh = getOrCreateSheet(SH.USERS);
+        const data = sh.getDataRange().getValues();
+        let found = false;
+
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][1]).trim() === name) {
+            sh.getRange(i + 1, 4).setValue(jobTitle);
+            found = true;
+            break;
+          }
+        }
+        result = { success: found, msg: found ? `[${jobTitle}] 직업으로 전직 신청이 완료되었습니다!` : '학생 정보를 찾을 수 없습니다.' };
+        break;
+      }
+
+      // 8-3. 우편함 (칭찬카드, 경고장, 송금 수신함)
+      case 'getMailbox': {
+        const name = payload.name;
+        const rows = sheetToObj(getOrCreateSheet(SH.ACTIVITY))
+          .filter(r => String(r['대상'] || r['내용2']).trim() === name || String(r['이름']).trim() === name)
+          .reverse();
+        result = { success: true, mails: rows.slice(0, 20) };
         break;
       }
 

@@ -1,6 +1,6 @@
 // ============================================================
 // 모달 및 UI 팝업 매니저 (js/modals.js)
-// 국고 공개 조회, 마트 POS 통계, 역할별 권한 부여(RBAC), 학생 선택형 벌금/경고
+// 14개 전 건물 완벽 구현, 감정신호등 1일1회보상, 간편모드, 마트POS, 실제 인벤토리, 복권방
 // ============================================================
 
 const ModalManager = (() => {
@@ -9,7 +9,7 @@ const ModalManager = (() => {
   const bodyEl = document.getElementById('modal-body');
   let currentOpenId = null;
 
-  function open(id) {
+  function open(id, extraData) {
     const st = GameState.student;
     const me = st ? (st.name || st.이름 || '나') : '나';
     const myPerm = st ? (st.permission || st.권한 || '일반') : '일반';
@@ -44,8 +44,8 @@ const ModalManager = (() => {
       titleEl.innerHTML = `${building.signEmoji || '🏠'} ${building.name}`;
       renderBuildingContent(id, bodyEl);
     } else {
-      titleEl.innerText = '상세 정보';
-      renderSpecialContent(id, bodyEl);
+      titleEl.innerText = id === 'quick_board' ? '📋 학생 간편모드 (시설 바로가기)' : (id === 'inventory' ? '🎒 내 인벤토리' : (id === 'mailbox' ? '📬 우편함' : '상세 정보'));
+      renderSpecialContent(id, bodyEl, extraData);
     }
   }
 
@@ -67,11 +67,12 @@ const ModalManager = (() => {
     const isTeacher = GameState.isAdmin || me === '선생님' || myPerm.includes('전체');
 
     switch (id) {
+      // 1. 기숙사
       case 'dormitory':
         MiniroomSystem.renderDormitoryList(container);
         break;
 
-      // 1. 은행 (개인 예금 & 학급 국고 공개 조회)
+      // 2. 은행 (개인 계좌 & 국고 공개 조회)
       case 'bank': {
         const rateVal = 0.05;
         container.innerHTML = `
@@ -81,7 +82,6 @@ const ModalManager = (() => {
               <button class="tab-btn" onclick="ModalManager.switchBankTab('treasury')">🏛️ 학급 국고(재정) 현황</button>
             </div>
 
-            <!-- 개인 계좌 탭 -->
             <div id="bank-tab-personal">
               <div class="stat-banner" style="background:#e0f2fe; padding:12px; border-radius:8px; margin-bottom:14px;">
                 <div>🏦 현재 정기예금 이율: <strong>연 ${(rateVal * 100).toFixed(1)}%</strong></div>
@@ -107,7 +107,6 @@ const ModalManager = (() => {
               </div>
             </div>
 
-            <!-- 학급 국고 공개 탭 -->
             <div id="bank-tab-treasury" style="display:none;">
               <div style="background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border:2px solid #f59e0b; padding:16px; border-radius:10px; margin-bottom:14px; text-align:center;">
                 <div style="font-size:13px; font-weight:bold; color:#92400e;">🏛️ 행복초 학급 국고(총 자산) 잔액</div>
@@ -165,7 +164,7 @@ const ModalManager = (() => {
         break;
       }
 
-      // 2. 증권거래소
+      // 3. 증권거래소
       case 'stock': {
         const curPrice = 1200;
         let history = [1150, 1180, 1200];
@@ -237,7 +236,7 @@ const ModalManager = (() => {
         break;
       }
 
-      // 3. 잡화점
+      // 4. 잡화점
       case 'shop': {
         const furns = CONFIG.FURNITURE_CATALOG;
         const defaultItems = [
@@ -294,16 +293,9 @@ const ModalManager = (() => {
         break;
       }
 
-      // 4. 학급마트 & POS 포스기 관리 대시보드
+      // 5. 학급마트 (쇼핑 & POS 관리)
       case 'mart': {
         const hasMartPerm = isTeacher || myPerm.includes('마트관리');
-        const defaultMartItems = [
-          { 아이템명: '초코파이', 가격: 800, 재고: 20 },
-          { 아이템명: '비타민 음료', 가격: 1200, 재고: 15 },
-          { 아이템명: '고급 형광펜', 가격: 1500, 재고: 10 },
-          { 아이템명: '과일 젤리 세트', 가격: 600, 재고: 25 }
-        ];
-
         container.innerHTML = `
           <div class="mart-panel">
             <div class="mart-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
@@ -311,7 +303,7 @@ const ModalManager = (() => {
               ${hasMartPerm ? '<button class="tab-btn" onclick="ModalManager.switchMartTab(\'pos\')">🖥️ 마트 POS & 운영 통계</button>' : ''}
             </div>
 
-            <!-- 1) 쇼핑 탭 -->
+            <!-- 쇼핑 탭 -->
             <div id="mart-tab-shop">
               <div style="background:#ecfdf5; border:2px solid #a7f3d0; padding:12px; border-radius:8px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
                 <div>
@@ -323,14 +315,7 @@ const ModalManager = (() => {
 
               <h4 style="margin-bottom:8px;">🛍️ 판매 중인 마트 물품</h4>
               <div class="shop-grid" id="mart-items-grid" style="margin-bottom:16px;">
-                ${defaultMartItems.map(it => `
-                  <div class="shop-item-card">
-                    <div class="item-emoji">🍎</div>
-                    <div class="item-name">${it.아이템명}</div>
-                    <div class="item-price">${it.가격.toLocaleString()}원 (재고: ${it.재고}개)</div>
-                    <button class="pixel-btn-primary" onclick="ModalManager.openMartPayModal('${it.아이템명}', ${it.가격})">구매 결제</button>
-                  </div>
-                `).join('')}
+                <div style="padding:15px; color:#64748b;">마트 물품을 불러오는 중...</div>
               </div>
 
               <div style="background:#f8fafc; border:2px solid #cbd5e1; padding:14px; border-radius:8px;">
@@ -343,47 +328,65 @@ const ModalManager = (() => {
               </div>
             </div>
 
-            <!-- 2) 마트 POS 관리자 대시보드 탭 -->
-            <div id="mart-tab-pos" style="display:none;">
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-                <div style="background:#f0fdf4; border:2px solid #86efac; padding:12px; border-radius:8px; text-align:center;">
-                  <div style="font-size:12px; color:#15803d;">💰 누적 마트 총 매출액</div>
-                  <div style="font-size:22px; font-weight:bold; color:#166534;" id="pos-total-revenue">0원</div>
+            <!-- POS 관리자 대시보드 탭 -->
+            ${hasMartPerm ? `
+              <div id="mart-tab-pos" style="display:none;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                  <div style="background:#f0fdf4; border:2px solid #86efac; padding:12px; border-radius:8px; text-align:center;">
+                    <div style="font-size:12px; color:#15803d;">💰 누적 마트 총 매출액</div>
+                    <div style="font-size:22px; font-weight:bold; color:#166534;" id="pos-total-revenue">0원</div>
+                  </div>
+                  <div style="background:#eff6ff; border:2px solid #93c5fd; padding:12px; border-radius:8px; text-align:center;">
+                    <div style="font-size:12px; color:#1d4ed8;">🧾 총 판매 거래 건수</div>
+                    <div style="font-size:22px; font-weight:bold; color:#1e40af;" id="pos-total-sales-count">0건</div>
+                  </div>
                 </div>
-                <div style="background:#eff6ff; border:2px solid #93c5fd; padding:12px; border-radius:8px; text-align:center;">
-                  <div style="font-size:12px; color:#1d4ed8;">🧾 총 판매 거래 건수</div>
-                  <div style="font-size:22px; font-weight:bold; color:#1e40af;" id="pos-total-sales-count">0건</div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <h4>📦 마트 재고/가격 관리 & 통계</h4>
+                  <button class="pixel-btn-sm" style="background:#0284c7;" onclick="ModalManager.openAddMartItemModal()">➕ 신규 물품 등록</button>
+                </div>
+
+                <div class="table-wrap" style="max-height:220px; overflow-y:auto;">
+                  <table class="pixel-table">
+                    <thead><tr><th>품목명</th><th>가격</th><th>재고</th><th>상태</th><th>관리</th></tr></thead>
+                    <tbody id="pos-stock-tbody">
+                      <tr><td colspan="5" style="text-align:center; padding:15px;">물품 재고 목록을 불러오는 중...</td></tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
-
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <h4>📊 최근 실시간 마트 판매 기록</h4>
-                <button class="pixel-btn-sm" style="background:#0284c7;" onclick="ModalManager.openAddMartItemModal()">➕ 신규 물품 등록</button>
-              </div>
-
-              <div class="table-wrap" style="max-height:220px; overflow-y:auto;">
-                <table class="pixel-table">
-                  <thead><tr><th>판매일시</th><th>구매자</th><th>품목명</th><th>결제금액</th></tr></thead>
-                  <tbody id="pos-sales-tbody">
-                    <tr><td colspan="4" style="text-align:center; padding:15px;">POS 매출 데이터를 불러오는 중...</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            ` : ''}
           </div>
         `;
 
         API.call('getMartItems', {}, true).then(martData => {
           const items = Array.isArray(martData) ? martData : (martData.items || []);
           const grid = document.getElementById('mart-items-grid');
-          if (grid && items.length > 0) {
-            grid.innerHTML = items.map(it => `
+          if (grid) {
+            grid.innerHTML = items.length === 0 ? '<div style="padding:10px;">등록된 마트 물품이 없습니다.</div>' : items.map(it => `
               <div class="shop-item-card">
                 <div class="item-emoji">🍎</div>
                 <div class="item-name">${it.아이템명 || it.name}</div>
                 <div class="item-price">${(it.가격 || it.금액 || 0).toLocaleString()}원 (재고: ${it.재고 || it.수량 || 1}개)</div>
                 <button class="pixel-btn-primary" onclick="ModalManager.openMartPayModal('${it.아이템명 || it.name}', ${it.가격 || it.금액 || 0})">구매 결제</button>
               </div>
+            `).join('');
+          }
+
+          const posStockTbody = document.getElementById('pos-stock-tbody');
+          if (posStockTbody && hasMartPerm) {
+            posStockTbody.innerHTML = items.length === 0 ? '<tr><td colspan="5" style="text-align:center;">등록된 물품이 없습니다.</td></tr>' : items.map(it => `
+              <tr>
+                <td><strong>${it.아이템명 || it.name}</strong></td>
+                <td>${(it.가격 || it.금액 || 0).toLocaleString()}원</td>
+                <td>${it.재고 || it.수량 || 0}개</td>
+                <td><span class="badge badge-${it.상태 === '판매중' ? 'success' : 'danger'}">${it.상태 || '판매중'}</span></td>
+                <td>
+                  <button class="pixel-btn-sm" onclick="ModalManager.editMartItem('${it.아이템명 || it.name}', ${it.가격 || it.금액 || 0}, ${it.재고 || it.수량 || 0})">수정</button>
+                  <button class="pixel-btn-sm" style="background:#ef4444;" onclick="ModalManager.deleteMartItem('${it.아이템명 || it.name}')">삭제</button>
+                </td>
+              </tr>
             `).join('');
           }
         });
@@ -395,26 +398,199 @@ const ModalManager = (() => {
               const cntEl = document.getElementById('pos-total-sales-count');
               if (revEl) revEl.textContent = `${(stats.totalRevenue || 0).toLocaleString()}원`;
               if (cntEl) cntEl.textContent = `${stats.totalSalesCount || 0}건`;
-
-              const posTbody = document.getElementById('pos-sales-tbody');
-              if (posTbody) {
-                const sales = stats.recentSales || [];
-                posTbody.innerHTML = sales.length === 0 ? '<tr><td colspan="4" style="text-align:center; padding:15px;">판매 내역이 없습니다.</td></tr>' : sales.map(s => `
-                  <tr>
-                    <td>${s.일시 || '-'}</td>
-                    <td><strong>${s.이름 || '-'}</strong></td>
-                    <td>${s.사유 || '-'}</td>
-                    <td><strong>${(Number(s.금액) || 0).toLocaleString()}원</strong></td>
-                  </tr>
-                `).join('');
-              }
             }
           });
         }
         break;
       }
 
-      // 5. 학교 본관 LMS
+      // 6. 행운의 복권방
+      case 'lottery': {
+        const ticketPrice = 500;
+        container.innerHTML = `
+          <div class="lottery-panel" style="text-align:center; padding:10px;">
+            <div style="background:#fef3c7; border:2px solid #f59e0b; padding:16px; border-radius:12px; margin-bottom:16px;">
+              <h3 style="color:#b45309; font-size:18px; margin-bottom:4px;">🎰 행복초 즉석 행운 복권</h3>
+              <p style="font-size:12px; color:#78350f;">1장당 <strong>${ticketPrice.toLocaleString()}원</strong> (당첨금 최대 50,000원!)</p>
+            </div>
+
+            <div id="scratch-card-box" style="background:#ffffff; border:3px dashed #d97706; padding:20px; border-radius:12px; margin-bottom:16px; min-height:140px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+              <div id="scratch-prompt" style="font-size:14px; font-weight:bold; color:#64748b;">
+                아래 [복권 구매 & 긁기] 버튼을 눌러 행운을 확인하세요! 🎟️
+              </div>
+              <div id="scratch-result" style="display:none;">
+                <div id="scratch-title" style="font-size:24px; font-weight:900; color:#dc2626; margin-bottom:6px;"></div>
+                <div id="scratch-msg" style="font-size:15px; font-weight:bold; color:#1e293b;"></div>
+              </div>
+            </div>
+
+            <button class="pixel-btn-primary" style="font-size:16px; padding:12px 24px; background:#d97706; border-color:#92400e;" onclick="ModalManager.playLottery()">
+              🎟️ 복권 구매 & 즉석 긁기 (${ticketPrice.toLocaleString()}원)
+            </button>
+          </div>
+        `;
+        break;
+      }
+
+      // 7. 마음 상담실 (감정신호등 1일 1회 화폐 지급)
+      case 'counseling': {
+        const todayKey = 'emotion_' + new Date().toISOString().slice(0, 10);
+        const alreadyDone = localStorage.getItem(todayKey) === 'true';
+
+        container.innerHTML = `
+          <div class="counseling-panel" style="padding:10px;">
+            <div style="background:#f0fdf4; border:2px solid #86efac; padding:14px; border-radius:10px; margin-bottom:14px;">
+              <h3 style="color:#166534; font-size:16px; margin-bottom:4px;">💚 오늘의 마음 감정신호등</h3>
+              <p style="font-size:12px; color:#15803d;">오늘의 기분을 솔직하게 체크하면 <strong>1일 1회 마음 장학금(화폐)</strong>이 지급됩니다!</p>
+            </div>
+
+            ${alreadyDone ? `
+              <div style="background:#fff; border:2px solid #cbd5e1; padding:20px; border-radius:10px; text-align:center;">
+                <div style="font-size:32px; margin-bottom:8px;">✅</div>
+                <h4 style="color:#1e293b; margin-bottom:4px;">오늘의 감정신호등 체크 완료!</h4>
+                <p style="font-size:12px; color:#64748b;">내일 또 새로운 마음 상태를 기록해주세요.</p>
+              </div>
+            ` : `
+              <div style="margin-bottom:14px;">
+                <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:8px;">1. 오늘의 내 기분 상태를 선택해주세요:</label>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+                  <button type="button" class="tab-btn emotion-opt-btn active" style="padding:12px 6px; text-align:center;" onclick="ModalManager.selectEmotion('🟢 좋음', this)">
+                    <div style="font-size:24px;">🟢</div>
+                    <div style="font-weight:bold; margin-top:4px;">좋음</div>
+                    <div style="font-size:10px; color:#16a34a;">(+500원)</div>
+                  </button>
+                  <button type="button" class="tab-btn emotion-opt-btn" style="padding:12px 6px; text-align:center;" onclick="ModalManager.selectEmotion('🟡 보통', this)">
+                    <div style="font-size:24px;">🟡</div>
+                    <div style="font-weight:bold; margin-top:4px;">보통</div>
+                    <div style="font-size:10px; color:#ca8a04;">(+300원)</div>
+                  </button>
+                  <button type="button" class="tab-btn emotion-opt-btn" style="padding:12px 6px; text-align:center;" onclick="ModalManager.selectEmotion('🔴 힘듦', this)">
+                    <div style="font-size:24px;">🔴</div>
+                    <div style="font-weight:bold; margin-top:4px;">힘듦</div>
+                    <div style="font-size:10px; color:#dc2626;">(+1,000원)</div>
+                  </button>
+                </div>
+              </div>
+
+              <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">2. 선생님께 전하고 싶은 한 줄 마음 (선택):</label>
+                <input type="text" id="emotion-msg-input" placeholder="선생님, 오늘 기분이 이래요..." style="width:100%; padding:10px; border:2px solid #94a3b8; border-radius:8px;">
+              </div>
+
+              <button class="pixel-btn-primary" style="font-size:15px; padding:12px;" onclick="ModalManager.submitEmotion()">
+                💌 감정신호등 등록 & 장학금 받기
+              </button>
+            `}
+          </div>
+        `;
+        break;
+      }
+
+      // 8. 중고 벼룩시장
+      case 'flea_market': {
+        container.innerHTML = `
+          <div class="flea-panel">
+            <div style="background:#fff7ed; border:2px solid #fed7aa; padding:12px; border-radius:8px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h3 style="color:#9a3412; font-size:15px;">🎪 친구들과의 중고 벼룩시장</h3>
+                <p style="font-size:12px; color:#c2410c;">안 쓰는 아이템을 등록하고 친구의 물건을 구매해보세요!</p>
+              </div>
+              <button class="pixel-btn-sm" style="background:#ea580c;" onclick="ModalManager.openAddFleaModal()">➕ 물품 판매 등록</button>
+            </div>
+
+            <div class="shop-grid" id="flea-items-grid">
+              <div style="padding:15px; color:#64748b;">벼룩시장 매물을 불러오는 중...</div>
+            </div>
+          </div>
+        `;
+
+        API.call('getFleaMarketItems', {}, true).then(res => {
+          const items = res.items || [];
+          const grid = document.getElementById('flea-items-grid');
+          if (grid) {
+            grid.innerHTML = items.length === 0 ? '<div style="padding:15px;">등록된 중고 매물이 없습니다.</div>' : items.map(it => `
+              <div class="shop-item-card">
+                <div class="item-emoji">📦</div>
+                <div class="item-name">${it.아이템명 || it.이름}</div>
+                <div class="item-desc" style="font-size:11px; color:#64748b;">판매자: ${it.소유자 || it.이름}</div>
+                <div class="item-price">💰 ${(it.금액 || 0).toLocaleString()}원</div>
+                <button class="pixel-btn-primary" onclick="ModalManager.buyFleaItem('${it.아이템명 || it.이름}', ${it.금액 || 0}, '${it.소유자 || it.이름}')">구매하기</button>
+              </div>
+            `).join('');
+          }
+        });
+        break;
+      }
+
+      // 9. 고용센터 1인 1직업
+      case 'jobcenter': {
+        container.innerHTML = `
+          <div class="job-panel">
+            <div style="background:#f1f5f9; border:2px solid #cbd5e1; padding:12px; border-radius:8px; margin-bottom:12px;">
+              <h3 style="color:#1e293b; font-size:15px;">💼 행복초 1인 1직업 고용센터</h3>
+              <p style="font-size:12px; color:#475569;">원하는 직업을 살펴보고 구직/전직 신청을 해보세요!</p>
+            </div>
+
+            <div class="table-wrap" style="max-height:260px; overflow-y:auto;">
+              <table class="pixel-table">
+                <thead><tr><th>직업명</th><th>주요 업무</th><th>월급</th><th>신청</th></tr></thead>
+                <tbody id="jobs-tbody">
+                  <tr><td colspan="4" style="text-align:center; padding:15px;">직업 정보를 불러오는 중...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+
+        API.call('getJobs', {}, true).then(res => {
+          const jobs = res.jobs || [];
+          const tbody = document.getElementById('jobs-tbody');
+          if (tbody) {
+            tbody.innerHTML = jobs.map(j => `
+              <tr>
+                <td><strong>${j.jobTitle}</strong></td>
+                <td>${j.desc}</td>
+                <td>💰 ${(j.salary || 5000).toLocaleString()}원</td>
+                <td><button class="pixel-btn-sm" onclick="ModalManager.applyJob('${j.jobTitle}')">신청</button></td>
+              </tr>
+            `).join('');
+          }
+        });
+        break;
+      }
+
+      // 10. 부동산 중개소 (교실 좌석 배치도)
+      case 'realestate': {
+        container.innerHTML = `
+          <div class="realestate-panel">
+            <div style="background:#fef3c7; border:2px solid #fcd34d; padding:12px; border-radius:8px; margin-bottom:12px;">
+              <h3 style="color:#92400e; font-size:15px;">🏢 교실 좌석 부동산 배치도</h3>
+              <p style="font-size:12px; color:#b45309;">원하는 교실 좌석을 클릭하여 구매 또는 양도받을 수 있습니다.</p>
+            </div>
+
+            <div class="seat-grid" id="seats-grid" style="display:grid; grid-template-columns:repeat(6, 1fr); gap:6px; margin-bottom:12px;">
+              <div style="grid-column:span 6; text-align:center; padding:15px;">좌석 배치도를 불러오는 중...</div>
+            </div>
+          </div>
+        `;
+
+        API.call('getRealEstateData', {}, true).then(res => {
+          const seats = res.seats || [];
+          const grid = document.getElementById('seats-grid');
+          if (grid && seats.length > 0) {
+            grid.innerHTML = seats.map(s => `
+              <div style="background:${s.owner === me ? '#bbf7d0' : '#fff'}; border:2px solid #94a3b8; border-radius:6px; padding:8px 4px; text-align:center; cursor:pointer;" onclick="ModalManager.buySeatModal('${s.id}', ${s.price}, '${s.owner}')">
+                <div style="font-size:10px; font-weight:bold; color:#64748b;">${s.id}</div>
+                <div style="font-size:11px; font-weight:bold; margin:2px 0;">${s.owner || '빈자리'}</div>
+                <div style="font-size:9px; color:#0284c7;">${(s.price || 5000).toLocaleString()}원</div>
+              </div>
+            `).join('');
+          }
+        });
+        break;
+      }
+
+      // 11. 학교 본관 LMS
       case 'school': {
         const defaultNotices = [
           { 날짜: '2026-08-28', 제목: '🎉 2D 동물의숲 클래스타운 개장 안내!', 내용: '기숙사 미니룸을 꾸미고 친구들과 교류해보세요.', 중요도: '긴급' },
@@ -495,7 +671,7 @@ const ModalManager = (() => {
         break;
       }
 
-      // 6. 우체국
+      // 12. 우체국
       case 'postoffice': {
         container.innerHTML = `
           <div class="post-panel">
@@ -517,7 +693,7 @@ const ModalManager = (() => {
         break;
       }
 
-      // 7. 시청 & 교장실 관리자 패널
+      // 13. 시청 & 교장실 관리자 패널
       case 'cityhall':
       case 'principal':
       case 'admin_quick': {
@@ -640,34 +816,6 @@ const ModalManager = (() => {
             ` : ''}
           </div>
         `;
-
-        API.call('adminGetAllData', {}, true).then(allData => {
-          const freshStudents = allData.students || [];
-          if (freshStudents.length > 0) {
-            GameState.rankingList = freshStudents;
-            const countEl = document.getElementById('admin-student-count');
-            if (countEl) countEl.textContent = `${freshStudents.length}명`;
-            const tbody = document.getElementById('admin-students-tbody');
-            if (tbody) {
-              tbody.innerHTML = freshStudents.map(s => `
-                <tr>
-                  <td>${s.id}</td>
-                  <td><strong>${s.name}</strong></td>
-                  <td>${s.job}</td>
-                  <td>${(s.cash || 0).toLocaleString()}원</td>
-                  <td>${s.stockQty || 0}주</td>
-                  <td><strong>${(s.totalAsset || 0).toLocaleString()}원</strong></td>
-                  <td><span class="badge badge-primary">${s.permission || '일반'}</span></td>
-                  ${isTeacher ? `
-                    <td>
-                      <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${s.name}')">금액조정</button>
-                    </td>
-                  ` : ''}
-                </tr>
-              `).join('');
-            }
-          }
-        });
         break;
       }
 
@@ -676,52 +824,170 @@ const ModalManager = (() => {
     }
   }
 
-  function renderSpecialContent(id, container) {
-    if (id === 'inventory') {
-      const st = GameState.student;
+  // 특수 팝업 (간편모드, 인벤토리, 우편함, 놀이기구)
+  function renderSpecialContent(id, container, extraData) {
+    const st = GameState.student;
+    const me = st ? (st.name || st.이름 || '나') : '나';
+    const myPerm = st ? (st.permission || st.권한 || '일반') : '일반';
+    const isTeacher = GameState.isAdmin || me === '선생님' || myPerm.includes('전체');
+
+    if (id === 'quick_board') {
+      const facilities = [
+        { id: 'dormitory', name: '학생 기숙사', emoji: '🏠', desc: '미니룸 방꾸미기' },
+        { id: 'bank', name: '클래스 은행', emoji: '🏦', desc: '예금 & 국고 조회' },
+        { id: 'stock', name: '증권거래소', emoji: '📈', desc: '주식 매수/매도' },
+        { id: 'shop', name: '잡화점 & 가구', emoji: '🛋️', desc: '장착템 & 가구' },
+        { id: 'mart', name: '학급마트', emoji: '🛒', desc: '간식 결제 & POS' },
+        { id: 'school', name: '학교 본관', emoji: '🏫', desc: '공지/과제/급식' },
+        { id: 'lottery', name: '행운 복권방', emoji: '🎰', desc: '즉석 스크래치 복권' },
+        { id: 'counseling', name: '마음 상담실', emoji: '💚', desc: '감정신호등 장학금' },
+        { id: 'flea_market', name: '중고 벼룩시장', emoji: '🎪', desc: '친구와 중고 거래' },
+        { id: 'jobcenter', name: '고용센터', emoji: '💼', desc: '1인 1직업 구직' },
+        { id: 'realestate', name: '부동산 중개소', emoji: '🏢', desc: '교실 좌석 매입' },
+        { id: 'postoffice', name: '클래스 우체국', emoji: '📮', desc: '송금 & 칭찬카드' },
+        { id: 'cityhall', name: '시청 (위임관청)', emoji: '🏛️', desc: '임원 직무 집행', reqRole: true },
+        { id: 'principal', name: '교장실', emoji: '👑', desc: '교사 관리자 패널', reqTeacher: true }
+      ];
+
+      container.innerHTML = `
+        <div class="quick-board-panel" style="padding:10px;">
+          <div style="background:#f8fafc; border:2px solid #cbd5e1; padding:12px; border-radius:10px; margin-bottom:14px; text-align:center;">
+            <h3 style="color:#0f172a; font-size:16px; margin-bottom:4px;">📋 마을 시설 즉시 이용 (간편모드)</h3>
+            <p style="font-size:12px; color:#64748b;">맵을 이동하지 않고 원하는 시설을 바로 클릭하여 이용할 수 있습니다.</p>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; max-height:360px; overflow-y:auto;">
+            ${facilities.map(f => {
+              const isLocked = (f.reqTeacher && !isTeacher) || (f.reqRole && !isTeacher && myPerm === '일반');
+              return `
+                <div style="background:${isLocked ? '#f1f5f9' : '#fff'}; border:2px solid ${isLocked ? '#cbd5e1' : '#94a3b8'}; border-radius:8px; padding:10px; display:flex; align-items:center; justify-content:space-between; cursor:${isLocked ? 'not-allowed' : 'pointer'};" onclick="ModalManager.open('${f.id}')">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="font-size:22px;">${isLocked ? '🔒' : f.emoji}</div>
+                    <div>
+                      <div style="font-weight:bold; font-size:13px; color:${isLocked ? '#94a3b8' : '#1e293b'};">${f.name}</div>
+                      <div style="font-size:11px; color:#64748b;">${f.desc}</div>
+                    </div>
+                  </div>
+                  <button class="pixel-btn-sm" style="${isLocked ? 'background:#cbd5e1; color:#64748b;' : ''}">열기</button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    } else if (id === 'inventory') {
+      const ownedItems = JSON.parse(localStorage.getItem('user_inventory_' + me) || '[]');
+
       container.innerHTML = `
         <div class="inven-panel">
           <div class="inven-tabs" style="display:flex; gap:8px; margin-bottom:12px;">
-            <button class="tab-btn active" onclick="ModalManager.switchInvenTab('equips')">🪽 장착 아이템</button>
+            <button class="tab-btn active" onclick="ModalManager.switchInvenTab('equips')">🪽 내 장착 아이템</button>
             <button class="tab-btn" onclick="ModalManager.switchInvenTab('coupons')">🎟️ 보유 쿠폰</button>
             <button class="tab-btn" onclick="ModalManager.switchInvenTab('furns')">🛋️ 가구 보관함</button>
           </div>
+
           <div id="inven-tab-equips">
-            <div class="shop-grid">
-              <div class="shop-item-card">
-                <div class="item-emoji">👟</div>
-                <div class="item-name">스피드 롤러스케이트</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.toggleEquip('speed')">장착 토글</button>
-              </div>
-              <div class="shop-item-card">
-                <div class="item-emoji">✨</div>
-                <div class="item-name">황금 오라 이펙트</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.toggleEquip('aura')">장착 토글</button>
-              </div>
-              <div class="shop-item-card">
-                <div class="item-emoji">🪽</div>
-                <div class="item-name">천사의 날개</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.toggleEquip('wings')">장착 토글</button>
-              </div>
-              <div class="shop-item-card">
-                <div class="item-emoji">🛴</div>
-                <div class="item-name">네온 킥보드</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.toggleEquip('mount')">장착 토글</button>
-              </div>
+            <div class="shop-grid" id="inven-equips-grid">
+              <div style="padding:15px; color:#64748b;">보유 장착템을 확인하는 중...</div>
             </div>
           </div>
+
           <div id="inven-tab-coupons" style="display:none; padding:10px;">
-            <p style="color:#64748b;">보유 중인 쿠폰 목록입니다.</p>
-            <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
-              <div style="background:#fff; border:2px solid #cbd5e1; padding:8px 12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
-                <span>🎟️ 자리 우선 선택권</span>
-                <button class="pixel-btn-sm" onclick="ModalManager.handleUseItem('자리 우선 선택권')">사용하기</button>
-              </div>
+            <div id="inven-coupons-list" style="display:flex; flex-direction:column; gap:6px;">
+              <p style="color:#64748b;">보유 중인 쿠폰이 없습니다. 잡화점에서 구매해보세요!</p>
             </div>
           </div>
+
           <div id="inven-tab-furns" style="display:none; padding:10px;">
-            <p style="color:#64748b;">기숙사 방꾸미기 모드에서 배치할 수 있습니다.</p>
+            <p style="color:#64748b;">기숙사 방꾸미기 모드에서 배치할 수 있는 가구 목록입니다.</p>
           </div>
+        </div>
+      `;
+
+      API.call('getUserInventory', { name: me }, true).then(res => {
+        const inv = (res.inventory || []).concat(ownedItems);
+        const equipGrid = document.getElementById('inven-equips-grid');
+        const equipItems = inv.filter(it => (it.카테고리 === '캐릭터아이템' || String(it.아이템명 || it.name).includes('스피드') || String(it.아이템명 || it.name).includes('오라') || String(it.아이템명 || it.name).includes('날개') || String(it.아이템명 || it.name).includes('킥보드') || String(it.아이템명 || it.name).includes('버섯')));
+
+        if (equipGrid) {
+          equipGrid.innerHTML = equipItems.length === 0 ? '<div style="padding:15px; color:#64748b;">보유 중인 장착 아이템이 없습니다. 잡화점에서 구매해보세요!</div>' : equipItems.map(it => {
+            const name = it.아이템명 || it.name;
+            const equipKey = name.includes('스피드') ? 'speed' : (name.includes('오라') ? 'aura' : (name.includes('날개') ? 'wings' : (name.includes('킥보드') ? 'mount' : 'giant')));
+            const isEquipped = GameState.equippedItems && GameState.equippedItems[equipKey];
+            return `
+              <div class="shop-item-card">
+                <div class="item-name">${name}</div>
+                <button class="pixel-btn-primary" style="${isEquipped ? 'background:#ef4444;' : ''}" onclick="ModalManager.toggleEquip('${equipKey}')">
+                  ${isEquipped ? '장착 해제' : '장착하기'}
+                </button>
+              </div>
+            `;
+          }).join('');
+        }
+      });
+    } else if (id === 'mailbox') {
+      container.innerHTML = `
+        <div class="mailbox-panel" style="padding:10px;">
+          <h3 style="margin-bottom:12px;">📬 내 우편함 (칭찬카드/경고장/송금 내역)</h3>
+          <div class="table-wrap" style="max-height:280px; overflow-y:auto;">
+            <table class="pixel-table">
+              <thead><tr><th>날짜</th><th>발송자</th><th>종류</th><th>내용</th></tr></thead>
+              <tbody id="mailbox-tbody">
+                <tr><td colspan="4" style="text-align:center; padding:15px;">우편함을 확인하는 중...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      API.call('getMailbox', { name: me }, true).then(res => {
+        const mails = res.mails || [];
+        const tbody = document.getElementById('mailbox-tbody');
+        if (tbody) {
+          tbody.innerHTML = mails.length === 0 ? '<tr><td colspan="4" style="text-align:center;">도착한 우편이 없습니다.</td></tr>' : mails.map(m => `
+            <tr>
+              <td>${m.일시 || '2026-08-28'}</td>
+              <td><strong>${m.이름 || '선생님'}</strong></td>
+              <td><span class="badge badge-primary">${m.카테고리 || '우편'}</span></td>
+              <td>${m.메모 || m.사유 || m.내용 || '-'}</td>
+            </tr>
+          `).join('');
+        }
+      });
+    } else if (id === 'ride_modal' && extraData) {
+      const thrills = Math.floor(Math.random() * 21) + 80;
+      const fortunes = [
+        '✨ 오늘은 뜻밖의 행운과 장학금이 찾아올 길한 날입니다!',
+        '🎯 주식 시장의 흐름을 잘 살피면 큰 이익을 얻을 수 있습니다.',
+        '🤝 친구를 칭찬하고 도와주면 더 큰 복으로 되돌아옵니다.',
+        '🌟 오늘 하루 모든 일이 술술 풀리는 최고의 대길(大吉)입니다!'
+      ];
+      const randFortune = fortunes[Math.floor(Math.random() * fortunes.length)];
+      container.innerHTML = `
+        <div style="text-align:center; padding:10px;">
+          <div style="font-size:42px; margin-bottom:8px;">${extraData.emoji || '🎡'}</div>
+          <h3 style="color:${extraData.rideColor || '#0284c7'}; font-size:18px; margin-bottom:6px;">${extraData.rideTitle || extraData.name} 탑승 완료!</h3>
+          <div style="background:#f8fafc; border:2px solid #cbd5e1; border-radius:10px; padding:14px; margin:12px 0;">
+            <div style="font-size:13px; font-weight:bold; color:#475569; margin-bottom:4px;">🎢 오늘의 스릴 만족도</div>
+            <div style="font-size:24px; font-weight:bold; color:#ef4444;">${thrills}점 / 100점</div>
+            <div style="margin-top:10px; font-size:12px; color:#1e293b; line-height:1.6; border-top:1px dashed #cbd5e1; padding-top:8px;">
+              <strong>🥠 오늘의 포춘 쿠키 운세</strong><br>${randFortune}
+            </div>
+          </div>
+          <button class="pixel-btn-primary" onclick="ModalManager.close()">즐겁게 하차하기</button>
+        </div>
+      `;
+    } else if (id === 'npc_modal' && extraData) {
+      const dialogList = extraData.dialogs || ['안녕! 행복초 클래스 타운에 온 걸 환영해!'];
+      const randMsg = dialogList[Math.floor(Math.random() * dialogList.length)];
+      container.innerHTML = `
+        <div style="text-align:center; padding:10px;">
+          <div style="font-size:48px; margin-bottom:8px;">💬</div>
+          <h3 style="color:#0f172a; margin-bottom:12px;">${extraData.name}</h3>
+          <div style="background:#fffbeb; border:2px solid #fde68a; border-radius:10px; padding:16px; font-size:14px; color:#92400e; line-height:1.6; margin-bottom:14px;">
+            "${randMsg}"
+          </div>
+          <button class="pixel-btn-primary" onclick="ModalManager.close()">대화 마치기</button>
         </div>
       `;
     }
@@ -792,19 +1058,220 @@ const ModalManager = (() => {
       SoundEngine.snap();
       open('inventory');
     },
-    handleUseItem: async (itemName) => {
-      if (!confirm(`[${itemName}] 쿠폰을 사용하시겠습니까?`)) return;
+
+    // ─── 감정신호등 1일 1회 보상 시스템 ───
+    selectedEmotionVal: '🟢 좋음',
+    selectEmotion: (val, btn) => {
+      ModalManager.selectedEmotionVal = val;
+      document.querySelectorAll('.emotion-opt-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      SoundEngine.click();
+    },
+    submitEmotion: async () => {
       const st = GameState.student;
-      const myName = st ? (st.name || st.이름) : '';
-      API.showLoading('아이템을 사용하는 중...');
-      const res = await API.call('useItem', { name: myName, itemName });
+      const myName = st ? (st.name || st.이름) : '나';
+      const emotion = ModalManager.selectedEmotionVal || '🟢 좋음';
+      const msg = document.getElementById('emotion-msg-input')?.value || '';
+
+      API.showLoading('감정신호등을 기록하는 중...');
+      const res = await API.call('logEmotion', { name: myName, emotion, message: msg });
       API.hideLoading();
+
+      const todayKey = 'emotion_' + new Date().toISOString().slice(0, 10);
+      localStorage.setItem(todayKey, 'true');
+
+      // 잔액 즉시 가산
+      const bonus = emotion.includes('힘듦') ? 1000 : (emotion.includes('보통') ? 300 : 500);
+      if (st) st.cash = (st.cash || 0) + bonus;
+      const cashEl = document.getElementById('hud-cash-val');
+      if (cashEl && st) cashEl.textContent = `${st.cash.toLocaleString()}원`;
+
       SoundEngine.fanfare();
-      alert(res?.msg || '쿠폰이 사용되었습니다!');
-      open('inventory');
+      alert(res?.msg || `오늘의 기분 [${emotion}] 등록 완료! +${bonus.toLocaleString()}원 장학금이 지급되었습니다!`);
+      open('counseling');
     },
 
-    // ─── 1. 월급 일괄 배부 모달 ───
+    // ─── 행운의 즉석 복권 ───
+    playLottery: async () => {
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '나';
+      const cash = st ? (st.cash || 0) : 0;
+      if (cash < 500) return alert('복권 구매를 위한 현금(500원)이 부족합니다.');
+
+      API.showLoading('복권을 구매하여 긁는 중...');
+      const buyRes = await API.call('buyLottery', { name: myName });
+      if (!buyRes || !buyRes.success) {
+        API.hideLoading();
+        return alert(buyRes?.msg || '복권 구매 실패');
+      }
+
+      const scrRes = await API.call('scratchLottery', { name: myName });
+      API.hideLoading();
+
+      if (st) st.cash = (st.cash || 0) - 500 + (scrRes?.prize || 0);
+      const cashEl = document.getElementById('hud-cash-val');
+      if (cashEl && st) cashEl.textContent = `${st.cash.toLocaleString()}원`;
+
+      const promptEl = document.getElementById('scratch-prompt');
+      const resultEl = document.getElementById('scratch-result');
+      const titleEl = document.getElementById('scratch-title');
+      const msgEl = document.getElementById('scratch-msg');
+
+      if (promptEl) promptEl.style.display = 'none';
+      if (resultEl) resultEl.style.display = 'block';
+      if (titleEl) titleEl.textContent = scrRes?.title || '꽝!';
+      if (msgEl) msgEl.textContent = scrRes?.msg || '다음 기회에!';
+
+      if (scrRes?.prize > 0) {
+        SoundEngine.fanfare();
+      } else {
+        SoundEngine.snap();
+      }
+    },
+
+    // ─── 마트 아이템 수정 및 삭제 (마트관리 권한자 전용) ───
+    editMartItem: async (itemName, curPrice, curStock) => {
+      const newPrice = prompt(`[${itemName}] 새 판매 가격(원):`, curPrice);
+      if (newPrice === null) return;
+      const newStock = prompt(`[${itemName}] 새 재고 수량(개):`, curStock);
+      if (newStock === null) return;
+
+      API.showLoading('물품 정보를 수정하는 중...');
+      const res = await API.call('updateMartItem', { itemName, price: Number(newPrice), stock: Number(newStock), status: Number(newStock) > 0 ? '판매중' : '품절' });
+      API.hideLoading();
+      SoundEngine.coin();
+      alert(res?.msg || '수정 완료');
+      open('mart');
+    },
+
+    deleteMartItem: async (itemName) => {
+      if (!confirm(`[${itemName}] 물품을 마트에서 삭제하시겠습니까?`)) return;
+      API.showLoading('물품을 삭제하는 중...');
+      const res = await API.call('deleteMartItem', { itemName });
+      API.hideLoading();
+      SoundEngine.coin();
+      alert(res?.msg || '삭제 완료');
+      open('mart');
+    },
+
+    // ─── 벼룩시장 등록 & 구매 ───
+    openAddFleaModal: async () => {
+      const itemName = prompt('벼룩시장에 판매할 물품명을 입력하세요:');
+      if (!itemName) return;
+      const price = prompt('판매 희망 가격(원):', '1000');
+      if (!price) return;
+      const desc = prompt('물품에 대한 간단한 설명:', '상태 좋은 중고 물품');
+      const st = GameState.student;
+      const seller = st ? (st.name || st.이름) : '나';
+
+      API.showLoading('벼룩시장에 등록하는 중...');
+      const res = await API.call('addFleaMarketItem', { sellerName: seller, itemName, price: Number(price), desc });
+      API.hideLoading();
+      SoundEngine.fanfare();
+      alert(res?.msg || '벼룩시장에 등록되었습니다!');
+      open('flea_market');
+    },
+
+    buyFleaItem: async (itemName, price, seller) => {
+      if (!confirm(`[${itemName}] 중고 물품을 ${price.toLocaleString()}원에 구매하시겠습니까?`)) return;
+      const st = GameState.student;
+      const buyer = st ? (st.name || st.이름) : '나';
+
+      API.showLoading('물품을 구매하는 중...');
+      const res = await API.call('buyFleaMarketItem', { itemName, price: Number(price), sellerName: seller, buyerName: buyer });
+      API.hideLoading();
+      if (res && res.success) {
+        SoundEngine.fanfare();
+        alert(res.msg);
+        open('flea_market');
+      } else {
+        alert(res?.msg || '구매에 실패했습니다.');
+      }
+    },
+
+    // ─── 고용센터 전직 신청 ───
+    applyJob: async (jobTitle) => {
+      if (!confirm(`[${jobTitle}] 직업으로 전직/구직 신청하시겠습니까?`)) return;
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '나';
+
+      API.showLoading('직업 신청 중...');
+      const res = await API.call('applyJob', { name: myName, jobTitle });
+      API.hideLoading();
+      if (res && res.success) {
+        if (st) st.job = jobTitle;
+        const jobEl = document.getElementById('hud-job-badge');
+        if (jobEl) jobEl.textContent = jobTitle;
+        SoundEngine.fanfare();
+        alert(res.msg);
+      } else {
+        alert(res?.msg || '신청 실패');
+      }
+    },
+
+    // ─── 부동산 좌석 구매 ───
+    buySeatModal: async (seatId, price, owner) => {
+      const st = GameState.student;
+      const me = st ? (st.name || st.이름) : '나';
+      if (owner === me) return alert('이미 내가 보유한 좌석입니다.');
+
+      if (!confirm(`[${seatId}] 좌석을 ${price.toLocaleString()}원에 매입하시겠습니까?`)) return;
+      API.showLoading('좌석을 매입하는 중...');
+      const res = await API.call('buySeat', { seatId, price, buyerName: me });
+      API.hideLoading();
+      if (res && res.success) {
+        SoundEngine.fanfare();
+        alert(res.msg);
+        open('realestate');
+      } else {
+        alert(res?.msg || '매입 실패');
+      }
+    },
+
+    // ─── 상점 가구 & 아이템 구매 ───
+    buyFurniture: async (id, price, name) => {
+      if (!confirm(`[${name}] 가구를 ${price.toLocaleString()}원에 구매하시겠습니까?`)) return;
+      const st = GameState.student;
+      const me = st ? (st.name || st.이름) : '나';
+      API.showLoading('가구를 구매하는 중...');
+      const res = await API.call('buyItem', { name: me, itemName: name });
+      API.hideLoading();
+      if (res && res.success) {
+        // 로컬 보관함에도 즉시 저장
+        const key = 'user_inventory_' + me;
+        const list = JSON.parse(localStorage.getItem(key) || '[]');
+        list.push({ name: name, 카테고리: '가구', 금액: price });
+        localStorage.setItem(key, JSON.stringify(list));
+
+        SoundEngine.fanfare();
+        alert(res.msg);
+      } else {
+        alert(res?.msg || '구매 실패');
+      }
+    },
+
+    buyItem: async (itemName, price) => {
+      if (!confirm(`[${itemName}] 아이템을 ${price.toLocaleString()}원에 구매하시겠습니까?`)) return;
+      const st = GameState.student;
+      const me = st ? (st.name || st.이름) : '나';
+      API.showLoading('아이템을 구매하는 중...');
+      const res = await API.call('buyItem', { name: me, itemName: itemName });
+      API.hideLoading();
+      if (res && res.success) {
+        // 로컬 보관함에도 즉시 저장
+        const key = 'user_inventory_' + me;
+        const list = JSON.parse(localStorage.getItem(key) || '[]');
+        list.push({ name: itemName, 카테고리: '캐릭터아이템', 금액: price });
+        localStorage.setItem(key, JSON.stringify(list));
+
+        SoundEngine.fanfare();
+        alert(res.msg);
+      } else {
+        alert(res?.msg || '구매 실패');
+      }
+    },
+
+    // ─── 관리자 액션 핸들러들 ───
     openPaySalariesModal: async () => {
       const amt = prompt('전체 학생에게 일괄 지급할 월급 금액을 입력하세요:', '5000');
       if (!amt || isNaN(amt)) return;
@@ -816,7 +1283,6 @@ const ModalManager = (() => {
       open('principal');
     },
 
-    // ─── 2. 학생 선택형 벌금 징수 모달 ───
     openFineModal: (targetDefault) => {
       const students = getStudentListForSelect();
       const optionsHtml = students.map(s => `<option value="${s.name}" ${s.name === targetDefault ? 'selected' : ''}>${s.name} (${s.job || '학생'})</option>`).join('');
@@ -867,7 +1333,6 @@ const ModalManager = (() => {
       open('principal');
     },
 
-    // ─── 3. 학생 선택형 경고장 발송 모달 ───
     openWarnModal: (targetDefault) => {
       const students = getStudentListForSelect();
       const optionsHtml = students.map(s => `<option value="${s.name}" ${s.name === targetDefault ? 'selected' : ''}>${s.name} (${s.job || '학생'})</option>`).join('');
@@ -911,7 +1376,6 @@ const ModalManager = (() => {
       open('principal');
     },
 
-    // ─── 4. 교사 전용 권한 저장 ───
     handleSavePermission: async (targetName) => {
       const chks = document.querySelectorAll(`.perm-chk-${targetName}:checked`);
       const perms = Array.from(chks).map(c => c.value).join(',');
@@ -1044,7 +1508,6 @@ const ModalManager = (() => {
       }
     },
 
-    // 오직 교사만 실행 가능한 직권 자산 조정
     adminAdjustCash: (name) => {
       const delta = prompt(`[교사 직권 조정] ${name} 학생에게 지급할 금액 (차감 시 -금액):`);
       if (delta && !isNaN(delta)) {
@@ -1066,7 +1529,6 @@ const ModalManager = (() => {
       });
     },
 
-    // 오직 교사만 실행 가능한 시트 전체 초기화
     adminInitSheets: () => {
       if (!confirm('⚠️ 정말로 11개 시스템 시트를 초기화하시겠습니까? (이 작업은 되돌릴 수 없습니다)')) return;
       API.showLoading('시트를 초기화하는 중...');
