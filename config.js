@@ -4,9 +4,9 @@
 
 const CONFIG = {
   // 1. Google Apps Script 배포 URL (doPost/doGet 지원되는 /exec URL)
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbyw7jaOgOEW4BnAIt3qicTMmFDqZZ6cLM-YfY-N8I9mAVIPh37SkttzViFzu73Rptk-mg/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbzOV985jt5GQyU_PSjuyU1cnVgQYRUgYdPVOW1SmVfNlq1y7TGopvfeyzHKqvBODGmVQg/exec',
   API: {
-    GAS_URL: 'https://script.google.com/macros/s/AKfycbyw7jaOgOEW4BnAIt3qicTMmFDqZZ6cLM-YfY-N8I9mAVIPh37SkttzViFzu73Rptk-mg/exec'
+    GAS_URL: 'https://script.google.com/macros/s/AKfycbzOV985jt5GQyU_PSjuyU1cnVgQYRUgYdPVOW1SmVfNlq1y7TGopvfeyzHKqvBODGmVQg/exec'
   },
 
   // 2. Firebase 설정 (Realtime Database & Anonymous Auth)
