@@ -1,148 +1,131 @@
 // ============================================================
-// 고품질 픽셀아트 에셋 생성기 (js/assets.js)
-// 타일, 건물, 캐릭터, 가구, 놀이동산, 워터파크, 캠핑장, 장착 아이템
+// 2D 픽셀아트 & 프로시저럴 그래픽 에셋 생성기 (js/assets.js)
+// 6대 테마 타운 & 놀이동산 & 워터파크 & 캠핑장 & 동물 NPC & 장착 아이템
 // ============================================================
 
 const AssetGenerator = (() => {
-  function createCanvas(w, h) {
-    const cvs = document.createElement('canvas');
-    cvs.width = w;
-    cvs.height = h;
-    const ctx = cvs.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    return { cvs, ctx };
-  }
-
-  // 1. 기본 지형 타일셋
+  // 1. 타일셋 생성 (잔디, 흙길, 돌보도블록, 물, 꽃밭, 모래사장 등)
   function generateTileset() {
-    const { cvs, ctx } = createCanvas(256, 256);
+    const cvs = document.createElement('canvas');
+    cvs.width = 256; cvs.height = 64; // 8개 타일 (32x32)
+    const ctx = cvs.getContext('2d');
 
-    // (0,0) 잔디
-    ctx.fillStyle = '#88d49e';
-    ctx.fillRect(0, 0, 32, 32);
-    ctx.fillStyle = '#7ac590';
-    ctx.fillRect(4, 8, 4, 4);
-    ctx.fillRect(20, 14, 4, 4);
-    ctx.fillRect(12, 24, 4, 4);
-    ctx.fillStyle = '#9be3af';
-    ctx.fillRect(14, 4, 3, 3);
-    ctx.fillRect(6, 18, 3, 3);
+    // 0: 잔디 (부드러운 에메랄드 그린)
+    ctx.fillStyle = '#68d391'; ctx.fillRect(0, 0, 32, 32);
+    ctx.fillStyle = '#48bb78';
+    for (let i = 0; i < 16; i++) {
+      ctx.fillRect((i * 7) % 30, (i * 11) % 30, 2, 2);
+    }
 
-    // (1,0) 흙길
-    ctx.fillStyle = '#eddcd2';
-    ctx.fillRect(32, 0, 32, 32);
+    // 1: 자갈 흙길 (따뜻한 베이지)
+    ctx.fillStyle = '#eddcd2'; ctx.fillRect(32, 0, 32, 32);
     ctx.fillStyle = '#ddb892';
-    ctx.fillRect(36, 6, 6, 4);
-    ctx.fillRect(52, 18, 8, 4);
+    for (let i = 0; i < 12; i++) {
+      ctx.fillRect(32 + (i * 9) % 28, (i * 13) % 28, 3, 2);
+    }
 
-    // (2,0) 석재 보도블록
-    ctx.fillStyle = '#e9ecef';
-    ctx.fillRect(64, 0, 32, 32);
-    ctx.strokeStyle = '#ced4da';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(65, 1, 14, 14);
-    ctx.strokeRect(81, 1, 14, 14);
-    ctx.strokeRect(65, 17, 14, 14);
-    ctx.strokeRect(81, 17, 14, 14);
+    // 2: 돌 보도블록 (중심가)
+    ctx.fillStyle = '#cbd5e1'; ctx.fillRect(64, 0, 32, 32);
+    ctx.fillStyle = '#94a3b8';
+    ctx.strokeRect(64.5, 0.5, 31, 31);
+    ctx.strokeRect(64.5, 16.5, 31, 0);
+    ctx.strokeRect(80.5, 0.5, 0, 16);
+    ctx.strokeRect(72.5, 16.5, 0, 16);
 
-    // (3,0) 맑은 물
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(96, 0, 32, 32);
+    // 3: 맑은 호수 물
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(96, 0, 32, 32);
     ctx.fillStyle = '#bae6fd';
-    ctx.fillRect(100, 8, 12, 3);
-    ctx.fillRect(114, 20, 10, 3);
+    ctx.fillRect(98, 8, 12, 2);
+    ctx.fillRect(112, 20, 10, 2);
 
-    // (4,0) 꽃밭
-    ctx.fillStyle = '#88d49e';
-    ctx.fillRect(128, 0, 32, 32);
-    ctx.fillStyle = '#ff6b6b'; ctx.fillRect(132, 8, 4, 4);
-    ctx.fillStyle = '#feca57'; ctx.fillRect(148, 14, 4, 4);
-    ctx.fillStyle = '#ff9ff3'; ctx.fillRect(138, 22, 4, 4);
+    // 4: 알록달록 꽃밭
+    ctx.fillStyle = '#68d391'; ctx.fillRect(128, 0, 32, 32);
+    ctx.fillStyle = '#f43f5e'; ctx.fillRect(132, 8, 4, 4);
+    ctx.fillStyle = '#fbbf24'; ctx.fillRect(146, 18, 4, 4);
+    ctx.fillStyle = '#a855f7'; ctx.fillRect(138, 22, 4, 4);
 
-    // (5,0) 나무 다리
-    ctx.fillStyle = '#c68b59';
-    ctx.fillRect(160, 0, 32, 32);
-    ctx.fillStyle = '#8d5b4c';
-    ctx.fillRect(160, 0, 32, 4);
-    ctx.fillRect(160, 28, 32, 4);
-    ctx.fillRect(174, 4, 4, 24);
+    // 5: 나무 다리
+    ctx.fillStyle = '#b45309'; ctx.fillRect(160, 0, 32, 32);
+    ctx.fillStyle = '#d97706';
+    for (let y = 2; y < 32; y += 6) {
+      ctx.fillRect(162, y, 28, 4);
+    }
 
-    // (6,0) 모래사장 (워터파크/해변)
-    ctx.fillStyle = '#fde68a';
-    ctx.fillRect(192, 0, 32, 32);
-    ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(196, 8, 4, 4);
-    ctx.fillRect(212, 20, 4, 4);
+    // 6: 모래사장 (비치)
+    ctx.fillStyle = '#fde68a'; ctx.fillRect(192, 0, 32, 32);
+    ctx.fillStyle = '#fcd34d';
+    for (let i = 0; i < 8; i++) {
+      ctx.fillRect(192 + (i * 11) % 30, (i * 7) % 30, 2, 2);
+    }
+
+    // 7: 놀이터 우레탄 트랙
+    ctx.fillStyle = '#f87171'; ctx.fillRect(224, 0, 32, 32);
+    ctx.fillStyle = '#ef4444';
+    for (let i = 0; i < 6; i++) {
+      ctx.fillRect(224 + (i * 13) % 28, (i * 9) % 28, 4, 2);
+    }
 
     return cvs;
   }
 
-  // 2. 캐릭터 4방향 스프라이트시트
-  function generateCharacterSpritesheet(skinColor = '#ffeaa7', hairColor = '#6c5ce7', clothesColor = '#ff7675') {
-    const { cvs, ctx } = createCanvas(128, 192);
+  // 2. 캐릭터 스프라이트시트 (4방향 4프레임)
+  function generateCharacterSpritesheet() {
+    const cvs = document.createElement('canvas');
+    cvs.width = 128; cvs.height = 192; // 4 cols x 4 rows (32x48 each)
+    const ctx = cvs.getContext('2d');
+
     const dirs = ['down', 'left', 'right', 'up'];
-
     dirs.forEach((dir, row) => {
-      for (let frame = 0; frame < 4; frame++) {
-        const ox = frame * 32;
-        const oy = row * 48;
-        const bounce = (frame % 2 === 1) ? 2 : 0;
-        const legWalk = (frame === 1) ? -2 : (frame === 3 ? 2 : 0);
+      for (let col = 0; col < 4; col++) {
+        const x = col * 32;
+        const y = row * 48;
+        const step = col % 2 === 1 ? (col === 1 ? -2 : 2) : 0;
 
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        // 그림자
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
         ctx.beginPath();
-        ctx.ellipse(ox + 16, oy + 44, 10, 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(x + 16, y + 44, 10, 4, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = '#2d3436';
-        if (dir === 'down' || dir === 'up') {
-          ctx.fillRect(ox + 9, oy + 38 + bounce + (legWalk < 0 ? -2 : 0), 5, 5);
-          ctx.fillRect(ox + 18, oy + 38 + bounce + (legWalk > 0 ? -2 : 0), 5, 5);
-        } else {
-          ctx.fillRect(ox + 12 + legWalk, oy + 38 + bounce, 8, 5);
-        }
+        // 발/신발
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(x + 10 + step, y + 38, 5, 6);
+        ctx.fillRect(x + 17 - step, y + 38, 5, 6);
 
-        ctx.fillStyle = clothesColor;
-        ctx.fillRect(ox + 8, oy + 24 + bounce, 16, 15);
+        // 몸통/멜빵 옷 (포근한 청멜빵)
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(x + 9, y + 24, 14, 15);
+        ctx.fillStyle = '#ef4444'; // 빨간 셔츠
+        ctx.fillRect(x + 11, y + 22, 10, 4);
+
+        // 머리 (둥근 얼굴)
+        ctx.fillStyle = '#ffedd5';
+        ctx.fillRect(x + 8, y + 8, 16, 15);
+
+        // 헤어스타일 (도토리 갈색 머리)
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(x + 7, y + 5, 18, 7);
+        ctx.fillRect(x + 6, y + 8, 4, 8);
+        ctx.fillRect(x + 22, y + 8, 4, 8);
+
+        // 눈 & 볼터치
         if (dir === 'down') {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(ox + 15, oy + 24 + bounce, 2, 8);
-        }
-
-        ctx.fillStyle = skinColor;
-        if (dir === 'down' || dir === 'up') {
-          ctx.fillRect(ox + 5, oy + 25 + bounce - legWalk, 3, 9);
-          ctx.fillRect(ox + 24, oy + 25 + bounce + legWalk, 3, 9);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(x + 11, y + 14, 2, 3);
+          ctx.fillRect(x + 19, y + 14, 2, 3);
+          ctx.fillStyle = '#fda4af';
+          ctx.fillRect(x + 9, y + 17, 3, 2);
+          ctx.fillRect(x + 20, y + 17, 3, 2);
         } else if (dir === 'left') {
-          ctx.fillRect(ox + 10 - legWalk, oy + 25 + bounce, 4, 9);
-        } else {
-          ctx.fillRect(ox + 18 + legWalk, oy + 25 + bounce, 4, 9);
-        }
-
-        ctx.fillStyle = skinColor;
-        ctx.fillRect(ox + 7, oy + 10 + bounce, 18, 15);
-
-        ctx.fillStyle = hairColor;
-        ctx.fillRect(ox + 6, oy + 6 + bounce, 20, 9);
-        ctx.fillRect(ox + 5, oy + 9 + bounce, 4, 9);
-        ctx.fillRect(ox + 23, oy + 9 + bounce, 4, 9);
-
-        if (dir === 'down') {
-          ctx.fillStyle = '#2d3436';
-          ctx.fillRect(ox + 10, oy + 16 + bounce, 3, 3);
-          ctx.fillRect(ox + 19, oy + 16 + bounce, 3, 3);
-          ctx.fillStyle = '#ff7675';
-          ctx.fillRect(ox + 9, oy + 19 + bounce, 3, 2);
-          ctx.fillRect(ox + 20, oy + 19 + bounce, 3, 2);
-        } else if (dir === 'left') {
-          ctx.fillStyle = '#2d3436';
-          ctx.fillRect(ox + 9, oy + 16 + bounce, 3, 3);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(x + 9, y + 14, 2, 3);
+          ctx.fillStyle = '#fda4af';
+          ctx.fillRect(x + 8, y + 17, 3, 2);
         } else if (dir === 'right') {
-          ctx.fillStyle = '#2d3436';
-          ctx.fillRect(ox + 20, oy + 16 + bounce, 3, 3);
-        } else if (dir === 'up') {
-          ctx.fillStyle = hairColor;
-          ctx.fillRect(ox + 6, oy + 10 + bounce, 20, 10);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(x + 21, y + 14, 2, 3);
+          ctx.fillStyle = '#fda4af';
+          ctx.fillRect(x + 21, y + 17, 3, 2);
         }
       }
     });
@@ -150,246 +133,329 @@ const AssetGenerator = (() => {
     return cvs;
   }
 
-  // 3. 건물 스프라이트
-  function generateBuildingSprite(colorRoof, signTitle, signEmoji, width = 160, height = 140) {
-    const { cvs, ctx } = createCanvas(width, height);
+  // 3. 14개 건물 프로시저럴 그래픽
+  function generateBuildingSprite(roofColor, title, emoji, width = 160, height = 140) {
+    const cvs = document.createElement('canvas');
+    cvs.width = width; cvs.height = height;
+    const ctx = cvs.getContext('2d');
 
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
-    ctx.beginPath();
-    ctx.ellipse(width / 2, height - 8, width * 0.45, 12, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    const wallY = 50;
-    const wallH = height - wallY - 14;
-    ctx.fillStyle = '#fffdf7';
-    ctx.fillRect(16, wallY, width - 32, wallH);
-    ctx.strokeStyle = '#e2d9cc';
+    // 벽체
+    ctx.fillStyle = '#fffdfa';
+    ctx.fillRect(10, 45, width - 20, height - 50);
+    ctx.strokeStyle = '#334155';
     ctx.lineWidth = 3;
-    ctx.strokeRect(16, wallY, width - 32, wallH);
+    ctx.strokeRect(10, 45, width - 20, height - 50);
 
-    ctx.fillStyle = colorRoof;
+    // 지붕 (입체 경사)
+    ctx.fillStyle = roofColor;
     ctx.beginPath();
-    ctx.moveTo(width / 2, 4);
-    ctx.lineTo(width - 6, wallY + 8);
-    ctx.lineTo(6, wallY + 8);
+    ctx.moveTo(0, 48);
+    ctx.lineTo(width / 2, 10);
+    ctx.lineTo(width, 48);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#2d3436';
-    ctx.lineWidth = 3;
     ctx.stroke();
 
-    const doorW = 28;
-    const doorH = 40;
+    // 지붕 테두리 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.moveTo(width / 2, 10);
+    ctx.lineTo(0, 48);
+    ctx.lineTo(6, 48);
+    ctx.lineTo(width / 2, 14);
+    ctx.fill();
+
+    // 굴뚝
+    ctx.fillStyle = '#b91c1c';
+    ctx.fillRect(width - 36, 12, 14, 22);
+    ctx.strokeRect(width - 36, 12, 14, 22);
+
+    // 문
+    const doorW = 34, doorH = 46;
     const doorX = (width - doorW) / 2;
-    const doorY = height - doorH - 14;
-    ctx.fillStyle = '#854d0e';
+    const doorY = height - doorH - 3;
+    ctx.fillStyle = '#b45309';
     ctx.fillRect(doorX, doorY, doorW, doorH);
+    ctx.strokeRect(doorX, doorY, doorW, doorH);
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath(); ctx.arc(doorX + doorW - 8, doorY + doorH / 2, 3, 0, Math.PI * 2); ctx.fill();
 
-    const signW = Math.min(width - 30, 120);
-    const signH = 26;
-    const signX = (width - signW) / 2;
-    const signY = wallY - 14;
+    // 창문 (양쪽)
+    const winY = 60, winSize = 24;
+    [24, width - 24 - winSize].forEach(wx => {
+      ctx.fillStyle = '#93c5fd';
+      ctx.fillRect(wx, winY, winSize, winSize);
+      ctx.strokeRect(wx, winY, winSize, winSize);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(wx + 2, winY + 2, 6, 6);
+    });
 
-    ctx.fillStyle = '#3e2723';
-    ctx.fillRect(signX, signY, signW, signH);
-    ctx.strokeStyle = '#ffd54f';
+    // 화려한 간판
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(16, 26, width - 32, 24);
+    ctx.strokeStyle = '#fef08a';
     ctx.lineWidth = 2;
-    ctx.strokeRect(signX, signY, signW, signH);
+    ctx.strokeRect(16, 26, width - 32, 24);
 
-    ctx.font = 'bold 12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(`${signEmoji} ${signTitle}`, width / 2, signY + signH / 2);
-
-    return cvs;
-  }
-
-  // 4. 놀이동산 오브젝트
-  function generateAmusementSprite(type) {
-    if (type === 'ferris_wheel') {
-      const { cvs, ctx } = createCanvas(130, 140);
-      ctx.strokeStyle = '#64748b'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(35, 130); ctx.lineTo(65, 65); ctx.lineTo(95, 130); ctx.stroke();
-      ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(65, 65, 52, 0, Math.PI * 2); ctx.stroke();
-      for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
-        ctx.beginPath(); ctx.moveTo(65, 65); ctx.lineTo(65 + Math.cos(a)*52, 65 + Math.sin(a)*52); ctx.stroke();
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillRect(65 + Math.cos(a)*52 - 6, 65 + Math.sin(a)*52 - 4, 12, 10);
-      }
-      return cvs;
-    } else if (type === 'carousel') {
-      const { cvs, ctx } = createCanvas(110, 110);
-      ctx.fillStyle = '#f59e0b';
-      ctx.beginPath(); ctx.moveTo(55, 10); ctx.lineTo(105, 45); ctx.lineTo(5, 45); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#ef4444';
-      ctx.beginPath(); ctx.moveTo(55, 10); ctx.lineTo(85, 45); ctx.lineTo(25, 45); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#e2e8f0'; ctx.fillRect(15, 45, 6, 50); ctx.fillRect(52, 45, 6, 50); ctx.fillRect(89, 45, 6, 50);
-      ctx.font = '20px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('🎠', 32, 75); ctx.fillText('🎠', 72, 75);
-      ctx.fillStyle = '#d97706'; ctx.fillRect(8, 92, 94, 10);
-      return cvs;
-    } else if (type === 'roller_coaster') {
-      const { cvs, ctx } = createCanvas(140, 100);
-      ctx.strokeStyle = '#e11d48'; ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.moveTo(10, 80); ctx.bezierCurveTo(40, 10, 90, 90, 130, 20); ctx.stroke();
-      ctx.font = '24px sans-serif'; ctx.fillText('🎢', 50, 45);
-      return cvs;
-    } else if (type === 'circus_tent') {
-      const { cvs, ctx } = createCanvas(120, 100);
-      ctx.fillStyle = '#ef4444';
-      ctx.beginPath(); ctx.moveTo(60, 8); ctx.lineTo(115, 60); ctx.lineTo(5, 60); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#b91c1c'; ctx.fillRect(10, 60, 100, 34);
-      ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.arc(60, 94, 16, Math.PI, 0); ctx.fill();
-      return cvs;
-    } else if (type === 'popcorn_cart') {
-      const { cvs, ctx } = createCanvas(48, 56);
-      ctx.fillStyle = '#f43f5e'; ctx.fillRect(8, 20, 32, 24);
-      ctx.fillStyle = '#fef08a'; ctx.fillRect(12, 6, 24, 14);
-      ctx.font = '12px sans-serif'; ctx.fillText('🍿', 18, 18);
-      ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.arc(16, 46, 6, 0, Math.PI * 2); ctx.arc(32, 46, 6, 0, Math.PI * 2); ctx.fill();
-      return cvs;
-    }
-    return createCanvas(32, 32).cvs;
-  }
-
-  // 5. 워터파크 & 해변 특수 오브젝트 (워터 슬라이드, 오리배, 비치 파라솔)
-  function generateWaterparkSprite(type) {
-    if (type === 'water_slide') {
-      const { cvs, ctx } = createCanvas(120, 120);
-      ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 14; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(20, 20); ctx.bezierCurveTo(80, 20, 30, 90, 100, 100); ctx.stroke();
-      ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 8;
-      ctx.beginPath(); ctx.moveTo(20, 20); ctx.bezierCurveTo(80, 20, 30, 90, 100, 100); ctx.stroke();
-      ctx.font = '22px sans-serif'; ctx.fillText('🏄‍♂️', 85, 95);
-      return cvs;
-    } else if (type === 'duck_boat') {
-      const { cvs, ctx } = createCanvas(56, 48);
-      ctx.fillStyle = '#fef08a';
-      ctx.beginPath(); ctx.ellipse(28, 30, 22, 12, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.font = '24px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🦆', 28, 26);
-      return cvs;
-    } else if (type === 'beach_umbrella') {
-      const { cvs, ctx } = createCanvas(64, 64);
-      ctx.fillStyle = '#64748b'; ctx.fillRect(30, 20, 4, 40);
-      ctx.fillStyle = '#f43f5e';
-      ctx.beginPath(); ctx.arc(32, 22, 28, Math.PI, 0); ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.moveTo(32, 22); ctx.arc(32, 22, 28, Math.PI + 0.8, Math.PI + 1.6); ctx.fill();
-      return cvs;
-    }
-    return createCanvas(32, 32).cvs;
-  }
-
-  // 6. 캠핑장 & 피크닉 오브젝트 (캠핑 텐트, 캠프파이어 모닥불, 통나무)
-  function generateCampingSprite(type) {
-    if (type === 'camp_tent') {
-      const { cvs, ctx } = createCanvas(80, 70);
-      ctx.fillStyle = '#10b981';
-      ctx.beginPath(); ctx.moveTo(40, 10); ctx.lineTo(75, 60); ctx.lineTo(5, 60); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#065f46';
-      ctx.beginPath(); ctx.moveTo(40, 10); ctx.lineTo(55, 60); ctx.lineTo(25, 60); ctx.closePath(); ctx.fill();
-      return cvs;
-    } else if (type === 'campfire') {
-      const { cvs, ctx } = createCanvas(48, 48);
-      ctx.fillStyle = '#78350f';
-      ctx.fillRect(8, 36, 32, 6);
-      ctx.fillRect(14, 30, 20, 6);
-      ctx.font = '24px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🔥', 24, 26);
-      return cvs;
-    }
-    return createCanvas(32, 32).cvs;
-  }
-
-  // 7. 동물 NPC 스프라이트
-  function generateAnimalNPCSprite(type) {
-    const { cvs, ctx } = createCanvas(32, 48);
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-    ctx.beginPath(); ctx.ellipse(16, 44, 10, 4, 0, 0, Math.PI * 2); ctx.fill();
-
-    let bodyColor = '#d97706';
-    let earEmoji = '🐻';
-
-    if (type === 'rabbit') { bodyColor = '#fbcfe8'; earEmoji = '🐰'; }
-    if (type === 'cat') { bodyColor = '#fdba74'; earEmoji = '🐱'; }
-    if (type === 'panda') { bodyColor = '#ffffff'; earEmoji = '🐼'; }
-    if (type === 'fox') { bodyColor = '#ea580c'; earEmoji = '🦊'; }
-
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(8, 24, 16, 14);
-    ctx.fillStyle = bodyColor;
-    ctx.fillRect(9, 38, 5, 5);
-    ctx.fillRect(18, 38, 5, 5);
-
-    ctx.fillStyle = bodyColor;
-    ctx.beginPath(); ctx.arc(16, 16, 10, 0, Math.PI * 2); ctx.fill();
-
-    ctx.font = '16px sans-serif';
+    ctx.font = 'bold 12px "Pretendard", sans-serif';
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(earEmoji, 16, 15);
+    ctx.fillText(`${emoji} ${title}`, width / 2, 42);
 
     return cvs;
   }
 
-  // 8. 캐릭터 장착 아이템 오버레이 (날개, 킥보드, 아우라)
-  function generateEquipOverlay(type) {
-    if (type === 'wings_angel') {
-      const { cvs, ctx } = createCanvas(48, 32);
+  // 4. 화려한 벚꽃나무 스프라이트
+  function generateTreeSprite(isPink = true) {
+    const cvs = document.createElement('canvas');
+    cvs.width = 64; cvs.height = 80;
+    const ctx = cvs.getContext('2d');
+
+    // 나무 기둥
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(26, 44, 12, 30);
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(26, 44, 12, 30);
+
+    // 풍성한 나뭇잎 구름 (벚꽃 / 일반)
+    const leafColor = isPink ? '#ffb7b2' : '#22c55e';
+    const darkLeaf = isPink ? '#ff9aa2' : '#15803d';
+
+    ctx.fillStyle = darkLeaf;
+    ctx.beginPath(); ctx.arc(32, 36, 26, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = leafColor;
+    ctx.beginPath(); ctx.arc(32, 28, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(20, 32, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(44, 32, 14, 0, Math.PI * 2); ctx.fill();
+
+    // 반짝임 꽃잎
+    ctx.fillStyle = isPink ? '#ffffff' : '#86efac';
+    ctx.fillRect(28, 20, 3, 3);
+    ctx.fillRect(38, 26, 3, 3);
+    ctx.fillRect(22, 30, 2, 2);
+
+    return cvs;
+  }
+
+  // 5. 대형 분수대 스프라이트
+  function generateFountainSprite() {
+    const cvs = document.createElement('canvas');
+    cvs.width = 96; cvs.height = 80;
+    const ctx = cvs.getContext('2d');
+
+    // 하단 수조
+    ctx.fillStyle = '#94a3b8';
+    ctx.beginPath(); ctx.ellipse(48, 55, 42, 20, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 3; ctx.stroke();
+
+    // 맑은 물
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath(); ctx.ellipse(48, 53, 36, 16, 0, 0, Math.PI * 2); ctx.fill();
+
+    // 중앙 기둥
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(44, 25, 8, 30);
+    ctx.beginPath(); ctx.ellipse(48, 25, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
+
+    // 뿜어져 나오는 물줄기
+    ctx.fillStyle = '#bae6fd';
+    ctx.beginPath(); ctx.arc(48, 12, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(46, 12, 4, 15);
+
+    return cvs;
+  }
+
+  // 6. 놀이동산 어트랙션 (대관람차, 회전목마, 롤러코스터, 서커스텐트, 팝콘가판대)
+  function generateAmusementSprite(type) {
+    const cvs = document.createElement('canvas');
+    const ctx = cvs.getContext('2d');
+
+    if (type === 'ferris_wheel') {
+      cvs.width = 120; cvs.height = 130;
+      // 대관람차
+      ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(60, 60, 48, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2;
+      for (let i = 0; i < 8; i++) {
+        const rad = (i * Math.PI) / 4;
+        ctx.beginPath(); ctx.moveTo(60, 60); ctx.lineTo(60 + Math.cos(rad) * 48, 60 + Math.sin(rad) * 48); ctx.stroke();
+        // 곤돌라
+        ctx.fillStyle = i % 2 === 0 ? '#38bdf8' : '#a855f7';
+        ctx.fillRect(60 + Math.cos(rad) * 48 - 6, 60 + Math.sin(rad) * 48 - 6, 12, 12);
+      }
+      // 지지대
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(60, 60); ctx.lineTo(30, 120); ctx.moveTo(60, 60); ctx.lineTo(90, 120); ctx.stroke();
+      ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(60, 60, 8, 0, Math.PI * 2); ctx.fill();
+    } else if (type === 'carousel') {
+      cvs.width = 110; cvs.height = 100;
+      // 지붕
+      ctx.fillStyle = '#ec4899';
+      ctx.beginPath(); ctx.moveTo(10, 40); ctx.lineTo(55, 10); ctx.lineTo(100, 40); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fde047';
+      for (let x = 18; x < 100; x += 18) {
+        ctx.fillRect(x, 26, 8, 14);
+      }
+      // 기둥 및 회전목마 말
+      ctx.fillStyle = '#e2e8f0'; ctx.fillRect(20, 40, 6, 45); ctx.fillRect(52, 40, 6, 45); ctx.fillRect(84, 40, 6, 45);
+      ctx.font = '22px sans-serif'; ctx.fillText('🎠', 24, 75); ctx.fillText('🎠', 56, 75);
+      ctx.fillStyle = '#334155'; ctx.fillRect(8, 85, 94, 10);
+    } else if (type === 'roller_coaster') {
+      cvs.width = 130; cvs.height = 90;
+      ctx.strokeStyle = '#e11d48'; ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(10, 80); ctx.bezierCurveTo(40, 10, 80, 90, 120, 30); ctx.stroke();
+      ctx.fillStyle = '#fbbf24'; ctx.fillRect(60, 35, 20, 14);
+      ctx.font = '16px sans-serif'; ctx.fillText('🎢', 62, 48);
+    } else if (type === 'circus_tent') {
+      cvs.width = 120; cvs.height = 110;
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath(); ctx.moveTo(10, 55); ctx.lineTo(60, 15); ctx.lineTo(110, 55); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.ellipse(12, 16, 10, 6, -0.3, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(36, 16, 10, 6, 0.3, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#bae6fd'; ctx.lineWidth = 1; ctx.stroke();
-      return cvs;
-    } else if (type === 'mount_kickboard') {
-      const { cvs, ctx } = createCanvas(36, 18);
-      ctx.fillStyle = '#06b6d4'; ctx.fillRect(2, 8, 32, 4);
+      for (let i = 25; i < 100; i += 24) { ctx.fillRect(i, 35, 10, 20); }
+      ctx.fillStyle = '#fef08a'; ctx.fillRect(15, 55, 90, 45);
+      ctx.fillStyle = '#7c3aed'; ctx.fillRect(45, 65, 30, 35);
+      ctx.font = '18px sans-serif'; ctx.fillText('🎪', 50, 50);
+    } else {
+      // 팝콘 왜건
+      cvs.width = 60; cvs.height = 60;
+      ctx.fillStyle = '#ef4444'; ctx.fillRect(10, 20, 40, 25);
+      ctx.fillStyle = '#fef08a'; ctx.fillRect(15, 10, 30, 10);
+      ctx.font = '20px sans-serif'; ctx.fillText('🍿', 18, 38);
       ctx.fillStyle = '#334155';
-      ctx.beginPath(); ctx.arc(6, 12, 3, 0, Math.PI * 2); ctx.arc(30, 12, 3, 0, Math.PI * 2); ctx.fill();
-      return cvs;
+      ctx.beginPath(); ctx.arc(20, 48, 8, 0, Math.PI * 2); ctx.arc(40, 48, 8, 0, Math.PI * 2); ctx.fill();
     }
-    return createCanvas(16, 16).cvs;
+
+    return cvs;
+  }
+
+  // 7. 워터파크 어트랙션 (워터슬라이드, 오리배, 비치파라솔)
+  function generateWaterparkSprite(type) {
+    const cvs = document.createElement('canvas');
+    const ctx = cvs.getContext('2d');
+
+    if (type === 'water_slide') {
+      cvs.width = 120; cvs.height = 110;
+      ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(100, 20); ctx.bezierCurveTo(40, 30, 100, 70, 20, 95); ctx.stroke();
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(88, 15, 24, 80);
+      ctx.font = '24px sans-serif'; ctx.fillText('🏄‍♂️', 45, 65);
+    } else if (type === 'duck_boat') {
+      cvs.width = 60; cvs.height = 50;
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath(); ctx.ellipse(30, 30, 22, 14, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.font = '26px sans-serif'; ctx.fillText('🦆', 18, 36);
+    } else {
+      // 비치 파라솔 & 선베드
+      cvs.width = 70; cvs.height = 70;
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath(); ctx.arc(35, 25, 24, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(33, 25, 4, 35);
+      ctx.font = '22px sans-serif'; ctx.fillText('⛱️', 24, 45);
+    }
+
+    return cvs;
+  }
+
+  // 8. 캠핑장 어트랙션 (텐트, 캠프파이어)
+  function generateCampingSprite(type) {
+    const cvs = document.createElement('canvas');
+    const ctx = cvs.getContext('2d');
+
+    if (type === 'camp_tent') {
+      cvs.width = 90; cvs.height = 80;
+      ctx.fillStyle = '#059669';
+      ctx.beginPath(); ctx.moveTo(15, 70); ctx.lineTo(45, 15); ctx.lineTo(75, 70); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath(); ctx.moveTo(35, 70); ctx.lineTo(45, 35); ctx.lineTo(55, 70); ctx.closePath(); ctx.fill();
+      ctx.font = '24px sans-serif'; ctx.fillText('⛺', 33, 60);
+    } else {
+      // 캠프파이어
+      cvs.width = 50; cvs.height = 50;
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(10, 35, 30, 8);
+      ctx.font = '24px sans-serif'; ctx.fillText('🔥', 14, 34);
+    }
+
+    return cvs;
+  }
+
+  // 9. 동물 NPC 주민 스프라이트 (곰, 토끼, 고양이, 판다, 여우)
+  function generateAnimalNPCSprite(type) {
+    const cvs = document.createElement('canvas');
+    cvs.width = 36; cvs.height = 42;
+    const ctx = cvs.getContext('2d');
+
+    const emojiMap = {
+      bear: '🐻', rabbit: '🐰', cat: '🐱', panda: '🐼', fox: '🦊'
+    };
+
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(18, 38, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    ctx.font = '28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(emojiMap[type] || '🐻', 18, 32);
+
+    return cvs;
+  }
+
+  // 10. 캐릭터 장착 아이템 오버레이 스프라이트
+  function generateEquipOverlay(type) {
+    const cvs = document.createElement('canvas');
+    const ctx = cvs.getContext('2d');
+
+    if (type === 'wings_angel') {
+      cvs.width = 48; cvs.height = 32;
+      ctx.font = '26px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🪽', 24, 24);
+    } else if (type === 'mount_kickboard') {
+      cvs.width = 40; cvs.height = 24;
+      ctx.font = '22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🛴', 20, 18);
+    }
+
+    return cvs;
+  }
+
+  // 11. 환경 소품
+  function generatePropSprite(type) {
+    const cvs = document.createElement('canvas');
+    const ctx = cvs.getContext('2d');
+
+    if (type === 'lamp') {
+      cvs.width = 24; cvs.height = 48;
+      ctx.fillStyle = '#334155'; ctx.fillRect(10, 10, 4, 36);
+      ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(12, 10, 8, 0, Math.PI * 2); ctx.fill();
+    } else if (type === 'bench') {
+      cvs.width = 48; cvs.height = 28;
+      ctx.fillStyle = '#b45309'; ctx.fillRect(4, 8, 40, 12);
+      ctx.fillStyle = '#334155'; ctx.fillRect(8, 20, 4, 8); ctx.fillRect(36, 20, 4, 8);
+    } else if (type === 'mailbox') {
+      cvs.width = 28; cvs.height = 36;
+      ctx.fillStyle = '#ef4444'; ctx.fillRect(6, 6, 16, 20);
+      ctx.fillStyle = '#334155'; ctx.fillRect(12, 26, 4, 10);
+    }
+
+    return cvs;
   }
 
   return {
     generateTileset,
     generateCharacterSpritesheet,
     generateBuildingSprite,
+    generateTreeSprite,
+    generateFountainSprite,
     generateAmusementSprite,
     generateWaterparkSprite,
     generateCampingSprite,
     generateAnimalNPCSprite,
     generateEquipOverlay,
-    generateTreeSprite: (isPink) => {
-      const { cvs, ctx } = createCanvas(64, 80);
-      ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(32, 74, 20, 6, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#78350f'; ctx.fillRect(26, 44, 12, 30);
-      const color = isPink ? '#f472b6' : '#4ade80';
-      ctx.fillStyle = color; ctx.beginPath(); ctx.arc(32, 32, 22, 0, Math.PI * 2); ctx.arc(22, 26, 14, 0, Math.PI * 2); ctx.arc(42, 26, 14, 0, Math.PI * 2); ctx.fill();
-      return cvs;
-    },
-    generateFountainSprite: () => {
-      const { cvs, ctx } = createCanvas(64, 64);
-      ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.ellipse(32, 42, 28, 16, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.ellipse(32, 40, 24, 12, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#cbd5e1'; ctx.fillRect(28, 20, 8, 20);
-      ctx.fillStyle = '#e0f2fe'; ctx.beginPath(); ctx.arc(32, 10, 6, 0, Math.PI * 2); ctx.fill();
-      return cvs;
-    },
-    generatePropSprite: (type) => {
-      const { cvs, ctx } = createCanvas(32, 48);
-      if (type === 'lamp') {
-        ctx.fillStyle = '#334155'; ctx.fillRect(14, 12, 4, 34);
-        ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(16, 12, 7, 0, Math.PI * 2); ctx.fill();
-      } else if (type === 'bench') {
-        ctx.fillStyle = '#a16207'; ctx.fillRect(4, 24, 24, 6);
-        ctx.fillStyle = '#334155'; ctx.fillRect(6, 30, 3, 10); ctx.fillRect(23, 30, 3, 10);
-      } else if (type === 'mailbox') {
-        ctx.fillStyle = '#ef4444'; ctx.fillRect(8, 16, 16, 18);
-        ctx.fillStyle = '#78350f'; ctx.fillRect(14, 34, 4, 12);
-      }
-      return cvs;
-    }
+    generatePropSprite
   };
 })();

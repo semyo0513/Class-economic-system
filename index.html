@@ -623,39 +623,66 @@
     <div id="global-loading-text">처리 중입니다...</div>
   </div>
 
-  <!-- 1. 로그인 화면 -->
+  <!-- 1. 메이저 게임 타이틀 & 로그인 화면 -->
   <div id="login-screen">
-    <div class="login-card">
-      <div class="login-logo">🌲 클래스 타운 🌸</div>
-      <div class="login-sub">동물의 숲 2D 학급경영 & 기숙사 미니룸</div>
+    <!-- 타이틀 화면 캔버스 배경 (구름/벚꽃/빛 효과) -->
+    <canvas id="title-bg-canvas" style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:0;"></canvas>
+
+    <div class="login-card" style="position:relative; z-index:10; max-width:440px; background:rgba(255, 253, 247, 0.96); backdrop-filter:blur(10px); border:4px solid #1e293b; border-radius:20px; box-shadow:0 12px 0 #0f172a, 0 30px 60px rgba(0,0,0,0.35); padding:32px 24px;">
+      <!-- 게임 엠블럼 로고 -->
+      <div style="font-size:12px; font-weight:bold; letter-spacing:2px; color:#059669; text-transform:uppercase; margin-bottom:4px;">
+        ✨ Real-Time Class Economy MMORPG ✨
+      </div>
+      <div class="login-logo" style="font-size:32px; font-weight:900; color:#065f46; text-shadow:2px 2px 0 #a7f3d0, 4px 4px 0 #1e293b; line-height:1.2; margin-bottom:6px;">
+        🌲 동물의 숲 🌸<br><span style="font-size:24px; color:#0284c7; text-shadow:2px 2px 0 #bae6fd, 4px 4px 0 #1e293b;">클래스 타운</span>
+      </div>
+      <div class="login-sub" style="font-size:12px; color:#64748b; margin-bottom:16px;">
+        2D 학급 화폐 경제 & 싸이월드 미니룸 하우징
+      </div>
+
+      <!-- 서버 상태 배지 -->
+      <div style="display:flex; justify-content:center; gap:8px; margin-bottom:18px;">
+        <span style="background:#ecfdf5; border:1px solid #10b981; color:#065f46; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:bold;">
+          🟢 Server: Online
+        </span>
+        <span style="background:#f0f9ff; border:1px solid #0284c7; color:#0369a1; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:bold;">
+          🏫 행복초등학교 연동
+        </span>
+      </div>
+
+      <!-- 로그인 모드 탭 (학생 / 선생님) -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:#e2e8f0; padding:4px; border-radius:10px; margin-bottom:16px;">
+        <button type="button" id="tab-login-student" class="tab-btn active" style="padding:8px; font-size:13px; font-weight:bold; border-radius:8px;" onclick="switchLoginMode('student')">👨‍🎓 학생 모드</button>
+        <button type="button" id="tab-login-admin" class="tab-btn" style="padding:8px; font-size:13px; font-weight:bold; border-radius:8px;" onclick="switchLoginMode('admin')">👑 교사(관리자)</button>
+      </div>
 
       <div class="login-form">
-        <div class="input-group">
-          <label>👨‍🎓 학생 이름</label>
-          <input type="text" id="login-name-input" placeholder="이름을 입력하세요 (예: 홍길동)" onkeydown="if(event.key==='Enter') handleLogin()">
-        </div>
-        <div class="input-group">
-          <label>🔑 비밀번호 (선택/기본: 1234, 관리자: 0513)</label>
-          <input type="password" id="login-pw-input" placeholder="비밀번호 입력 (선택)" onkeydown="if(event.key==='Enter') handleLogin()">
-        </div>
-        <button class="pixel-btn-primary" onclick="handleLogin()">🎮 마을 즉시 입장하기</button>
-
-        <div style="margin-top:12px; font-size:11px; color:#475569;">
-          <span>💡 등록 학생 빠른 선택:</span>
-          <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap; margin-top:6px;">
-            <button type="button" class="pixel-btn-sm" onclick="selectQuickStudent('김현주')">김현주</button>
-            <button type="button" class="pixel-btn-sm" onclick="selectQuickStudent('이하진')">이하진</button>
-            <button type="button" class="pixel-btn-sm" onclick="selectQuickStudent('정수빈')">정수빈</button>
-            <button type="button" class="pixel-btn-sm" onclick="selectQuickStudent('서언')">서언</button>
-            <button type="button" class="pixel-btn-sm" onclick="selectQuickStudent('홍길동')">홍길동</button>
-            <button type="button" class="pixel-btn-sm" style="background:#fee2e2; color:#991b1b;" onclick="selectQuickAdmin()">선생님(관리자)</button>
-          </div>
+        <div class="input-group" id="login-name-group">
+          <label style="display:flex; justify-content:space-between; font-size:12px; font-weight:bold; color:#1e293b; margin-bottom:4px;">
+            <span>👨‍🎓 접속자 이름</span>
+            <span style="font-weight:normal; color:#64748b; font-size:11px;">(예: 김현주, 이하진)</span>
+          </label>
+          <input type="text" id="login-name-input" placeholder="이름을 입력하세요" onkeydown="if(event.key==='Enter') handleLogin()" style="width:100%; padding:12px 14px; border:2px solid #94a3b8; border-radius:8px; font-size:15px; background:#ffffff; font-weight:bold; color:#1e293b;">
         </div>
 
-        <label class="admin-check-wrap" style="margin-top:14px;">
-          <input type="checkbox" id="admin-login-checkbox">
-          <span>교사(관리자) 로그인으로 시작</span>
-        </label>
+        <div class="input-group" style="margin-bottom:18px;">
+          <label style="display:flex; justify-content:space-between; font-size:12px; font-weight:bold; color:#1e293b; margin-bottom:4px;">
+            <span>🔑 비밀번호</span>
+            <span id="pw-hint-text" style="font-weight:normal; color:#64748b; font-size:11px;">(학생: 1234 / 관리자: 0513)</span>
+          </label>
+          <input type="password" id="login-pw-input" placeholder="비밀번호를 입력하세요" onkeydown="if(event.key==='Enter') handleLogin()" style="width:100%; padding:12px 14px; border:2px solid #94a3b8; border-radius:8px; font-size:15px; background:#ffffff; color:#1e293b;">
+        </div>
+
+        <button class="pixel-btn-primary" style="font-size:16px; padding:14px; background:linear-gradient(180deg, #22c55e 0%, #16a34a 100%); border-color:#14532d; box-shadow:0 5px 0 #14532d; text-shadow:1px 1px 0 rgba(0,0,0,0.3);" onclick="handleLogin()">
+          🚀 GAME START (마을 입장)
+        </button>
+
+        <input type="checkbox" id="admin-login-checkbox" style="display:none;">
+      </div>
+
+      <!-- 하단 저작권 / 버전 표시 -->
+      <div style="margin-top:18px; font-size:10px; color:#94a3b8; letter-spacing:0.5px;">
+        © 2026 Animal Crossing Class Economic System. All Rights Reserved.
       </div>
     </div>
   </div>
@@ -782,19 +809,87 @@
       }
     }
 
-    function selectQuickStudent(name) {
-      document.getElementById('login-name-input').value = name;
-      document.getElementById('login-pw-input').value = '1234';
-      document.getElementById('admin-login-checkbox').checked = false;
-      handleLogin();
+    function switchLoginMode(mode) {
+      SoundEngine.click();
+      const isAdm = mode === 'admin';
+      document.getElementById('admin-login-checkbox').checked = isAdm;
+      document.getElementById('tab-login-student').classList.toggle('active', !isAdm);
+      document.getElementById('tab-login-admin').classList.toggle('active', isAdm);
+
+      const nameInput = document.getElementById('login-name-input');
+      const pwInput = document.getElementById('login-pw-input');
+      const pwHint = document.getElementById('pw-hint-text');
+
+      if (isAdm) {
+        nameInput.value = '선생님';
+        nameInput.placeholder = '선생님';
+        pwInput.placeholder = '관리자 비밀번호 (0513)';
+        if (pwHint) pwHint.textContent = '(기본 관리자 번호: 0513)';
+      } else {
+        nameInput.value = '';
+        nameInput.placeholder = '이름을 입력하세요 (예: 김현주)';
+        pwInput.placeholder = '비밀번호 (기본: 1234)';
+        if (pwHint) pwHint.textContent = '(기본 번호: 1234)';
+      }
     }
 
-    function selectQuickAdmin() {
-      document.getElementById('login-name-input').value = '선생님';
-      document.getElementById('login-pw-input').value = '0513';
-      document.getElementById('admin-login-checkbox').checked = true;
-      handleLogin();
-    }
+    // 타이틀 화면 캔버스 배경 애니메이션 (구름 & 벚꽃 & 반짝임)
+    (function initTitleCanvas() {
+      const cvs = document.getElementById('title-bg-canvas');
+      if (!cvs) return;
+      const ctx = cvs.getContext('2d');
+      let W = cvs.width = window.innerWidth;
+      let H = cvs.height = window.innerHeight;
+
+      window.addEventListener('resize', () => {
+        W = cvs.width = window.innerWidth;
+        H = cvs.height = window.innerHeight;
+      });
+
+      const petals = Array.from({ length: 40 }, () => ({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        speedX: Math.random() * 2 + 1,
+        speedY: Math.random() * 1.5 + 1,
+        size: Math.random() * 6 + 4,
+        rot: Math.random() * Math.PI * 2
+      }));
+
+      function renderTitleBg() {
+        if (document.getElementById('login-screen').style.display === 'none') return;
+        ctx.clearRect(0, 0, W, H);
+
+        // 그라데이션 하늘
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, '#7dd3fc');
+        grad.addColorStop(0.5, '#bae6fd');
+        grad.addColorStop(1, '#fbcfe8');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        // 벚꽃잎 낙하
+        ctx.fillStyle = '#ffb7b2';
+        petals.forEach(p => {
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, p.size, p.size * 0.6, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+
+          p.x += p.speedX;
+          p.y += p.speedY;
+          p.rot += 0.02;
+
+          if (p.x > W + 20) p.x = -20;
+          if (p.y > H + 20) p.y = -20;
+        });
+
+        requestAnimationFrame(renderTitleBg);
+      }
+      renderTitleBg();
+    })();
 
     async function handleLogin() {
       SoundEngine.click();

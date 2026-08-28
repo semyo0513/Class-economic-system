@@ -207,7 +207,7 @@ const TownMapData = (() => {
     }
   ];
 
-  // 놀이동산 어트랙션 (탑승 애니메이션 모달 지원)
+  // 놀이동산 어트랙션
   const AMUSEMENTS = [
     { type: 'ferris_wheel', x: 86 * TILE_SIZE, y: 38 * TILE_SIZE, name: '🎡 드림 대관람차', emoji: '🎡', rideTitle: '하늘 높이 올라가는 대관람차', rideColor: '#f43f5e' },
     { type: 'carousel',    x: 74 * TILE_SIZE, y: 38 * TILE_SIZE, name: '🎠 무지개 회전목마', emoji: '🎠', rideTitle: '빙글빙글 즐거운 회전목마', rideColor: '#f59e0b' },
@@ -216,7 +216,7 @@ const TownMapData = (() => {
     { type: 'popcorn_cart',x: 79 * TILE_SIZE, y: 44 * TILE_SIZE, name: '🍿 달콤 팝콘 카트', emoji: '🍿', rideTitle: '고소한 버터 팝콘 스탠드', rideColor: '#facc15' }
   ];
 
-  // 워터파크 어트랙션
+  // 워터파크 & 호수 어트랙션
   const WATERPARK = [
     { type: 'water_slide', x: 44 * TILE_SIZE, y: 60 * TILE_SIZE, name: '🏄‍♂️ 익스트림 워터슬라이드', emoji: '🏄‍♂️' },
     { type: 'duck_boat',   x: 54 * TILE_SIZE, y: 60 * TILE_SIZE, name: '🦆 호숫가 오리배', emoji: '🦆' },
@@ -229,7 +229,7 @@ const TownMapData = (() => {
     { type: 'campfire',  x: 18 * TILE_SIZE, y: 38 * TILE_SIZE, name: '🔥 따뜻한 모닥불 캠프파이어', emoji: '🔥' }
   ];
 
-  // 인터랙티브 동물 주민 NPC 목록 (대화형 모달 지원)
+  // 인터랙티브 동물 주민 NPC 목록
   const NPCS = [
     {
       id: 'npc_bear',
@@ -289,7 +289,7 @@ const TownMapData = (() => {
     }
   ];
 
-  // 환경 장식
+  // 환경 장식 (가로등, 벤치, 우체통, 대형 분수대)
   const PROPS = [
     { type: 'fountain', x: 50 * TILE_SIZE, y: 40 * TILE_SIZE },
     { type: 'lamp', x: 46 * TILE_SIZE, y: 38 * TILE_SIZE },
@@ -304,7 +304,7 @@ const TownMapData = (() => {
     { type: 'mailbox', x: 15 * TILE_SIZE, y: 21 * TILE_SIZE }
   ];
 
-  // 벚꽃 나무
+  // 벚꽃 나무 & 녹음 나무
   const TREES = [];
   for (let x = 2; x < WIDTH - 2; x += 3) {
     TREES.push({ x: x * TILE_SIZE, y: 3 * TILE_SIZE, isPink: x % 6 === 0 });
@@ -323,7 +323,7 @@ const TownMapData = (() => {
   function createTileGrid() {
     const grid = Array.from({ length: HEIGHT }, () => Array(WIDTH).fill(0));
 
-    // 워터파크 & 호수 구역 (y: 56~64, x: 38~62)
+    // 워터파크 & 호수 구역 (y: 55~64, x: 38~62)
     for (let y = 55; y <= 64; y++) {
       for (let x = 38; x <= 62; x++) {
         grid[y][x] = (y === 55 || y === 64 || x === 38 || x === 62) ? 6 : 3; // 모래사장(6) & 맑은 물(3)
