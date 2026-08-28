@@ -974,10 +974,10 @@ function handleRequest(payload) {
       }
 
       case 'updateCharacterStyle': {
-        const name = payload.name;
+        const name = String(payload.name || payload.studentName || '선생님').trim();
         const styleData = payload.style;
         getOrCreateSheet(SH.ACTIVITY).appendRow([
-          nowStr(), name, '캐릭터스타일', JSON.stringify(styleData), '', '', 0, '적용', '', ''
+          nowStr(), name, '캐릭터스타일', JSON.stringify(styleData || {}), '', '', 0, '적용완료', '패션 살롱 외형 변경', ''
         ]);
         result = { success: true, msg: '캐릭터 스타일이 저장되었습니다!' };
         break;

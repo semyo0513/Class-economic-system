@@ -586,22 +586,23 @@ class TownScene extends Phaser.Scene {
     try {
       const style = GameState.characterStyle || {};
       const newCharCvs = AssetGenerator.generateCharacterSpritesheet(style);
+      const newTexKey = 'character_' + Date.now();
 
-      if (this.textures.exists('character')) {
-        this.textures.remove('character');
-      }
-      const charTexture = this.textures.addCanvas('character', newCharCvs);
-      for (let row = 0; row < 4; row++) {
-        for (let col = 0; col < 4; col++) {
-          const frameIndex = row * 4 + col;
-          charTexture.add(frameIndex, 0, col * 32, row * 48, 32, 48);
+      const charTexture = this.textures.addCanvas(newTexKey, newCharCvs);
+      if (charTexture) {
+        for (let row = 0; row < 4; row++) {
+          for (let col = 0; col < 4; col++) {
+            const frameIndex = row * 4 + col;
+            charTexture.add(frameIndex, 0, col * 32, row * 48, 32, 48);
+          }
         }
       }
+
       if (this.player) {
-        this.player.setTexture('character', 0);
+        this.player.setTexture(newTexKey, 0);
       }
     } catch (e) {
-      console.warn('reloadPlayerTexture error:', e);
+      console.warn('reloadPlayerTexture safe update error:', e);
     }
   }
 }

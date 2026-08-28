@@ -1167,7 +1167,7 @@ const ModalManager = (() => {
         if (!GameState.characterStyle) GameState.characterStyle = {};
         GameState.characterStyle.hairColor = color;
         localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
-        API.call('updateCharacterStyle', { name: myName, style: GameState.characterStyle }, true);
+        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
 
         if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
           window.MainGameScene.reloadPlayerTexture();
@@ -1198,7 +1198,7 @@ const ModalManager = (() => {
         if (!GameState.characterStyle) GameState.characterStyle = {};
         GameState.characterStyle.costume = cType;
         localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
-        API.call('updateCharacterStyle', { name: myName, style: GameState.characterStyle }, true);
+        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
 
         if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
           window.MainGameScene.reloadPlayerTexture();
@@ -1229,7 +1229,7 @@ const ModalManager = (() => {
         if (!GameState.characterStyle) GameState.characterStyle = {};
         GameState.characterStyle.hat = hType;
         localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
-        API.call('updateCharacterStyle', { name: myName, style: GameState.characterStyle }, true);
+        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
 
         if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
           window.MainGameScene.reloadPlayerTexture();
@@ -1260,7 +1260,7 @@ const ModalManager = (() => {
         if (!GameState.characterStyle) GameState.characterStyle = {};
         GameState.characterStyle.aura = aType;
         localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
-        API.call('updateCharacterStyle', { name: myName, style: GameState.characterStyle }, true);
+        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
 
         if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
           window.MainGameScene.reloadPlayerTexture();
