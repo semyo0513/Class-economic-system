@@ -115,10 +115,11 @@ function initSystemSheets() {
   const lotSh = getOrCreateSheet(SH.LOTTERY);
   if (lotSh.getLastRow() <= 1) {
     lotSh.appendRow(['1등', '50000', '0.02', '👑 초대박 1등 당첨! 인생역전!']);
-    lotSh.appendRow(['2등', '10000', '0.08', '🎉 축하합니다! 2등 당첨!']);
-    lotSh.appendRow(['3등', '3000', '0.20', '✨ 3등 당첨! 쏠쏠한 행운!']);
-    lotSh.appendRow(['4등', '500', '0.40', '🎟️ 4등 당첨! 본전 수령!']);
-    lotSh.appendRow(['꽝', '0', '0.30', '😢 아쉽네요! 다음 기회에!']);
+    lotSh.appendRow(['2등', '20000', '0.05', '🎉 축하합니다! 2등 당첨!']);
+    lotSh.appendRow(['3등', '10000', '0.10', '✨ 3등 당첨! 대박 행운!']);
+    lotSh.appendRow(['4등', '3000', '0.25', '🎟️ 4등 당첨! 3,000원 획득!']);
+    lotSh.appendRow(['5등', '1000', '0.35', '🎈 5등 당첨! 1,000원 획득!']);
+    lotSh.appendRow(['꽝', '0', '0.23', '😢 아쉽네요! 다음 기회에!']);
   }
 
   // 4. 기본 캐릭터 특수 아이템 등록
@@ -166,9 +167,32 @@ function sheetToObj(sh) {
 ══════════════════════════════════════════════ */
 function getCurrentStockPrice() {
   const sh = getOrCreateSheet(SH.STOCK);
+  if (!sh || sh.getLastRow() <= 1) {
+    sh.appendRow([nowStr(), '주가', 1200, '', '']);
+    return 1200;
+  }
   const data = sh.getDataRange().getValues();
+  // 1. 역순으로 '주가' 또는 '현재가' 행 탐색
   for (let i = data.length - 1; i >= 1; i--) {
-    if (String(data[i][1]).trim() === '주가') return Number(data[i][2]) || 1200;
+    const r = data[i];
+    for (let c = 0; c < r.length; c++) {
+      const cellStr = String(r[c]).trim();
+      if (cellStr === '주가' || cellStr === '현재가' || cellStr === '종가') {
+        const nextVal = Number(r[c + 1] || r[c + 2] || r[2] || 0);
+        if (nextVal > 0) return nextVal;
+      }
+    }
+    // 3번째 열(인덱스 2)에 숫자가 있고 2번째 열이 주가 관련인 경우
+    if (r[1] === '주가' && Number(r[2]) > 0) return Number(r[2]);
+  }
+  // 2. 헤더 기반 탐색
+  const headers = data[0].map(h => String(h).trim());
+  const priceCol = headers.findIndex(h => h.includes('현재가') || h.includes('주가') || h.includes('가격'));
+  if (priceCol >= 0) {
+    for (let i = data.length - 1; i >= 1; i--) {
+      const v = Number(data[i][priceCol]);
+      if (!isNaN(v) && v > 0) return v;
+    }
   }
   return 1200;
 }
@@ -427,22 +451,40 @@ function handleRequest(params) {
 
       // 3. 주식 시장
       case 'getStockData': {
-        const rows = sheetToObj(getOrCreateSheet(SH.STOCK));
-        const hist = rows.filter(r => r['카테고리'] === '주가').map(r => ({
-          date: String(r['일시']).slice(5, 10),
-          price: Number(r['값1'] || 1200)
-        }));
-        const news = rows.filter(r => r['카테고리'] === '뉴스').reverse().map(r => ({
-          제목: r['값1'], 내용: r['값2'], 영향: r['값3']
-        }));
+        const sh = getOrCreateSheet(SH.STOCK);
+        const rows = sheetToObj(sh);
         const curP = getCurrentStockPrice();
-        if (hist.length === 0) hist.push({ date: '오늘', price: curP });
+
+        const hist = [];
+        const news = [];
+
+        rows.forEach(r => {
+          const cat = String(r['카테고리'] || r['구분'] || r['종류'] || '').trim();
+          const pVal = Number(r['값1'] || r['주가'] || r['현재가'] || r['가격'] || 0);
+          const dVal = String(r['일시'] || r['날짜'] || '').slice(5, 10) || '오늘';
+
+          if (cat === '주가' || cat.includes('주가') || pVal > 0) {
+            if (pVal > 0) hist.push({ date: dVal, price: pVal });
+          }
+          if (cat === '뉴스' || r['뉴스제목'] || r['제목']) {
+            news.push({
+              제목: r['값1'] || r['뉴스제목'] || r['제목'] || '학급 경제 뉴스',
+              내용: r['값2'] || r['뉴스내용'] || r['내용'] || '',
+              영향: r['값3'] || r['영향'] || '변동'
+            });
+          }
+        });
+
+        if (hist.length === 0) {
+          hist.push({ date: '오늘', price: curP });
+        }
+
         result = {
           success: true,
           info: { 현재가: curP },
           currentPrice: curP,
           history: hist,
-          news: news
+          news: news.reverse()
         };
         break;
       }
@@ -451,21 +493,31 @@ function handleRequest(params) {
         const qty = Number(payload.qty || 1);
         const type = payload.type; // '매수' | '매도'
         const curP = getCurrentStockPrice();
-        const st = syncStudentAssets(payload.name);
+        let st = syncStudentAssets(payload.name);
         if (!st) return respond({ success: false, msg: '학생 정보를 찾을 수 없습니다.' });
 
         if (type === '매수') {
           const cost = curP * qty;
-          if (st.cash < cost) return respond({ success: false, msg: `잔액이 부족합니다! (필요: ${cost.toLocaleString()}원)` });
+          if (st.cash < cost) return respond({ success: false, msg: `현금 잔액이 부족합니다! (필요 금액: ${cost.toLocaleString()}원 / 보유 현금: ${st.cash.toLocaleString()}원)` });
           updateCash(payload.name, -cost, `주식 ${qty}주 매수`, '주식');
           updateStockQty(payload.name, qty, curP, `주식매수 ${qty}주@${curP}`);
-          result = { success: true, msg: `주식 ${qty}주를 ${cost.toLocaleString()}원에 매수했습니다!` };
+          st = syncStudentAssets(payload.name);
+          result = {
+            success: true,
+            msg: `주식 ${qty}주를 ${cost.toLocaleString()}원에 매수했습니다!`,
+            student: st
+          };
         } else {
-          if (st.stockQty < qty) return respond({ success: false, msg: '보유 주식이 부족합니다.' });
+          if (st.stockQty < qty) return respond({ success: false, msg: `보유 주식이 부족합니다! (보유: ${st.stockQty}주 / 요청: ${qty}주)` });
           const income = curP * qty;
           updateStockQty(payload.name, -qty, curP, `주식매도 ${qty}주@${curP}`);
           updateCash(payload.name, income, `주식 ${qty}주 매도`, '주식');
-          result = { success: true, msg: `주식 ${qty}주를 매도하여 ${income.toLocaleString()}원을 수령했습니다!` };
+          st = syncStudentAssets(payload.name);
+          result = {
+            success: true,
+            msg: `주식 ${qty}주를 매도하여 ${income.toLocaleString()}원을 수령했습니다!`,
+            student: st
+          };
         }
         break;
       }
@@ -574,29 +626,45 @@ function handleRequest(params) {
       }
 
       case 'scratchLottery': {
-        const lotRows = sheetToObj(getOrCreateSheet(SH.LOTTERY));
+        const lotSh = getOrCreateSheet(SH.LOTTERY);
+        let lotRows = sheetToObj(lotSh);
+        if (lotRows.length === 0) {
+          initSystemSheets();
+          lotRows = sheetToObj(lotSh);
+        }
+
         const rand = Math.random();
         let cum = 0;
         let won = lotRows[lotRows.length - 1] || { 등수: '꽝', 상금: 0, 당첨문구: '다음 기회에!' };
 
         for (const r of lotRows) {
-          cum += Number(r['확률'] || 0);
+          const prob = Number(r['확률'] || r['값2'] || 0);
+          cum += prob;
           if (rand <= cum) {
             won = r;
             break;
           }
         }
 
-        const prize = Number(won['상금'] || 0);
+        const rankName = String(won['등수'] || won['값1'] || '꽝');
+        let prize = Number(won['상금'] || won['금액'] || 0);
+
+        // 상금 보정 (4등은 3000원, 3등은 10000원 등 안전 보정)
+        if (rankName.includes('1등')) prize = Math.max(prize, 50000);
+        else if (rankName.includes('2등')) prize = Math.max(prize, 20000);
+        else if (rankName.includes('3등')) prize = Math.max(prize, 10000);
+        else if (rankName.includes('4등')) prize = Math.max(prize, 3000);
+        else if (rankName.includes('5등')) prize = Math.max(prize, 1000);
+
         if (prize > 0) {
-          updateCash(payload.name, prize, `복권 당첨 (${won['등수']})`, '복권');
+          updateCash(payload.name, prize, `복권 당첨 (${rankName})`, '복권');
         }
 
         result = {
           success: true,
           prize: prize,
-          title: won['등수'] + (prize > 0 ? ' 당첨!' : ''),
-          msg: won['당첨문구'] || `${prize.toLocaleString()}원 획득!`
+          title: rankName + (prize > 0 ? ' 당첨!' : ''),
+          msg: won['당첨문구'] || won['값3'] || `${prize.toLocaleString()}원 획득!`
         };
         break;
       }

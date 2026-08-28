@@ -177,28 +177,34 @@ const ModalManager = (() => {
                 <div style="font-size:22px; font-weight:bold; color:#ef4444;" id="stock-current-price-val">${curPrice.toLocaleString()}원</div>
               </div>
               <div style="text-align:right;">
-                <div>보유 주식: <strong>${myStock.toLocaleString()}주</strong></div>
-                <div>평가 금액: <strong>${(myStock * curPrice).toLocaleString()}원</strong></div>
+                <div>보유 주식: <strong id="stock-my-qty-val">${(st?.stockQty || myStock).toLocaleString()}주</strong></div>
+                <div>평가 금액: <strong id="stock-my-eval-val">${((st?.stockQty || myStock) * curPrice).toLocaleString()}원</strong></div>
               </div>
             </div>
             <div class="stock-chart-wrap" style="background:#fff; border:2px solid #cbd5e1; border-radius:8px; padding:12px; text-align:center; margin-bottom:12px;">
-              <canvas id="stock-chart-canvas" width="600" height="180" style="width:100%; max-width:600px; height:180px;"></canvas>
+              <canvas id="stock-chart-canvas" width="600" height="160" style="width:100%; max-width:600px; height:160px;"></canvas>
             </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
               <div style="background:#fee2e2; padding:10px; border-radius:8px;">
-                <h4 style="color:#991b1b; margin-bottom:6px;">🔴 매수</h4>
+                <h4 style="color:#991b1b; margin-bottom:6px;">🔴 매수 (주식 사기)</h4>
                 <div style="display:flex; gap:6px;">
                   <input type="number" id="stock-buy-qty" placeholder="수량" min="1" value="1" style="flex:1; padding:6px; border:1px solid #f87171; border-radius:4px;">
                   <button class="pixel-btn-primary" style="width:auto; padding:6px 14px;" onclick="ModalManager.handleTradeStock('매수')">매수</button>
                 </div>
               </div>
               <div style="background:#e0f2fe; padding:10px; border-radius:8px;">
-                <h4 style="color:#075985; margin-bottom:6px;">🔵 매도</h4>
+                <h4 style="color:#075985; margin-bottom:6px;">🔵 매도 (주식 팔기)</h4>
                 <div style="display:flex; gap:6px;">
-                  <input type="number" id="stock-sell-qty" placeholder="수량" min="1" max="${myStock}" value="1" style="flex:1; padding:6px; border:1px solid #60a5fa; border-radius:4px;">
+                  <input type="number" id="stock-sell-qty" placeholder="수량" min="1" value="1" style="flex:1; padding:6px; border:1px solid #60a5fa; border-radius:4px;">
                   <button class="pixel-btn-secondary" onclick="ModalManager.handleTradeStock('매도')">매도</button>
                 </div>
               </div>
+            </div>
+
+            <!-- 주식 뉴스 피드 -->
+            <h4 style="margin-bottom:6px;">📰 증권 경제 뉴스 & 공시</h4>
+            <div id="stock-news-list" style="max-height:140px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
+              <div style="padding:10px; color:#64748b; font-size:12px;">최신 뉴스를 불러오는 중...</div>
             </div>
           </div>
         `;
@@ -208,13 +214,14 @@ const ModalManager = (() => {
           if (!cvs) return;
           const ctx = cvs.getContext('2d');
           const W = cvs.width, H = cvs.height, padding = 30;
-          const max = Math.max(...hist) * 1.05, min = Math.min(...hist) * 0.95, range = Math.max(1, max - min);
+          const numHist = hist.map(val => Number(typeof val === 'object' ? val.price : val) || 1200);
+          const max = Math.max(...numHist) * 1.05, min = Math.min(...numHist) * 0.95, range = Math.max(1, max - min);
 
           ctx.clearRect(0, 0, W, H);
           ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3;
           ctx.beginPath();
-          hist.forEach((val, idx) => {
-            const x = padding + (idx / Math.max(1, hist.length - 1)) * (W - padding * 2);
+          numHist.forEach((val, idx) => {
+            const x = padding + (idx / Math.max(1, numHist.length - 1)) * (W - padding * 2);
             const y = H - padding - ((val - min) / range) * (H - padding * 2);
             if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
           });
@@ -224,12 +231,31 @@ const ModalManager = (() => {
         setTimeout(() => drawStockChart(history), 30);
 
         API.call('getStockData', { name: me }, true).then(data => {
-          if (data && data.currentPrice) {
+          if (data && data.success) {
+            const cp = Number(data.currentPrice || (data.info && data.info['현재가']) || 1200);
             const priceEl = document.getElementById('stock-current-price-val');
-            if (priceEl) priceEl.textContent = `${Number(data.currentPrice).toLocaleString()}원`;
-            if (data.history) {
-              const h = data.history.map(item => typeof item === 'object' ? Number(item.price || 1200) : Number(item));
-              if (h.length > 0) drawStockChart(h);
+            const evalEl = document.getElementById('stock-my-eval-val');
+            const myStockQty = st ? (st.stockQty ?? st.stock ?? 0) : 0;
+
+            if (priceEl) priceEl.textContent = `${cp.toLocaleString()}원`;
+            if (evalEl) evalEl.textContent = `${(myStockQty * cp).toLocaleString()}원`;
+
+            if (data.history && data.history.length > 0) {
+              drawStockChart(data.history);
+            }
+
+            const newsListEl = document.getElementById('stock-news-list');
+            if (newsListEl) {
+              const newsItems = data.news || [];
+              newsListEl.innerHTML = newsItems.length === 0 ? '<div style="padding:10px; font-size:12px; color:#64748b;">등록된 뉴스가 없습니다.</div>' : newsItems.map(n => `
+                <div style="background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <strong style="font-size:12px;">${n.제목 || n['값1'] || ''}</strong>
+                    <div style="font-size:11px; color:#64748b;">${n.내용 || n['값2'] || ''}</div>
+                  </div>
+                  <span class="badge badge-${(n.영향 || '').includes('하락') ? 'danger' : 'success'}">${n.영향 || '변동'}</span>
+                </div>
+              `).join('');
             }
           }
         });
@@ -1498,8 +1524,19 @@ const ModalManager = (() => {
       const qty = parseInt(document.getElementById(type === '매수' ? 'stock-buy-qty' : 'stock-sell-qty')?.value, 10);
       if (!qty || qty <= 0) return alert('올바른 수량을 입력하세요.');
       const st = GameState.student;
+      API.showLoading(`주식 ${qty}주 ${type} 주문 처리 중...`);
       const res = await API.call('tradeStock', { name: st.name || st.이름, type, qty });
+      API.hideLoading();
       if (res && res.success) {
+        if (res.student) {
+          GameState.student = res.student;
+          const cashEl = document.getElementById('hud-cash-val');
+          const stockEl = document.getElementById('hud-stock-val');
+          const curC = res.student.cash ?? res.student.현금 ?? 0;
+          const curS = res.student.stock ?? res.student.주식 ?? (res.student.stockQty * 1200);
+          if (cashEl) cashEl.textContent = `${curC.toLocaleString()}원`;
+          if (stockEl) stockEl.textContent = `${curS.toLocaleString()}원`;
+        }
         SoundEngine.coin();
         alert(res.msg);
         open('stock');
