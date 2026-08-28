@@ -10,22 +10,23 @@ const SoundEngine = (() => {
   let isBgmPlaying = false;
 
   function initAudio() {
-    if (!ctx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) ctx = new AudioCtx();
-    }
-    if (ctx && ctx.state === 'suspended') {
-      ctx.resume();
-    }
+    try {
+      if (!ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) ctx = new AudioCtx();
+      }
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume();
+      }
+    } catch (_) {}
   }
 
-  // 기본 단음 생성 헬퍼
   function playTone(freq, type = 'sine', duration = 0.15, gainVal = 0.1, pitchDecay = 0) {
     if (isMuted) return;
-    initAudio();
-    if (!ctx) return;
-
     try {
+      initAudio();
+      if (!ctx) return;
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
@@ -53,95 +54,78 @@ const SoundEngine = (() => {
       return isMuted;
     },
     getMuted: () => isMuted,
-
-    // 버튼 클릭음
     click: () => {
-      playTone(480, 'triangle', 0.06, 0.08);
+      try { playTone(480, 'triangle', 0.06, 0.08); } catch (_) {}
     },
-
-    // 발자국 소리
     step: () => {
-      playTone(180 + Math.random() * 40, 'triangle', 0.04, 0.03);
+      try { playTone(180 + Math.random() * 40, 'triangle', 0.04, 0.03); } catch (_) {}
     },
-
-    // 코인 / 캐시 획득 소리
     coin: () => {
-      initAudio();
-      if (!ctx || isMuted) return;
-      playTone(987.77, 'sine', 0.08, 0.1); // B5
-      setTimeout(() => playTone(1318.51, 'sine', 0.15, 0.1), 80); // E6
+      try {
+        playTone(987.77, 'sine', 0.08, 0.1);
+        setTimeout(() => playTone(1318.51, 'sine', 0.15, 0.1), 80);
+      } catch (_) {}
     },
-
-    // 건물 진입 / 문 열리는 소리
     enter: () => {
-      initAudio();
-      if (!ctx || isMuted) return;
-      playTone(523.25, 'sine', 0.1, 0.08); // C5
-      setTimeout(() => playTone(659.25, 'sine', 0.1, 0.08), 90); // E5
-      setTimeout(() => playTone(783.99, 'sine', 0.2, 0.08), 180); // G5
+      try {
+        playTone(523.25, 'sine', 0.1, 0.08);
+        setTimeout(() => playTone(659.25, 'sine', 0.1, 0.08), 90);
+        setTimeout(() => playTone(783.99, 'sine', 0.2, 0.08), 180);
+      } catch (_) {}
     },
-
-    // 모달 팝업 열기
     open: () => {
-      playTone(600, 'sine', 0.1, 0.06, 300);
+      try { playTone(600, 'sine', 0.1, 0.06, 300); } catch (_) {}
     },
-
-    // 모달 닫기
     close: () => {
-      playTone(700, 'sine', 0.1, 0.05, -300);
+      try { playTone(700, 'sine', 0.1, 0.05, -300); } catch (_) {}
     },
-
-    // 복권 긁는 소리
     scratch: () => {
-      playTone(1200 + Math.random() * 800, 'sawtooth', 0.03, 0.02);
+      try { playTone(1200 + Math.random() * 800, 'sawtooth', 0.03, 0.02); } catch (_) {}
     },
-
-    // 가구 배치 찰칵음
     snap: () => {
-      playTone(350, 'triangle', 0.08, 0.09, 150);
+      try { playTone(350, 'triangle', 0.08, 0.09, 150); } catch (_) {}
     },
-
-    // 성공 / 팡파르
     fanfare: () => {
-      initAudio();
-      if (!ctx || isMuted) return;
-      const notes = [523.25, 659.25, 783.99, 1046.5];
-      notes.forEach((n, idx) => {
-        setTimeout(() => playTone(n, 'triangle', 0.2, 0.12), idx * 100);
-      });
+      try {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((n, idx) => {
+          setTimeout(() => playTone(n, 'triangle', 0.2, 0.12), idx * 100);
+        });
+      } catch (_) {}
     },
-
-    // 코지 BGM 토글
     toggleBGM: () => {
-      initAudio();
-      if (!ctx) return false;
+      try {
+        initAudio();
+        if (!ctx) return false;
 
-      if (isBgmPlaying) {
-        if (bgmGain) {
-          bgmGain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
-          setTimeout(() => {
-            if (bgmOsc) bgmOsc.stop();
-            isBgmPlaying = false;
-          }, 500);
-        }
-        return false;
-      } else {
-        isBgmPlaying = true;
-        // 부드러운 아르페지오 Lofi 멜로디 루프 생성
-        const melody = [261.63, 329.63, 392.00, 523.25, 440.00, 392.00, 329.63, 293.66];
-        let noteIdx = 0;
-        const playNextNote = () => {
-          if (!isBgmPlaying || isMuted) {
-            if (isBgmPlaying) setTimeout(playNextNote, 600);
-            return;
+        if (isBgmPlaying) {
+          if (bgmGain) {
+            bgmGain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+            setTimeout(() => {
+              if (bgmOsc) bgmOsc.stop();
+              isBgmPlaying = false;
+            }, 500);
           }
-          const freq = melody[noteIdx % melody.length];
-          noteIdx++;
-          playTone(freq, 'sine', 0.45, 0.025);
-          setTimeout(playNextNote, 450);
-        };
-        playNextNote();
-        return true;
+          return false;
+        } else {
+          isBgmPlaying = true;
+          const melody = [261.63, 329.63, 392.00, 523.25, 440.00, 392.00, 329.63, 293.66];
+          let noteIdx = 0;
+          const playNextNote = () => {
+            if (!isBgmPlaying || isMuted) {
+              if (isBgmPlaying) setTimeout(playNextNote, 600);
+              return;
+            }
+            const freq = melody[noteIdx % melody.length];
+            noteIdx++;
+            playTone(freq, 'sine', 0.45, 0.025);
+            setTimeout(playNextNote, 450);
+          };
+          playNextNote();
+          return true;
+        }
+      } catch (_) {
+        return false;
       }
     }
   };

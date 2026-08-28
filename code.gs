@@ -5,7 +5,7 @@
  * ══════════════════════════════════════════════════════════════════════
  */
 
-const SPREADSHEET_ID = '1Z2o6aR_2Gj_t9-P2a4Y8c2U6Yy7v9g1k5m8n_EXAMPLE'; // 바인딩된 스프레드시트 사용 시 자동 참조
+const SPREADSHEET_ID = '1LR7KcbrRyY5EnZoLPMFmkXSwQtSnBU0PgcEnRmGg8KU'; // 바인딩된 스프레드시트 사용 시 자동 참조
 const ADMIN_PASSWORD = '0513';
 const TEACHER_EMAIL = 'semyo0513@naver.com';
 
