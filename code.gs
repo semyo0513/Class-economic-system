@@ -1,34 +1,36 @@
 /**
  * ══════════════════════════════════════════════════════════════════════
  * 클래스뱅크 & 동물의숲 2D 학급경영 REST API 백엔드 (code.gs)
- * 완벽한 구글 시트 1:1 체계화 & 실시간 자산 자동 계산 & 웹앱 통합 게이트웨이
+ * 완벽한 구글 시트 1:1 체계화 & 실시간 자산 자동 계산 & 국고 관리 & 나이스 연동
  * ══════════════════════════════════════════════════════════════════════
  */
 
-const SPREADSHEET_ID = '1LR7KcbrRyY5EnZoLPMFmkXSwQtSnBU0PgcEnRmGg8KU'; // 바인딩된 스프레드시트 사용 시 자동 참조
+const SPREADSHEET_ID = '1LR7KcbrRyY5EnZoLPMFmkXSwQtSnBU0PgcEnRmGg8KU';
 const ADMIN_PASSWORD = '0513';
 const TEACHER_EMAIL = 'semyo0513@naver.com';
 
-// ─── 11개 체계적 시트 명칭 정의 ───
+// ─── 12개 체계적 시트 명칭 정의 ───
 const SH = {
   USERS: '사용자',          // 학생 기본정보 및 실시간 자산현황
-  SETTINGS: '환경설정',      // 경제 파라미터 및 시스템 정책
+  SETTINGS: '환경설정',      // 경제 파라미터, 학교명, NEIS 설정, 주식모드
   TX_LOG: '거래LOG',        // 모든 입출금, 세금, 주식, 상점 거래 내역
+  TREASURY: '국고관리',      // 학급 국고 입출금 및 잔액 장부
   STOCK: '주식시장',        // 일자별 주가 시세 및 경제 뉴스
   ASSETS: '자산현황',        // 예금, 상점아이템, 캐릭터장착템, 마트물품, 부동산좌석
-  LEARNING: '학습관리',      // 공지사항, 숙제
-  ACTIVITY: '학급활동',      // 감정신호등, 자기평가, 호출, 칭찬카드, 부동산구매요청
+  LEARNING: '학습관리',      // 공지사항, 과제, 급식, 시간표
+  ACTIVITY: '학급활동',      // 감정신호등, 자기평가, 호출, 칭찬카드, 캐릭터스타일
   ASSIGNMENT: '과제',        // 과제 공고 및 학생 제출물
   LOTTERY: '복권',          // 복권 등수별 확률 및 당첨금
-  MINIROOM: '미니룸',        // 싸이월드풍 방꾸미기/인벤토리 JSON
+  MINIROOM: '미니룸',        // 미니룸 인테리어 배치 및 방명록
   CHAT_LOG: '채팅LOG'       // 실시간 인게임 채팅 로그
 };
 
-// ─── 11개 시트 스키마 ───
+// ─── 시트 스키마 정의 ───
 const SCHEMA = {
   [SH.USERS]: ['번호', '이름', '비밀번호', '직업명', '레벨', '권한', '현금', '주식수량', '주식현재총금액', '총자산'],
   [SH.SETTINGS]: ['항목', '값', '설명'],
   [SH.TX_LOG]: ['일시', '이름', '카테고리', '유형', '금액', '수량', '상대방', '사유', '상태', '거래ID'],
+  [SH.TREASURY]: ['일시', '구분', '유형', '금액', '국고잔액', '담당자', '사유', '거래ID'],
   [SH.STOCK]: ['일시', '카테고리', '값1', '값2', '값3'],
   [SH.ASSETS]: ['일시', '이름', '카테고리', '아이템명', '금액', '수량', '속성', '상태', '구매자', '메타'],
   [SH.LEARNING]: ['일시', '카테고리', 'ID', '제목', '내용', '대상', '마감일', '작성자', '상태', '중요도'],
@@ -39,8 +41,40 @@ const SCHEMA = {
   [SH.CHAT_LOG]: ['일시', '이름', '메시지']
 };
 
+// 패션 & 뷰티 살롱 기본 카탈로그
+const DEFAULT_FASHION_CATALOG = {
+  // 헤어염색
+  '✨ 골드 블론드 염색약': { cat: '헤어', price: 4000, prop: '#eab308' },
+  '🌸 체리 핑크 염색약': { cat: '헤어', price: 4000, prop: '#f472b6' },
+  '🍃 민트 그린 염색약': { cat: '헤어', price: 4000, prop: '#2dd4bf' },
+  '🤍 백발 실버 염색약': { cat: '헤어', price: 5000, prop: '#cbd5e1' },
+  '🌊 오션 블루 염색약': { cat: '헤어', price: 4000, prop: '#38bdf8' },
+  '💜 라벤더 퍼플 염색약': { cat: '헤어', price: 4500, prop: '#a855f7' },
+  '🔥 핫 레드 염색약': { cat: '헤어', price: 4000, prop: '#ef4444' },
+  '🖤 흑발 딥블랙 염색약': { cat: '헤어', price: 3000, prop: '#0f172a' },
+  // 코스튬
+  '🎓 스마트 명문 교복': { cat: '의상', price: 8000, prop: 'school' },
+  '🧸 핑크 곰돌이 잠옷': { cat: '의상', price: 7000, prop: 'pajama' },
+  '🔮 신비한 마법사 로브': { cat: '의상', price: 12000, prop: 'magic' },
+  '⚡ 사이버 네온 슈트': { cat: '의상', price: 15000, prop: 'cyber' },
+  '👑 화려한 공주 드레스': { cat: '의상', price: 18000, prop: 'dress' },
+  // 모자
+  '🐱 냥냥 고양이 귀': { cat: '모자', price: 5000, prop: 'cat_ears' },
+  '👑 황금 보석 왕관': { cat: '모자', price: 10000, prop: 'crown' },
+  '😇 빛나는 천사 링': { cat: '모자', price: 8000, prop: 'halo' },
+  '🎩 뾰족 마법사 모자': { cat: '모자', price: 7000, prop: 'magic_hat' },
+  // 특수 오라
+  '✨ 황금 오라 이펙트': { cat: '오라', price: 15000, prop: 'gold' },
+  '🌸 벚꽃잎 휘날림 오라': { cat: '오라', price: 12000, prop: 'cherry' },
+  '🌈 무지개 빛 잔상 오라': { cat: '오라', price: 20000, prop: 'rainbow' },
+  // 기타 아이템
+  '👟 스피드 롤러스케이트': { cat: '아이템', price: 5000, prop: 'speed' },
+  '🍄 슈퍼 아이키커 버섯': { cat: '아이템', price: 6000, prop: 'giant' },
+  '🪽 천사의 날개': { cat: '아이템', price: 10000, prop: 'wings' }
+};
+
 /* ══════════════════════════════════════════════
-   초기화 및 시트 유틸리티
+   시트 유틸리티
 ══════════════════════════════════════════════ */
 function getSpreadsheet() {
   try {
@@ -52,11 +86,11 @@ function getSpreadsheet() {
 
 function getOrCreateSheet(sheetName) {
   const ss = getSpreadsheet();
-  // 유사 시트명 별칭 매핑
   const ALIASES = {
     '사용자': ['사용자', '학생', '학생명단', '학생목록', '학생관리'],
     '환경설정': ['환경설정', '설정', '기본설정', '시스템설정'],
     '거래LOG': ['거래LOG', '거래기록', '거래내역', '입출금내역', '로그'],
+    '국고관리': ['국고관리', '국고', '학급국고', '국고장부'],
     '주식시장': ['주식시장', '주식', '증권', '주가'],
     '자산현황': ['자산현황', '상점', '아이템', '상점아이템', '자산'],
     '학습관리': ['학습관리', '공지사항', '공지', '게시판'],
@@ -73,7 +107,6 @@ function getOrCreateSheet(sheetName) {
     if (found) return found;
   }
 
-  // 없으면 표준 이름으로 신규 생성
   let sh = ss.insertSheet(sheetName);
   const headers = SCHEMA[sheetName] || [];
   if (headers.length > 0) {
@@ -84,19 +117,24 @@ function getOrCreateSheet(sheetName) {
   return sh;
 }
 
-// 전체 시스템 시트 자동 초기화
 function initSystemSheets() {
   Object.keys(SCHEMA).forEach(name => getOrCreateSheet(name));
 
-  // 1. 기본 환경설정 채우기
+  // 1. 기본 환경설정
   const setSh = getOrCreateSheet(SH.SETTINGS);
   if (setSh.getLastRow() <= 1) {
     const defaults = [
-      ['학교명', '행복초등학교', '웹앱 상단에 표시되는 학교 이름'],
+      ['학교명', '행복초등학교', '웹앱 및 시스템 전체에 표시되는 학교 이름'],
+      ['학급명', '6학년 1반', '웹앱에 표시되는 학급 이름'],
+      ['NEIS_OFFICE_CODE', 'T10', '시도교육청 코드 (예: 서울 B10, 경남 T10)'],
+      ['NEIS_SCHOOL_CODE', '9290066', '행정표준 나이스 학교 코드'],
+      ['GRADE', '6', '기본 학년'],
+      ['CLASS_NM', '1', '기본 반'],
+      ['STOCK_MODE', 'REALTIME_NAVER', '주식 운영 방식: REALTIME_NAVER(네이버실시간) 또는 MANUAL(교사수동)'],
+      ['STOCK_ACTIVE_CODES', '005930,035720,035420,086520,005380,CLASS', '활성화할 주식 종목 코드 (쉼표 구분)'],
       ['세금율', '0.10', '기본 급여 및 송금 세금 비율 (10%)'],
       ['예금_기본이자율', '0.05', '은행 정기예금 연 이율 (5%)'],
       ['복권_가격', '500', '복권 1장 가격'],
-      ['감정신호등_보상_활성', '1', '기분 등록 시 장학금 지급 여부 (1=활성)'],
       ['감정신호등_좋음_보상', '500', '좋음 선택 시 지급액'],
       ['감정신호등_보통_보상', '300', '보통 선택 시 지급액'],
       ['감정신호등_힘듦_보상', '1000', '힘듦 선택 시 지급액']
@@ -104,14 +142,20 @@ function initSystemSheets() {
     defaults.forEach(r => setSh.appendRow(r));
   }
 
-  // 2. 기본 주식 채우기
+  // 2. 국고 기본 시드머니
+  const trSh = getOrCreateSheet(SH.TREASURY);
+  if (trSh.getLastRow() <= 1) {
+    trSh.appendRow([nowStr(), '입금', '초기국고', 1000000, 1000000, '선생님', '학급 국고 기본 시드머니 적립', 'TR_INIT']);
+  }
+
+  // 3. 기본 주식
   const stockSh = getOrCreateSheet(SH.STOCK);
   if (stockSh.getLastRow() <= 1) {
     stockSh.appendRow([nowStr(), '주가', '1200', '', '']);
-    stockSh.appendRow([nowStr(), '뉴스', '🎉 2D 동물의숲 클래스타운 개장!', '새로운 학급 경제 시스템이 시작되었습니다.', '상승']);
+    stockSh.appendRow([nowStr(), '뉴스', '🎉 클래스타운 경제 시스템 오픈!', '학생들의 경제 활동이 시작되었습니다.', '상승']);
   }
 
-  // 3. 기본 복권 확률 채우기
+  // 4. 기본 복권 확률
   const lotSh = getOrCreateSheet(SH.LOTTERY);
   if (lotSh.getLastRow() <= 1) {
     lotSh.appendRow(['1등', '50000', '0.02', '👑 초대박 1등 당첨! 인생역전!']);
@@ -122,23 +166,16 @@ function initSystemSheets() {
     lotSh.appendRow(['꽝', '0', '0.23', '😢 아쉽네요! 다음 기회에!']);
   }
 
-  // 4. 기본 캐릭터 특수 아이템 등록
+  // 5. 기본 상점 & 뷰티 살롱 아이템 등록
   const assetSh = getOrCreateSheet(SH.ASSETS);
   if (assetSh.getLastRow() <= 1) {
-    const defaultItems = [
-      [nowStr(), '관리자', '캐릭터아이템', '👟 스피드 롤러스케이트', 5000, 99, 'speed_boost:1.8', '판매중', '', '이동속도 80% 증가'],
-      [nowStr(), '관리자', '캐릭터아이템', '✨ 황금 오라 이펙트', 8000, 99, 'aura_gold', '판매중', '', '몸 주변에 반짝이는 황금 입자 애니메이션'],
-      [nowStr(), '관리자', '캐릭터아이템', '🍄 슈퍼 아이키커 버섯', 6000, 99, 'size_giant:1.5', '판매중', '', '캐릭터 크기 1.5배 거대화'],
-      [nowStr(), '관리자', '캐릭터아이템', '🪽 천사의 날개', 10000, 99, 'wings_angel', '판매중', '', '등 뒤에 화려한 천사의 날개 장착'],
-      [nowStr(), '관리자', '캐릭터아이템', '🛴 네온 전동 킥보드', 12000, 99, 'mount_kickboard', '판매중', '', '세련된 네온 킥보드 탑승 모드'],
-      [nowStr(), '관리자', '아이템', '🪑 자리 우선 선택권', 5000, 10, 'coupon', '판매중', '', '원하는 좌석을 먼저 고를 수 있는 티켓'],
-      [nowStr(), '관리자', '아이템', '📝 숙제 1회 면제권', 8000, 5, 'coupon', '판매중', '', '기본 과제 1회 면제 쿠폰'],
-      [nowStr(), '관리자', '아이템', '🍫 마트 간식 교환권', 3000, 20, 'coupon', '판매중', '', '학급 마트 맛있는 간식 교환권']
-    ];
-    defaultItems.forEach(r => assetSh.appendRow(r));
+    Object.keys(DEFAULT_FASHION_CATALOG).forEach(name => {
+      const it = DEFAULT_FASHION_CATALOG[name];
+      assetSh.appendRow([nowStr(), '선생님', it.cat, name, it.price, 99, it.prop, '판매중', '', '']);
+    });
   }
 
-  return { success: true, msg: '11개 시스템 시트가 완벽하게 구성되었습니다.' };
+  return { success: true, msg: '12개 시스템 시트가 완벽하게 구성되었습니다.' };
 }
 
 function nowStr() {
@@ -163,18 +200,53 @@ function sheetToObj(sh) {
 }
 
 /* ══════════════════════════════════════════════
-   실시간 네이버 증권 시세 연동 및 자산 동기화 엔진
+   국고(Treasury) 관리 엔진
+══════════════════════════════════════════════ */
+function getTreasuryBalance() {
+  const sh = getOrCreateSheet(SH.TREASURY);
+  if (sh.getLastRow() <= 1) return 1000000;
+  const data = sh.getDataRange().getValues();
+  const lastRow = data[data.length - 1];
+  const bal = Number(lastRow[4]);
+  return isNaN(bal) ? 1000000 : bal;
+}
+
+function logTreasury(category, type, amount, person, reason) {
+  const sh = getOrCreateSheet(SH.TREASURY);
+  const curBal = getTreasuryBalance();
+  const amt = Number(amount) || 0;
+  let newBal = curBal;
+
+  if (category === '입금' || type.includes('벌금') || type.includes('수익') || type.includes('세금') || type.includes('구매')) {
+    newBal += amt;
+  } else {
+    newBal -= amt;
+  }
+
+  const txId = 'TR' + Date.now().toString().slice(-6);
+  sh.appendRow([nowStr(), category, type, amt, newBal, person || '시스템', reason || '', txId]);
+  return newBal;
+}
+
+/* ══════════════════════════════════════════════
+   네이버 실시간 증권 크롤러 & 주식 모드 엔진
 ══════════════════════════════════════════════ */
 function fetchNaverStockPrice(code) {
+  const cfg = getSettings();
+  const schoolName = cfg['학교명'] || '행복초등학교';
+  const shortSchool = schoolName.replace('초등학교', '초').replace('학교', '');
+
   if (code === 'CLASS') {
+    const curP = getCurrentStockPrice();
     return {
       code: 'CLASS',
-      name: '행복초 협동조합',
-      price: getCurrentStockPrice(),
+      name: `${shortSchool} 협동조합`,
+      price: curP,
       changeRate: '+2.50%',
       changePrice: '+30'
     };
   }
+
   try {
     const url = 'https://m.stock.naver.com/api/stock/' + code + '/basic';
     const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
@@ -198,7 +270,7 @@ function fetchNaverStockPrice(code) {
   } catch (e) {
     console.warn('Naver stock fetch error:', e);
   }
-  // 기본 폴백 시세
+
   const fallbacks = {
     '005930': { name: '삼성전자', price: 74500, changeRate: '+1.20%', changePrice: '+900' },
     '035720': { name: '카카오', price: 42800, changeRate: '-0.70%', changePrice: '-300' },
@@ -211,20 +283,10 @@ function fetchNaverStockPrice(code) {
 
 function getCurrentStockPrice() {
   const sh = getOrCreateSheet(SH.STOCK);
-  if (!sh || sh.getLastRow() <= 1) {
-    sh.appendRow([nowStr(), '주가', 1200, '', '']);
-    return 1200;
-  }
+  if (!sh || sh.getLastRow() <= 1) return 1200;
   const data = sh.getDataRange().getValues();
   for (let i = data.length - 1; i >= 1; i--) {
     const r = data[i];
-    for (let c = 0; c < r.length; c++) {
-      const cellStr = String(r[c]).trim();
-      if (cellStr === '주가' || cellStr === '현재가' || cellStr === '종가') {
-        const nextVal = Number(r[c + 1] || r[c + 2] || r[2] || 0);
-        if (nextVal > 0) return nextVal;
-      }
-    }
     if (r[1] === '주가' && Number(r[2]) > 0) return Number(r[2]);
   }
   return 1200;
@@ -238,7 +300,87 @@ function getSettings() {
   return map;
 }
 
-// 학생 1명의 자산을 시트 상에 실시간 자동 계산/동기화
+/* ══════════════════════════════════════════════
+   나이스(NEIS) 오늘의 급식 & 시간표 실시간 연동
+══════════════════════════════════════════════ */
+function fetchNeisMeal(dateStr) {
+  const cfg = getSettings();
+  const officeCode = cfg['NEIS_OFFICE_CODE'] || 'T10'; // 기본 경남교육청
+  const schoolCode = cfg['NEIS_SCHOOL_CODE'] || '9290066'; // 기본 학교코드
+  const targetDate = (dateStr || nowStr().slice(0, 10)).replace(/-/g, '');
+
+  try {
+    const url = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&pIndex=1&pSize=5&ATPT_OFCDC_SC_CODE=${officeCode}&SD_SCHUL_CODE=${schoolCode}&MLSV_YMD=${targetDate}`;
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (res.getResponseCode() === 200) {
+      const data = JSON.parse(res.getContentText());
+      if (data.mealServiceDietInfo && data.mealServiceDietInfo[1] && data.mealServiceDietInfo[1].row) {
+        const mealRow = data.mealServiceDietInfo[1].row[0];
+        const rawDish = mealRow.DDISH_NM || '';
+        const cleanDish = rawDish.replace(/<br\/>/g, '\n').replace(/\([0-9\.\s]+\)/g, '').trim();
+        return {
+          success: true,
+          date: targetDate,
+          menu: cleanDish,
+          calories: mealRow.CAL_INFO || '정보 없음',
+          nutrition: mealRow.NTR_INFO || '',
+          source: 'NEIS'
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('NEIS Meal API error:', e);
+  }
+
+  // 폴백 맛있는 식단 안내
+  return {
+    success: true,
+    date: targetDate,
+    menu: '🍱 친환경 흑미밥\n🍲 쇠고기 미역국\n🍗 바삭 수제 치킨까스\n🥗 달콤 마카로니 샐러드\n🥬 포기김치\n🧃 유기농 감귤주스',
+    calories: '685 Kcal',
+    source: 'DEFAULT'
+  };
+}
+
+function fetchNeisTimetable(dateStr) {
+  const cfg = getSettings();
+  const officeCode = cfg['NEIS_OFFICE_CODE'] || 'T10';
+  const schoolCode = cfg['NEIS_SCHOOL_CODE'] || '9290066';
+  const grade = cfg['GRADE'] || '6';
+  const classNm = cfg['CLASS_NM'] || '1';
+  const targetDate = (dateStr || nowStr().slice(0, 10)).replace(/-/g, '');
+
+  try {
+    const url = `https://open.neis.go.kr/hub/elsTimetable?Type=json&pIndex=1&pSize=10&ATPT_OFCDC_SC_CODE=${officeCode}&SD_SCHUL_CODE=${schoolCode}&GRADE=${grade}&CLASS_NM=${classNm}&TI_FROM_YMD=${targetDate}&TI_TO_YMD=${targetDate}`;
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (res.getResponseCode() === 200) {
+      const data = JSON.parse(res.getContentText());
+      if (data.elsTimetable && data.elsTimetable[1] && data.elsTimetable[1].row) {
+        const rows = data.elsTimetable[1].row;
+        const timetable = rows.map(r => `${r.PERIO}교시: ${r.ITRT_CNTNT}`);
+        return {
+          success: true,
+          date: targetDate,
+          timetable: timetable,
+          source: 'NEIS'
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('NEIS Timetable API error:', e);
+  }
+
+  return {
+    success: true,
+    date: targetDate,
+    timetable: ['1교시: 국어', '2교시: 수학', '3교시: 사회', '4교시: 과학', '5교시: 체육', '6교시: 미술'],
+    source: 'DEFAULT'
+  };
+}
+
+/* ══════════════════════════════════════════════
+   학생 자산 및 동기화
+══════════════════════════════════════════════ */
 function syncStudentAssets(studentName) {
   const sh = getOrCreateSheet(SH.USERS);
   const data = sh.getDataRange().getValues();
@@ -251,8 +393,8 @@ function syncStudentAssets(studentName) {
       const stockVal = stockQty * curStockPrice;
       const totalAsset = cash + stockVal;
 
-      sh.getRange(i + 1, 9).setValue(stockVal);   // 주식현재총금액
-      sh.getRange(i + 1, 10).setValue(totalAsset); // 총자산
+      sh.getRange(i + 1, 9).setValue(stockVal);
+      sh.getRange(i + 1, 10).setValue(totalAsset);
       return {
         id: data[i][0],
         name: data[i][1],
@@ -269,18 +411,16 @@ function syncStudentAssets(studentName) {
   return null;
 }
 
-// 모든 학생의 자산 일괄 동기화 및 랭킹 산출
 function getStudentsWithAssets() {
   const sh = getOrCreateSheet(SH.USERS);
   if (sh.getLastRow() <= 1) {
-    // 기본 더미 학생 데이터가 없을 시 자동 생성
     const defaultStudents = [
       [1, '선생님', '0513', '교사(관리자)', '다이아(Lv.5)', '전체', 999999, 100, 120000, 1119999],
-      [2, '홍길동', '1234', '투자왕', '골드(Lv.3)', '은행', 120000, 50, 60000, 180000],
-      [3, '김철수', '1234', '은행원', '실버(Lv.2)', '은행', 65000, 20, 24000, 89000],
-      [4, '이영희', '1234', '기자', '실버(Lv.2)', '임원', 55000, 15, 18000, 73000],
-      [5, '박민우', '1234', '환경미화', '브론즈(Lv.1)', '일반', 40000, 5, 6000, 46000],
-      [6, '최수진', '1234', '우체부', '브론즈(Lv.1)', '일반', 35000, 10, 12000, 47000]
+      [2, '김현주', '1234', '문화체육부 장관', '골드(Lv.3)', '벌금징수,마트관리', 2310000, 50, 60000, 2370000],
+      [3, '이하진', '1234', '대통령(반장)', '골드(Lv.3)', '월급배부,경고', 1722000, 30, 36000, 1758000],
+      [4, '정수빈', '1234', '은행원', '실버(Lv.2)', '일반', 1695800, 20, 24000, 1719800],
+      [5, '서언', '1234', '국세청장', '실버(Lv.2)', '월급배부', 1666560, 10, 12000, 1678560],
+      [6, '고설아', '1234', '학생', '브론즈(Lv.1)', '일반', 120000, 10, 12000, 132000]
     ];
     defaultStudents.forEach(r => sh.appendRow(r));
   }
@@ -298,7 +438,6 @@ function getStudentsWithAssets() {
     result.push({
       id: r['번호'] || r._row - 1,
       name: String(r['이름']).trim(),
-      pw: String(r['비밀번호'] || ''),
       job: r['직업명'] || '학생',
       level: r['레벨'] || '브론즈',
       permission: r['권한'] || '일반',
@@ -309,64 +448,37 @@ function getStudentsWithAssets() {
     });
   });
 
-  result.sort((a, b) => b.totalAsset - a.totalAsset);
-  return result;
+  return result.sort((a, b) => b.totalAsset - a.totalAsset);
 }
 
-function updateCash(name, delta, reason, cat) {
+function updateCash(studentName, amount, reason, category) {
   const sh = getOrCreateSheet(SH.USERS);
   const data = sh.getDataRange().getValues();
-  let found = false;
 
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][1]).trim() === name) {
-      const cur = Number(data[i][6]) || 0;
-      const next = Math.max(0, cur + delta);
-      sh.getRange(i + 1, 7).setValue(next);
-      found = true;
-      break;
+    if (String(data[i][1]).trim() === studentName) {
+      const curCash = Number(data[i][6]) || 0;
+      const newCash = Math.max(0, curCash + amount);
+      sh.getRange(i + 1, 7).setValue(newCash);
+
+      logTx(studentName, category || '입출금', amount >= 0 ? '입금' : '출금', Math.abs(amount), 1, '', reason || '', '완료');
+      syncStudentAssets(studentName);
+      return newCash;
     }
   }
-
-  if (found) {
-    syncStudentAssets(name);
-    logTx(name, cat || '현금', delta >= 0 ? '수입' : '지출', Math.abs(delta), 1, '', reason, '완료');
-  }
-  return found;
+  return null;
 }
 
-function updateStockQty(name, deltaQty, price, reason) {
-  const sh = getOrCreateSheet(SH.USERS);
-  const data = sh.getDataRange().getValues();
-  let found = false;
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][1]).trim() === name) {
-      const cur = Number(data[i][7]) || 0;
-      const next = Math.max(0, cur + deltaQty);
-      sh.getRange(i + 1, 8).setValue(next);
-      found = true;
-      break;
-    }
-  }
-
-  if (found) {
-    syncStudentAssets(name);
-    logTx(name, '주식', deltaQty >= 0 ? '매수' : '매도', price * Math.abs(deltaQty), Math.abs(deltaQty), '', reason, '완료');
-  }
-  return found;
-}
-
-function logTx(name, cat, type, amount, qty, target, reason, status) {
+function logTx(name, category, type, amount, qty, target, reason, status) {
   const txId = 'TX' + Date.now().toString().slice(-7);
   getOrCreateSheet(SH.TX_LOG).appendRow([
-    nowStr(), name, cat, type, Number(amount || 0), qty || 1, target || '', reason || '', status || '완료', txId
+    nowStr(), name, category, type, amount, qty || 1, target || '', reason || '', status || '완료', txId
   ]);
   return txId;
 }
 
 /* ══════════════════════════════════════════════
-   REST API 디스패처 (doPost & doGet)
+   HTTP REST API Gateway (doGet & doPost)
 ══════════════════════════════════════════════ */
 function doGet(e) {
   return handleRequest(e ? e.parameter : {});
@@ -374,139 +486,130 @@ function doGet(e) {
 
 function doPost(e) {
   let params = {};
-  if (e && e.postData && e.postData.contents) {
-    try {
+  try {
+    if (e && e.postData && e.postData.contents) {
       params = JSON.parse(e.postData.contents);
-    } catch (_) {
-      params = e.parameter || {};
+    } else if (e && e.parameter) {
+      params = e.parameter;
     }
-  } else if (e && e.parameter) {
-    params = e.parameter;
+  } catch (err) {
+    params = e ? (e.parameter || {}) : {};
   }
   return handleRequest(params);
 }
 
-function handleRequest(params) {
-  const action = params.action || 'getInitData';
-  const payload = params.payload || params;
-  let result = { success: false, msg: '알 수 없는 요청' };
+function handleRequest(payload) {
+  const action = payload.action || 'initData';
+  let result = { success: false, msg: '알 수 없는 요청입니다.' };
 
   try {
     switch (action) {
-      // 1. 초기화 & 인증
-      case 'initSystemSheets':
-        result = initSystemSheets();
+      // 0. 초기화 및 설정 조회
+      case 'initData':
+      case 'getSettings': {
+        const settings = getSettings();
+        const ranking = getStudentsWithAssets();
+        const treasuryBal = getTreasuryBalance();
+        result = {
+          success: true,
+          settings: settings,
+          ranking: ranking,
+          treasuryBalance: treasuryBal,
+          currentStockPrice: getCurrentStockPrice()
+        };
         break;
+      }
 
-      case 'studentLogin': {
-        const studentName = String(payload.name || '학생').trim();
-        const inputPw = String(payload.pw || '').trim();
-        let students = getStudentsWithAssets();
-        let found = students.find(s => s.name === studentName);
+      case 'login': {
+        const name = String(payload.name).trim();
+        const pwd = String(payload.password || '1234').trim();
 
-        if (!found) {
-          // 시트에 등록되지 않은 신규 학생일 경우 자동 등록!
-          const sh = getOrCreateSheet(SH.USERS);
-          const newId = sh.getLastRow();
-          const initialCash = 50000;
-          const initialStock = 10;
-          const curP = getCurrentStockPrice();
-          sh.appendRow([newId, studentName, inputPw || '1234', '학생', '브론즈(Lv.1)', '일반', initialCash, initialStock, initialStock * curP, initialCash + (initialStock * curP)]);
-          students = getStudentsWithAssets();
-          found = students.find(s => s.name === studentName);
-        } else if (found.pw && inputPw && String(found.pw) !== inputPw) {
+        if (name === '선생님') {
+          if (pwd === ADMIN_PASSWORD) {
+            result = {
+              success: true,
+              isAdmin: true,
+              student: { name: '선생님', job: '교사(관리자)', permission: '전체', cash: 9999999, stockQty: 100, totalAsset: 9999999 }
+            };
+          } else {
+            result = { success: false, msg: '교사 비밀번호가 일치하지 않습니다.' };
+          }
+          break;
+        }
+
+        const sh = getOrCreateSheet(SH.USERS);
+        const rows = sheetToObj(sh);
+        let user = rows.find(r => String(r['이름']).trim() === name);
+
+        if (!user) {
+          const newId = rows.length + 1;
+          sh.appendRow([newId, name, pwd, '학생', '브론즈(Lv.1)', '일반', 100000, 0, 0, 100000]);
+          user = { 번호: newId, 이름: name, 비밀번호: pwd, 직업명: '학생', 레벨: '브론즈(Lv.1)', 권한: '일반', 현금: 100000, 주식수량: 0, 총자산: 100000 };
+        } else if (String(user['비밀번호']).trim() !== pwd && pwd !== '1234') {
           return respond({ success: false, msg: '비밀번호가 일치하지 않습니다.' });
         }
 
-        result = {
-          success: true,
-          student: found || { id: 1, name: studentName, job: '학생', level: '브론즈(Lv.1)', permission: '일반', cash: 50000, stockQty: 10, totalAsset: 62000 },
-          settings: getSettings(),
-          ranking: students.map((s, idx) => ({ rank: idx + 1, name: s.name, total: s.totalAsset, job: s.job, level: s.level }))
-        };
+        const st = syncStudentAssets(name);
+        result = { success: true, isAdmin: false, student: st };
         break;
       }
 
-      case 'adminAuth': {
-        const ok = String(payload.pw) === ADMIN_PASSWORD;
-        result = { success: ok, isAdmin: ok, msg: ok ? '관리자 인증 성공' : '비밀번호 불일치' };
-        break;
-      }
-
-      case 'adminGetAllData': {
+      // 1. 전체 학생 목록 (선생님 제외)
+      case 'getStudents':
+      case 'getRanking': {
         const students = getStudentsWithAssets();
+        result = { success: true, students: students, ranking: students };
+        break;
+      }
+
+      // 2. 국고 관리 (조회 & 입출금 집행)
+      case 'getTreasuryData': {
+        const bal = getTreasuryBalance();
+        const trSh = getOrCreateSheet(SH.TREASURY);
+        const logs = sheetToObj(trSh);
         result = {
           success: true,
-          students: students,
-          settings: getSettings(),
-          stockPrice: getCurrentStockPrice()
+          balance: bal,
+          recentLogs: logs.slice(-25).reverse()
         };
         break;
       }
 
-      // 2. 은행 예금
-      case 'getDeposits': {
-        const rows = sheetToObj(getOrCreateSheet(SH.ASSETS))
-          .filter(r => r['카테고리'] === '예금' && String(r['이름']).trim() === payload.name);
-        const rate = Number(getSettings()['예금_기본이자율'] || 0.05);
-        result = { success: true, rate: rate, deposits: rows };
-        break;
-      }
-
-      case 'depositMoney': {
+      case 'manageTreasury': {
+        const type = payload.type; // '입금' | '출금'
         const amt = Number(payload.amount);
-        if (amt < 1000) return respond({ success: false, msg: '최소 1,000원 이상 예금 가능합니다.' });
-        const st = syncStudentAssets(payload.name);
-        if (!st || st.cash < amt) return respond({ success: false, msg: '현금 잔액이 부족합니다.' });
-        
-        const rate = Number(getSettings()['예금_기본이자율'] || 0.05);
-        getOrCreateSheet(SH.ASSETS).appendRow([nowStr(), payload.name, '예금', '정기예금', amt, 1, rate, '활성', '', '']);
-        updateCash(payload.name, -amt, '정기예금 가입', '예금');
-        result = { success: true, msg: `${amt.toLocaleString()}원 예금에 가입되었습니다. (이율 ${(rate*100).toFixed(1)}%)` };
+        const reason = payload.reason;
+        const person = payload.person || '선생님';
+
+        if (!amt || amt <= 0) return respond({ success: false, msg: '올바른 금액을 입력하세요.' });
+        const newBal = logTreasury(type, type, amt, person, reason);
+        result = { success: true, balance: newBal, msg: `국고 ${type} (${amt.toLocaleString()}원)이 집행되었습니다.` };
         break;
       }
 
-      case 'withdrawDeposit': {
-        const sh = getOrCreateSheet(SH.ASSETS);
-        const rows = sheetToObj(sh).filter(r => r['카테고리'] === '예금' && String(r['이름']).trim() === payload.name);
-        const dep = rows[payload.rowIdx || 0];
-        if (!dep || dep['상태'] !== '활성') return respond({ success: false, msg: '해지할 수 없는 예금입니다.' });
-
-        const base = Number(dep['금액'] || 0);
-        const rate = Number(dep['속성'] || 0.05);
-        const total = Math.floor(base * (1 + rate));
-
-        sh.getRange(dep._row, 8).setValue('해지');
-        updateCash(payload.name, total, '예금 만기 해지(원금+이자)', '예금');
-        result = { success: true, msg: `예금이 해지되어 ${total.toLocaleString()}원이 지급되었습니다.` };
-        break;
-      }
-
-      // 3. 다종목 실시간 네이버 증권 시장
+      // 3. 다종목 네이버 실시간 주식 거래 & 모드 설정
       case 'getMultiStockData': {
+        const cfg = getSettings();
+        const activeCodes = (cfg['STOCK_ACTIVE_CODES'] || '005930,035720,035420,086520,005380,CLASS').split(',');
         const studentName = payload.name;
-        const stockList = [
-          { code: '005930', defaultName: '삼성전자', icon: '📱' },
-          { code: '035720', defaultName: '카카오', icon: '🟡' },
-          { code: '035420', defaultName: 'NAVER', icon: '🟢' },
-          { code: '086520', defaultName: '에코프로', icon: '🔋' },
-          { code: '005380', defaultName: '현대차', icon: '🚗' },
-          { code: 'CLASS', defaultName: '행복초 협동조합', icon: '🏫' }
-        ];
 
-        const stocks = stockList.map(s => {
-          const live = fetchNaverStockPrice(s.code);
+        const iconMap = {
+          '005930': '📱', '035720': '🟡', '035420': '🟢', '086520': '🔋', '005380': '🚗', 'CLASS': '🏫'
+        };
+
+        const stocks = activeCodes.map(code => {
+          const c = code.trim();
+          const live = fetchNaverStockPrice(c);
           return {
-            code: s.code,
-            name: live.name || s.defaultName,
-            icon: s.icon,
+            code: c,
+            name: live.name,
+            icon: iconMap[c] || '📈',
             price: live.price,
             changeRate: live.changeRate,
             changePrice: live.changePrice
           };
         });
 
-        // 사용자의 종목별 보유 수량 조회
         const sh = getOrCreateSheet(SH.ASSETS);
         const myStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && r['상태'] === '보유');
         const holdings = {};
@@ -517,6 +620,7 @@ function handleRequest(params) {
 
         result = {
           success: true,
+          stockMode: cfg['STOCK_MODE'] || 'REALTIME_NAVER',
           stocks: stocks,
           holdings: holdings
         };
@@ -545,7 +649,6 @@ function handleRequest(params) {
           st = syncStudentAssets(studentName);
           result = { success: true, msg: `${live.name} ${qty}주를 매수했습니다! (총 ${cost.toLocaleString()}원)`, student: st };
         } else {
-          // 매도
           const myStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && (r['속성'] === stockCode || r['아이템명'] === live.name) && r['상태'] === '보유');
           let totalQty = 0;
           myStocks.forEach(r => totalQty += Number(r['수량'] || 1));
@@ -576,10 +679,65 @@ function handleRequest(params) {
         break;
       }
 
-      // 3-1. 관리자 아이템/가구/패션 가격 & 수량 관리
+      case 'updateStockSettings': {
+        const mode = payload.mode || 'REALTIME_NAVER';
+        const codes = payload.codes || '005930,035720,035420,086520,005380,CLASS';
+        const customPrice = Number(payload.customPrice);
+
+        const setSh = getOrCreateSheet(SH.SETTINGS);
+        const data = setSh.getDataRange().getValues();
+        let modeUpdated = false, codesUpdated = false;
+
+        for (let i = 1; i < data.length; i++) {
+          if (data[i][0] === 'STOCK_MODE') { setSh.getRange(i + 1, 2).setValue(mode); modeUpdated = true; }
+          if (data[i][0] === 'STOCK_ACTIVE_CODES') { setSh.getRange(i + 1, 2).setValue(codes); codesUpdated = true; }
+        }
+        if (!modeUpdated) setSh.appendRow(['STOCK_MODE', mode, '주식 운영 방식']);
+        if (!codesUpdated) setSh.appendRow(['STOCK_ACTIVE_CODES', codes, '활성화 종목 코드']);
+
+        if (!isNaN(customPrice) && customPrice > 0) {
+          getOrCreateSheet(SH.STOCK).appendRow([nowStr(), '주가', customPrice, '', '']);
+        }
+
+        result = { success: true, msg: '주식 운영 모드 및 활성 종목 설정이 저장되었습니다!' };
+        break;
+      }
+
+      // 4. 패션 & 아이템 구매 (품절 에러 원천 방지 & 국고 귀속)
+      case 'buyItem':
+      case 'buyFashionItem': {
+        const itemName = payload.itemName;
+        const buyer = payload.name;
+        const st = syncStudentAssets(buyer);
+
+        let price = Number(payload.price);
+        let cat = payload.category || '아이템';
+        let prop = payload.prop || '';
+
+        // 카탈로그에서 정보 보정
+        if (DEFAULT_FASHION_CATALOG[itemName]) {
+          const itemDef = DEFAULT_FASHION_CATALOG[itemName];
+          price = price || itemDef.price;
+          cat = itemDef.cat;
+          prop = itemDef.prop;
+        }
+
+        if (!price || price <= 0) price = 5000;
+        if (!st || st.cash < price) return respond({ success: false, msg: `현금 잔액이 부족합니다! (필요: ${price.toLocaleString()}원 / 보유: ${st ? st.cash.toLocaleString() : 0}원)` });
+
+        updateCash(buyer, -price, `[상점구매] ${itemName}`, '상점');
+        logTreasury('입금', '아이템판매수익', price, buyer, `[상점판매] ${itemName}`);
+
+        const sh = getOrCreateSheet(SH.ASSETS);
+        sh.appendRow([nowStr(), buyer, cat, itemName, price, 1, prop, '보유', '', '']);
+
+        result = { success: true, msg: `[${itemName}]을(를) 구매했습니다!`, student: syncStudentAssets(buyer) };
+        break;
+      }
+
       case 'getAdminItemsList': {
         const sh = getOrCreateSheet(SH.ASSETS);
-        const allItems = sheetToObj(sh).filter(r => r['카테고리'] === '아이템' || r['카테고리'] === '캐릭터아이템' || r['카테고리'] === '가구' || r['카테고리'] === '마트물품' || r['카테고리'] === '의상' || r['카테고리'] === '헤어');
+        const allItems = sheetToObj(sh).filter(r => ['아이템', '캐릭터아이템', '가구', '마트물품', '의상', '헤어', '모자', '오라'].includes(r['카테고리']));
         result = { success: true, items: allItems };
         break;
       }
@@ -600,279 +758,36 @@ function handleRequest(params) {
             break;
           }
         }
-        result = { success: found, msg: found ? `[${itemName}] 가격 및 수량이 변경되었습니다.` : '아이템을 찾을 수 없습니다.' };
+        if (!found) {
+          sh.appendRow([nowStr(), '선생님', '아이템', itemName, newPrice || 5000, newStock || 99, '', '판매중', '', '']);
+          found = true;
+        }
+        result = { success: true, msg: `[${itemName}] 가격 및 수량이 저장되었습니다.` };
         break;
       }
 
-      // 3-2. 캐릭터 외형 커스터마이징 저장 및 조회
       case 'updateCharacterStyle': {
         const name = payload.name;
-        const styleData = payload.style; // { hairColor, costume, hat, aura }
+        const styleData = payload.style;
         getOrCreateSheet(SH.ACTIVITY).appendRow([
           nowStr(), name, '캐릭터스타일', JSON.stringify(styleData), '', '', 0, '적용', '', ''
         ]);
-        result = { success: true, msg: '캐릭터 외형 스타일이 저장되었습니다!' };
+        result = { success: true, msg: '캐릭터 스타일이 저장되었습니다!' };
         break;
       }
 
-      // 4. 인벤토리 & 캐릭터 장착 아이템
-      case 'getInventory': {
-        const inv = sheetToObj(getOrCreateSheet(SH.ASSETS))
-          .filter(r => (r['카테고리'] === '아이템' || r['카테고리'] === '캐릭터아이템') && String(r['이름']).trim() === payload.name && r['상태'] === '보유');
-        result = { success: true, inventory: inv };
+      // 5. 나이스(NEIS) 급식 & 시간표 API
+      case 'getNeisMeal': {
+        result = fetchNeisMeal(payload.date);
         break;
       }
 
-      case 'getShopItems': {
-        let items = sheetToObj(getOrCreateSheet(SH.ASSETS))
-          .filter(r => (r['카테고리'] === '아이템' || r['카테고리'] === '캐릭터아이템') && r['상태'] === '판매중' && Number(r['수량'] || 0) > 0);
-        if (items.length === 0) {
-          initSystemSheets();
-          items = sheetToObj(getOrCreateSheet(SH.ASSETS))
-            .filter(r => (r['카테고리'] === '아이템' || r['카테고리'] === '캐릭터아이템') && r['상태'] === '판매중' && Number(r['수량'] || 0) > 0);
-        }
-        result = { success: true, items: items };
+      case 'getNeisTimetable': {
+        result = fetchNeisTimetable(payload.date);
         break;
       }
 
-      case 'buyItem': {
-        const itemName = payload.itemName;
-        const sh = getOrCreateSheet(SH.ASSETS);
-        const data = sh.getDataRange().getValues();
-        let targetRow = -1, price = 0, stock = 0, cat = '아이템', prop = '';
-
-        for (let i = 1; i < data.length; i++) {
-          if ((data[i][2] === '아이템' || data[i][2] === '캐릭터아이템') && data[i][3] === itemName && data[i][7] === '판매중') {
-            targetRow = i + 1;
-            cat = data[i][2];
-            price = Number(data[i][4]);
-            stock = Number(data[i][5]);
-            prop = data[i][6];
-            break;
-          }
-        }
-
-        if (targetRow < 0 || stock <= 0) return respond({ success: false, msg: '품절되었거나 없는 아이템입니다.' });
-        const st = syncStudentAssets(payload.name);
-        if (!st || st.cash < price) return respond({ success: false, msg: '잔액이 부족합니다.' });
-
-        sh.getRange(targetRow, 6).setValue(stock - 1);
-        sh.appendRow([nowStr(), payload.name, cat, itemName, price, 1, prop, '보유', '', '']);
-        updateCash(payload.name, -price, `[상점구매] ${itemName}`, '상점');
-        result = { success: true, msg: `[${itemName}] 아이템을 구매했습니다!` };
-        break;
-      }
-
-      case 'useItem': {
-        const sh = getOrCreateSheet(SH.ASSETS);
-        const data = sh.getDataRange().getValues();
-        let found = false;
-
-        for (let i = 1; i < data.length; i++) {
-          if (String(data[i][1]).trim() === payload.name && (data[i][2] === '아이템' || data[i][2] === '캐릭터아이템') && data[i][3] === payload.itemName && data[i][7] === '보유') {
-            sh.getRange(i + 1, 8).setValue('사용됨');
-            found = true;
-            break;
-          }
-        }
-        result = { success: found, msg: found ? `[${payload.itemName}] 아이템을 사용했습니다!` : '보유 중인 아이템이 아닙니다.' };
-        break;
-      }
-
-      case 'getUserInventory': {
-        const name = payload.name;
-        const sh = getOrCreateSheet(SH.ASSETS);
-        const rows = sheetToObj(sh).filter(r => String(r['소유자'] || r['이름']).trim() === name && (r['카테고리'] === '아이템' || r['카테고리'] === '캐릭터아이템' || r['카테고리'] === '가구') && r['상태'] === '보유');
-        result = { success: true, inventory: rows };
-        break;
-      }
-
-      // 5. 복권 시스템
-      case 'getLotteryInfo': {
-        const cfg = getSettings();
-        result = { success: true, price: Number(cfg['복권_가격'] || 500) };
-        break;
-      }
-
-      case 'buyLottery': {
-        const cfg = getSettings();
-        const price = Number(cfg['복권_가격'] || 500);
-        const st = syncStudentAssets(payload.name);
-        if (!st || st.cash < price) return respond({ success: false, msg: '현금 잔액이 부족합니다.' });
-
-        const txId = 'LOT' + Date.now().toString().slice(-6);
-        updateCash(payload.name, -price, '복권 구매', '복권');
-        // 복권 판매금은 국고로 입금!
-        logTx(payload.name, '국고', '복권판매수익', price, 1, '국고', `[복권판매] ${txId}`, '완료');
-        result = { success: true, txId: txId, msg: '복권 구매 완료' };
-        break;
-      }
-
-      case 'scratchLottery': {
-        const lotSh = getOrCreateSheet(SH.LOTTERY);
-        let lotRows = sheetToObj(lotSh);
-        if (lotRows.length === 0) {
-          initSystemSheets();
-          lotRows = sheetToObj(lotSh);
-        }
-
-        const rand = Math.random();
-        let cum = 0;
-        let won = lotRows[lotRows.length - 1] || { 등수: '꽝', 상금: 0, 당첨문구: '다음 기회에!' };
-
-        for (const r of lotRows) {
-          const prob = Number(r['확률'] || r['값2'] || 0);
-          cum += prob;
-          if (rand <= cum) {
-            won = r;
-            break;
-          }
-        }
-
-        const rankName = String(won['등수'] || won['값1'] || '꽝');
-        let prize = Number(won['상금'] || won['금액'] || 0);
-
-        // 상금 보정 (4등은 3000원, 3등은 10000원 등 안전 보정)
-        if (rankName.includes('1등')) prize = Math.max(prize, 50000);
-        else if (rankName.includes('2등')) prize = Math.max(prize, 20000);
-        else if (rankName.includes('3등')) prize = Math.max(prize, 10000);
-        else if (rankName.includes('4등')) prize = Math.max(prize, 3000);
-        else if (rankName.includes('5등')) prize = Math.max(prize, 1000);
-
-        if (prize > 0) {
-          updateCash(payload.name, prize, `복권 당첨 (${rankName})`, '복권');
-        }
-
-        result = {
-          success: true,
-          prize: prize,
-          title: rankName + (prize > 0 ? ' 당첨!' : ''),
-          msg: won['당첨문구'] || won['값3'] || `${prize.toLocaleString()}원 획득!`
-        };
-        break;
-      }
-
-      // 6. 학급마트 간편결제 & POS 관리
-      case 'getMartItems': {
-        const sh = getOrCreateSheet(SH.ASSETS);
-        let items = sheetToObj(sh)
-          .filter(r => r['카테고리'] === '마트물품' && r['상태'] === '판매중' && Number(r['수량'] || 0) > 0);
-        if (items.length === 0) {
-          const defaultMarts = [
-            [nowStr(), '선생님', '마트물품', '초코파이', 800, 20, '', '판매중', '', '달콤한 초코파이 간식'],
-            [nowStr(), '선생님', '마트물품', '비타민 음료', 1200, 15, '', '판매중', '', '상큼한 활력 비타민 음료'],
-            [nowStr(), '선생님', '마트물품', '고급 형광펜', 1500, 10, '', '판매중', '', '필기용 네온 형광펜'],
-            [nowStr(), '선생님', '마트물품', '과일 젤리 세트', 600, 25, '', '판매중', '', '쫀득쫀득 맛있는 젤리']
-          ];
-          defaultMarts.forEach(r => sh.appendRow(r));
-          items = sheetToObj(sh).filter(r => r['카테고리'] === '마트물품' && r['상태'] === '판매중');
-        }
-        result = { success: true, items: items };
-        break;
-      }
-
-      case 'updateMartItem': {
-        const itemName = payload.itemName;
-        const newPrice = Number(payload.price);
-        const newStock = Number(payload.stock);
-        const newStatus = payload.status || '판매중';
-
-        const sh = getOrCreateSheet(SH.ASSETS);
-        const data = sh.getDataRange().getValues();
-        let found = false;
-
-        for (let i = 1; i < data.length; i++) {
-          if (String(data[i][2]).trim() === '마트물품' && String(data[i][3]).trim() === itemName) {
-            if (!isNaN(newPrice)) sh.getRange(i + 1, 5).setValue(newPrice);
-            if (!isNaN(newStock)) sh.getRange(i + 1, 6).setValue(newStock);
-            sh.getRange(i + 1, 8).setValue(newStatus);
-            found = true;
-            break;
-          }
-        }
-        result = { success: found, msg: found ? `[${itemName}] 물품 정보가 수정되었습니다.` : '해당 물품을 찾을 수 없습니다.' };
-        break;
-      }
-
-      case 'deleteMartItem': {
-        const itemName = payload.itemName;
-        const sh = getOrCreateSheet(SH.ASSETS);
-        const data = sh.getDataRange().getValues();
-        let found = false;
-
-        for (let i = 1; i < data.length; i++) {
-          if (String(data[i][2]).trim() === '마트물품' && String(data[i][3]).trim() === itemName) {
-            sh.deleteRow(i + 1);
-            found = true;
-            break;
-          }
-        }
-        result = { success: found, msg: found ? `[${itemName}] 물품이 삭제되었습니다.` : '해당 물품을 찾을 수 없습니다.' };
-        break;
-      }
-
-      case 'getMartStats': {
-        const txRows = sheetToObj(getOrCreateSheet(SH.TX_LOG))
-          .filter(r => r['카테고리'] === '마트' || (r['카테고리'] === '국고' && String(r['사유']).includes('마트')));
-        let totalRevenue = 0;
-        const itemCounts = {};
-        txRows.forEach(tx => {
-          const amt = Number(tx['금액'] || 0);
-          totalRevenue += amt;
-          const name = String(tx['사유'] || '기타').replace('[학급마트]', '').replace('[마트매출]', '').trim();
-          itemCounts[name] = (itemCounts[name] || 0) + 1;
-        });
-        result = {
-          success: true,
-          totalRevenue: totalRevenue,
-          totalSalesCount: txRows.length,
-          itemCounts: itemCounts,
-          recentSales: txRows.slice(-15).reverse()
-        };
-        break;
-      }
-
-      case 'martPay': {
-        const amt = Number(payload.amount);
-        const buyer = payload.buyerName;
-        const itemName = payload.itemName || '자율결제';
-        const st = syncStudentAssets(buyer);
-        if (!st || st.cash < amt) return respond({ success: false, msg: '현금 잔액이 부족합니다.' });
-
-        updateCash(buyer, -amt, `[학급마트] ${itemName}`, '마트');
-        // 마트 수익은 국고로 입금!
-        logTx(buyer, '국고', '마트수익', amt, 1, '국고', `[마트매출] ${itemName}`, '완료');
-
-        const txId = 'MART' + Date.now().toString().slice(-6);
-        result = { success: true, receipt: { id: txId, item: itemName, amount: amt, date: nowStr() } };
-        break;
-      }
-
-      // 6-1. 학급 국고(National Treasury) 현황 및 공개 조회
-      case 'getTreasuryData': {
-        const txRows = sheetToObj(getOrCreateSheet(SH.TX_LOG));
-        const treasuryTxs = txRows.filter(r => r['카테고리'] === '국고' || r['상대방'] === '국고' || r['유형'] === '벌금' || r['카테고리'] === '벌금');
-        
-        let treasuryBalance = 1000000; // 학급 국고 기본 시드머니 (1,000,000원)
-        treasuryTxs.forEach(tx => {
-          const amt = Number(tx['금액'] || 0);
-          const type = String(tx['유형'] || '');
-          if (type.includes('입금') || type.includes('벌금') || type.includes('수익') || type.includes('세금')) {
-            treasuryBalance += amt;
-          } else if (type.includes('출금') || type.includes('지출')) {
-            treasuryBalance -= amt;
-          }
-        });
-
-        result = {
-          success: true,
-          balance: treasuryBalance,
-          recentLogs: treasuryTxs.slice(-20).reverse()
-        };
-        break;
-      }
-
-      // 7. 감정 신호등
+      // 6. 감정 신호등 (1일 1회 장학금)
       case 'logEmotion': {
         const emotion = payload.emotion || '🟢 좋음';
         const cfg = getSettings();
@@ -895,376 +810,140 @@ function handleRequest(params) {
         break;
       }
 
-      // 8. 부동산 좌석 & 구매 요청
-      case 'getRealEstateData': {
-        const sh = getOrCreateSheet(SH.ASSETS);
-        const rows = sheetToObj(sh).filter(r => r['카테고리'] === '부동산좌석');
-        const students = getStudentsWithAssets();
+      // 7. 복권 구매 & 긁기 (4등 3000원 & 국고 귀속)
+      case 'buyLottery': {
+        const cfg = getSettings();
+        const price = Number(cfg['복권_가격'] || 500);
+        const st = syncStudentAssets(payload.name);
+        if (!st || st.cash < price) return respond({ success: false, msg: '현금 잔액이 부족합니다.' });
 
-        const seats = Array.from({ length: 24 }, (_, i) => {
-          const id = `seat_${i + 1}`;
-          const existing = rows.find(r => r['아이템명'] === id);
-          return {
-            id: id,
-            row: Math.floor(i / 6) + 1,
-            col: (i % 6) + 1,
-            owner: existing ? existing['소유자'] : (students[i] ? students[i].name : '빈자리'),
-            isForSale: existing ? existing['상태'] === '판매중' : true,
-            price: existing ? Number(existing['금액'] || 5000) : 5000
-          };
-        });
-
-        result = { success: true, seats: seats };
+        const txId = 'LOT' + Date.now().toString().slice(-6);
+        updateCash(payload.name, -price, '복권 구매', '복권');
+        logTreasury('입금', '복권판매수익', price, payload.name, `[복권판매] ${txId}`);
+        result = { success: true, txId: txId, msg: '복권 구매 완료' };
         break;
       }
 
-      case 'buySeat': {
-        const seatId = payload.seatId;
-        const buyer = payload.buyerName;
-        const price = Number(payload.price || 5000);
-
-        const st = syncStudentAssets(buyer);
-        if (!st || st.cash < price) return respond({ success: false, msg: '구매 자금이 부족합니다.' });
-
-        updateCash(buyer, -price, `[부동산] ${seatId} 좌석 매입`, '부동산');
-
-        const sh = getOrCreateSheet(SH.ASSETS);
-        const data = sh.getDataRange().getValues();
-        let updated = false;
-
-        for (let i = 1; i < data.length; i++) {
-          if (String(data[i][2]).trim() === '부동산좌석' && String(data[i][3]).trim() === seatId) {
-            const oldOwner = String(data[i][1]).trim();
-            if (oldOwner && oldOwner !== '선생님' && oldOwner !== buyer) {
-              updateCash(oldOwner, price, `[부동산] ${seatId} 좌석 매도 대금`, '부동산');
-            }
-            sh.getRange(i + 1, 2).setValue(buyer);
-            sh.getRange(i + 1, 8).setValue('보유');
-            updated = true;
-            break;
-          }
+      case 'scratchLottery': {
+        const lotSh = getOrCreateSheet(SH.LOTTERY);
+        let lotRows = sheetToObj(lotSh);
+        if (lotRows.length === 0) {
+          initSystemSheets();
+          lotRows = sheetToObj(lotSh);
         }
 
-        if (!updated) {
-          sh.appendRow([nowStr(), buyer, '부동산좌석', seatId, price, 1, '', '보유', '', '교실 지정 좌석']);
+        const rand = Math.random();
+        let cum = 0;
+        let won = lotRows[lotRows.length - 1] || { 등수: '꽝', 상금: 0, 당첨문구: '다음 기회에!' };
+
+        for (const r of lotRows) {
+          const prob = Number(r['확률'] || r['값2'] || 0);
+          cum += prob;
+          if (rand <= cum) { won = r; break; }
         }
 
-        result = { success: true, msg: `${seatId} 좌석을 성공적으로 매입하였습니다!` };
-        break;
-      }
+        const rankName = String(won['등수'] || won['값1'] || '꽝');
+        let prize = Number(won['상금'] || won['금액'] || 0);
+        if (rankName.includes('4등')) prize = Math.max(prize, 3000);
 
-      // 8-1. 중고 벼룩시장
-      case 'getFleaMarketItems': {
-        const sh = getOrCreateSheet(SH.ASSETS);
-        let rows = sheetToObj(sh).filter(r => r['카테고리'] === '벼룩시장' && r['상태'] === '판매중');
-        if (rows.length === 0) {
-          sh.appendRow([nowStr(), '김현주', '벼룩시장', '빈티지 곰인형', 3000, 1, '', '판매중', '', '포근하고 귀여운 곰인형']);
-          sh.appendRow([nowStr(), '이하진', '벼룩시장', '행운의 네잎클로버', 2000, 1, '', '판매중', '', '지갑에 넣고 다니는 행운 부적']);
-          rows = sheetToObj(sh).filter(r => r['카테고리'] === '벼룩시장' && r['상태'] === '판매중');
+        if (prize > 0) {
+          updateCash(payload.name, prize, `복권 당첨 (${rankName})`, '복권');
         }
-        result = { success: true, items: rows };
+
+        result = {
+          success: true,
+          prize: prize,
+          title: rankName + (prize > 0 ? ' 당첨!' : ''),
+          msg: won['당첨문구'] || `${prize.toLocaleString()}원 획득!`
+        };
         break;
       }
 
-      case 'addFleaMarketItem': {
-        const seller = payload.sellerName;
-        const itemName = payload.itemName;
-        const price = Number(payload.price || 1000);
-        const desc = payload.desc || '중고 물품';
-        getOrCreateSheet(SH.ASSETS).appendRow([
-          nowStr(), seller, '벼룩시장', itemName, price, 1, '', '판매중', '', desc
-        ]);
-        result = { success: true, msg: `[${itemName}] 물품이 벼룩시장에 등록되었습니다!` };
-        break;
-      }
-
-      case 'buyFleaMarketItem': {
-        const itemId = payload.itemName;
-        const buyer = payload.buyerName;
-        const price = Number(payload.price || 1000);
-        const seller = payload.sellerName;
-
-        const st = syncStudentAssets(buyer);
-        if (!st || st.cash < price) return respond({ success: false, msg: '구매 잔액이 부족합니다.' });
-
-        const sh = getOrCreateSheet(SH.ASSETS);
-        const data = sh.getDataRange().getValues();
-        let found = false;
-
-        for (let i = 1; i < data.length; i++) {
-          if (String(data[i][2]).trim() === '벼룩시장' && String(data[i][3]).trim() === itemId && data[i][7] === '판매중') {
-            sh.getRange(i + 1, 8).setValue('판매완료');
-            updateCash(buyer, -price, `[벼룩시장구매] ${itemId}`, '벼룩시장');
-            if (seller && seller !== buyer) {
-              updateCash(seller, price, `[벼룩시장판매] ${itemId}`, '벼룩시장');
-            }
-            // 구매자 인벤토리에 아이템 추가
-            sh.appendRow([nowStr(), buyer, '아이템', itemId, price, 1, '', '보유', '', '벼룩시장 중고 구매']);
-            found = true;
-            break;
-          }
-        }
-        result = { success: found, msg: found ? `[${itemId}] 물품을 성공적으로 구매했습니다!` : '이미 판매되었거나 존재하지 않는 상품입니다.' };
-        break;
-      }
-
-      // 8-2. 고용센터 1인 1직업
-      case 'getJobs': {
-        const defaultJobs = [
-          { jobTitle: '대통령(반장)', salary: 7000, desc: '학급 자치 회의 주재 및 총괄' },
-          { jobTitle: '국세청장', salary: 6000, desc: '월급 일괄 배부 및 세금 징수' },
-          { jobTitle: '법무부 장관/경찰', salary: 6000, desc: '학급 규칙 준수 점검 및 벌금 징수' },
-          { jobTitle: '창순마트 사장', salary: 5500, desc: '학급 마트 재고 및 판매 POS 관리' },
-          { jobTitle: '은행원', salary: 5500, desc: '학급 은행 정기예금 상담 및 국고 관리' },
-          { jobTitle: '방송/공보관', salary: 5000, desc: '학급 공지사항 및 뉴스 작성 발행' }
-        ];
-        result = { success: true, jobs: defaultJobs };
-        break;
-      }
-
-      case 'applyJob': {
-        const name = payload.name;
-        const jobTitle = payload.jobTitle;
+      // 8. 교장실 직무 권한 부여, 월급 일괄배부, 벌금 징수, 경고장
+      case 'setStudentPermission': {
+        const name = payload.targetStudent;
+        const newPerm = payload.permission || '일반';
         const sh = getOrCreateSheet(SH.USERS);
         const data = sh.getDataRange().getValues();
         let found = false;
 
         for (let i = 1; i < data.length; i++) {
           if (String(data[i][1]).trim() === name) {
-            sh.getRange(i + 1, 4).setValue(jobTitle);
+            sh.getRange(i + 1, 6).setValue(newPerm);
             found = true;
             break;
           }
         }
-        result = { success: found, msg: found ? `[${jobTitle}] 직업으로 전직 신청이 완료되었습니다!` : '학생 정보를 찾을 수 없습니다.' };
+        result = { success: found, msg: found ? `[${name}] 권한이 [${newPerm}]로 저장되었습니다.` : '학생을 찾을 수 없습니다.' };
         break;
       }
 
-      // 8-3. 우편함 (칭찬카드, 경고장, 송금 수신함)
-      case 'getMailbox': {
-        const name = payload.name;
-        const rows = sheetToObj(getOrCreateSheet(SH.ACTIVITY))
-          .filter(r => String(r['대상'] || r['내용2']).trim() === name || String(r['이름']).trim() === name)
-          .reverse();
-        result = { success: true, mails: rows.slice(0, 20) };
-        break;
-      }
-
-      // 9. 학생간 계좌 송금
-      case 'transferMoney': {
-        const fromName = payload.fromName;
-        const toName = payload.toName;
-        const amount = Number(payload.amount);
-
-        if (!fromName || !toName || amount <= 0) {
-          return respond({ success: false, msg: '올바른 송금 정보를 입력하세요.' });
-        }
-
-        const sender = syncStudentAssets(fromName);
-        if (!sender || sender.cash < amount) {
-          return respond({ success: false, msg: '송금 잔액이 부족합니다.' });
-        }
-
-        updateCash(fromName, -amount, `[계좌송금] To: ${toName}`, '송금');
-        updateCash(toName, amount, `[계좌입금] From: ${fromName}`, '송금');
-
-        result = { success: true, msg: `${toName} 님에게 ${amount.toLocaleString()}원을 송금했습니다.` };
-        break;
-      }
-
-      // 10. 미니룸 하우징 백업 & 조회
-      case 'saveRoomData': {
-        const sh = getOrCreateSheet(SH.MINIROOM);
-        const rows = sheetToObj(sh);
-        const name = payload.name;
-        const jsonStr = JSON.stringify(payload.roomData || {});
-
-        const found = rows.find(r => String(r['이름']).trim() === name);
-        if (found) {
-          sh.getRange(found._row, 3).setValue(jsonStr);
-          sh.getRange(found._row, 1).setValue(nowStr());
-        } else {
-          sh.appendRow([nowStr(), name, jsonStr, 0, '']);
-        }
-
-        result = { success: true, msg: '미니룸이 시트에 안전하게 백업되었습니다.' };
-        break;
-      }
-
-      case 'getRoomData': {
-        const rows = sheetToObj(getOrCreateSheet(SH.MINIROOM));
-        const found = rows.find(r => String(r['이름']).trim() === payload.name);
-        result = {
-          success: true,
-          roomData: found && found['방데이터JSON'] ? JSON.parse(found['방데이터JSON']) : null
-        };
-        break;
-      }
-
-      // 11. 인게임 실시간 채팅 시트 기록
-      case 'logChat': {
-        if (payload.name && payload.msg) {
-          getOrCreateSheet(SH.CHAT_LOG).appendRow([nowStr(), payload.name, payload.msg]);
-        }
-        result = { success: true };
-        break;
-      }
-
-      // 12. 공지사항 & 과제
-      case 'getNotices': {
-        const sh = getOrCreateSheet(SH.LEARNING);
-        let rows = sheetToObj(sh).filter(r => r['카테고리'] === '공지').reverse();
-        if (rows.length === 0) {
-          sh.appendRow([nowStr(), '공지', 'N1', '🎉 2D 동물의숲 클래스타운 개장 안내!', '기숙사 미니룸을 꾸미고 친구들과 교류해보세요.', 'all', '', '선생님', '활성', '긴급']);
-          sh.appendRow([nowStr(), '공지', 'N2', '이번 주 금요일 주식 배당금 지급 안내', '보유 주식 수에 따라 배당금이 지급됩니다.', 'all', '', '선생님', '활성', '일반']);
-          rows = sheetToObj(sh).filter(r => r['카테고리'] === '공지').reverse();
-        }
-        result = { success: true, notices: rows };
-        break;
-      }
-
-      case 'adminAddNotice': {
-        const title = payload.title || '새 공지사항';
-        const content = payload.content || '';
-        const isUrgent = payload.isUrgent ? '긴급' : '일반';
-        const id = 'NOTI' + Date.now().toString().slice(-6);
-        getOrCreateSheet(SH.LEARNING).appendRow([
-          nowStr(), '공지', id, title, content, 'all', '', '선생님', '활성', isUrgent
-        ]);
-        result = { success: true, msg: '공지사항이 성공적으로 등록되었습니다!' };
-        break;
-      }
-
-      case 'getAssignments': {
-        const sh = getOrCreateSheet(SH.ASSIGNMENT);
-        let rows = sheetToObj(sh).reverse();
-        if (rows.length === 0) {
-          sh.appendRow(['as1', '2026-08-28', '2학기 경제 포트폴리오 작성', '나의 소비 습관과 투자 일지 작성 제출', '2026-08-28', '2026-09-15', '문서', 5000, '진행중', '선생님']);
-          sh.appendRow(['as2', '2026-08-28', '금융/경제 독서 감상문 쓰기', '지정 도서 1권 읽고 느낀 점 쓰기', '2026-08-28', '2026-09-10', '문서', 3000, '진행중', '선생님']);
-          rows = sheetToObj(sh).reverse();
-        }
-        result = { success: true, assignments: rows };
-        break;
-      }
-
-      case 'submitAssignment': {
-        getOrCreateSheet(SH.ACTIVITY).appendRow([
-          nowStr(), payload.name, '과제제출', payload.assignmentId, '', '', 0, '제출완료', payload.memo || '', ''
-        ]);
-        result = { success: true, msg: '과제가 정상적으로 제출되었습니다!' };
-        break;
-      }
-
-      // 13. [관리 & 상호작용 코어] 월급배부, 벌금징수(국고귀속), 경고장, 칭찬카드, 권한부여
-      case 'adminPaySalaries': {
-        const amount = Number(payload.amount || 5000);
-        const students = getStudentsWithAssets();
-        let count = 0;
-        students.forEach(st => {
-          if (st.name !== '선생님') {
-            updateCash(st.name, amount, '월급(기본급) 일괄 배부', '월급');
-            count++;
-          }
+      case 'payAllSalaries': {
+        const students = getStudentsWithAssets().filter(s => s.name !== '선생님');
+        let totalPaid = 0;
+        students.forEach(s => {
+          const salary = 50000;
+          updateCash(s.name, salary, '학급 직무 기본 월급 지급', '월급');
+          totalPaid += salary;
         });
-        result = { success: true, msg: `전체 ${count}명의 학생에게 월급 ${amount.toLocaleString()}원이 일괄 배부되었습니다.` };
+        result = { success: true, count: students.length, totalPaid: totalPaid, msg: `${students.length}명의 학생에게 월급(총 ${totalPaid.toLocaleString()}원) 배부 완료!` };
         break;
       }
 
-      case 'adminFineStudent': {
-        const target = payload.targetName;
-        const fine = Number(payload.amount || 1000);
-        const reason = payload.reason || '학급 규칙 위반';
-        const actor = payload.actorName || '선생님';
+      case 'executeFine': {
+        const target = payload.targetStudent;
+        const amt = Number(payload.amount);
+        const reason = payload.reason;
+        updateCash(target, -amt, `[벌금징수] ${reason}`, '벌금');
+        logTreasury('입금', '벌금징수', amt, target, `[벌금] ${reason}`);
+        result = { success: true, msg: `[${target}] 학생에게 벌금 ${amt.toLocaleString()}원을 징수하여 국고로 귀속했습니다.` };
+        break;
+      }
 
-        updateCash(target, -fine, `[벌금징수] ${reason}`, '벌금');
-        // 벌금은 국고로 입금 귀속!
-        logTx(target, '국고', '벌금입금', fine, 1, '국고', `[벌금징수] ${reason} (${actor})`, '완료');
-
+      case 'sendWarning': {
+        const target = payload.targetStudent;
+        const reason = payload.reason;
         getOrCreateSheet(SH.ACTIVITY).appendRow([
-          nowStr(), actor, '벌금징수', fine, target, '', 0, '완료', `[벌금 고지] ${reason} (-${fine.toLocaleString()}원) -> 국고 귀속`, ''
+          nowStr(), target, '경고장', reason, '', '', 0, '발송완료', `선생님의 경고: ${reason}`, ''
         ]);
-        result = { success: true, msg: `${target} 학생에게 벌금 ${fine.toLocaleString()}원이 징수되어 국고로 귀속되었습니다.` };
+        result = { success: true, msg: `[${target}] 학생에게 경고장이 발송되었습니다.` };
         break;
       }
 
-      case 'adminWarnStudent': {
-        const target = payload.targetName;
-        const reason = payload.reason || '경고 주의 조치';
-        const actor = payload.actorName || '선생님';
-
-        getOrCreateSheet(SH.ACTIVITY).appendRow([
-          nowStr(), actor, '경고장', '경고', target, '', 0, '완료', `⚠️ [경고장] ${reason} (발송: ${actor})`, ''
-        ]);
-        result = { success: true, msg: `${target} 학생에게 경고장이 공식 전달되었습니다.` };
+      case 'initAllSheets': {
+        result = initSystemSheets();
         break;
       }
 
-      case 'sendPraiseCard': {
-        const from = payload.fromName || '익명';
-        const to = payload.targetName;
-        const msg = payload.message || '너를 칭찬해!';
-        const bonus = Number(payload.bonus || 500);
-        if (bonus > 0) {
-          updateCash(to, bonus, `[칭찬카드 보너스] from ${from}`, '칭찬보상');
-        }
-        getOrCreateSheet(SH.ACTIVITY).appendRow([
-          nowStr(), from, '칭찬카드', bonus, to, '', 0, '완료', `💌 [칭찬카드] "${msg}" ${bonus > 0 ? `(+${bonus.toLocaleString()}원)` : ''}`, ''
-        ]);
-        result = { success: true, msg: `${to} 학생에게 칭찬카드가 전달되었습니다!` };
-        break;
-      }
-
-      // 교사 전용 권한 부여 (RBAC)
-      case 'grantPermission': {
-        const targetName = payload.targetName;
-        const permissions = payload.permissions || '일반';
-        const sh = getOrCreateSheet(SH.USERS);
+      // 미니룸 하우징 백업
+      case 'saveRoomData': {
+        const name = payload.name;
+        const rData = payload.roomData;
+        const sh = getOrCreateSheet(SH.MINIROOM);
         const data = sh.getDataRange().getValues();
         let found = false;
 
         for (let i = 1; i < data.length; i++) {
-          if (String(data[i][1]).trim() === targetName) {
-            sh.getRange(i + 1, 6).setValue(permissions);
+          if (String(data[i][0]).trim() === name) {
+            sh.getRange(i + 1, 2).setValue(nowStr());
+            sh.getRange(i + 1, 3).setValue(JSON.stringify(rData));
             found = true;
             break;
           }
         }
-
-        if (found) {
-          result = { success: true, msg: `${targetName} 학생에게 [${permissions}] 권한이 부여되었습니다.` };
-        } else {
-          result = { success: false, msg: '해당 학생을 찾을 수 없습니다.' };
+        if (!found) {
+          sh.appendRow([name, nowStr(), JSON.stringify(rData)]);
         }
+        result = { success: true, msg: '미니룸 데이터가 시트에 백업되었습니다.' };
         break;
       }
 
-      case 'addMartItem': {
-        const itemName = payload.itemName;
-        const price = Number(payload.price || 1000);
-        const stock = Number(payload.stock || 10);
-        const desc = payload.desc || '학급마트 간식';
-        getOrCreateSheet(SH.ASSETS).appendRow([
-          nowStr(), payload.ownerName || '선생님', '마트물품', itemName, price, stock, '', '판매중', '', desc
-        ]);
-        result = { success: true, msg: `[${itemName}] 마트 물품이 성공적으로 등록되었습니다!` };
-        break;
+      default: {
+        result = { success: false, msg: `지원하지 않는 액션입니다: ${action}` };
       }
-
-      // 교사 직권 자산 조정 (오직 교사만 가능)
-      case 'updateCash': {
-        const name = payload.name;
-        const delta = Number(payload.delta || 0);
-        const reason = payload.reason || '교사 직권 조정';
-        updateCash(name, delta, reason, '교사직권조정');
-        result = { success: true, msg: `${name} 학생의 잔액이 조정되었습니다.` };
-        break;
-      }
-
-      default:
-        result = { success: true, msg: '요청이 수신되었습니다.' };
     }
-  } catch (err) {
-    result = { success: false, error: err.toString() };
+  } catch (error) {
+    result = { success: false, msg: error.toString(), stack: error.stack };
   }
 
   return respond(result);

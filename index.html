@@ -918,10 +918,25 @@
 
       startGameAfterLogin();
 
-      // 2. 백그라운드에서 구글 시트 실제 자산 및 랭킹 비동기 동기화
+      // 2. 백그라운드에서 구글 시트 실제 자산, 설정, 학교명 및 랭킹 비동기 동기화
       try {
+        API.call('initData', {}, true).then(res => {
+          if (res && res.settings) {
+            GameState.settings = res.settings;
+            const schName = res.settings['학교명'] || res.settings.schoolName;
+            if (schName) {
+              document.title = `${schName} 클래스타운 - 동물의 숲 2D 학급경영`;
+              const logoEl = document.querySelector('.login-logo');
+              if (logoEl) logoEl.innerHTML = `🌳 ${schName} 클래스타운`;
+            }
+          }
+          if (res && res.ranking) {
+            GameState.rankingList = res.ranking;
+          }
+        });
+
         if (isAdminCheck) {
-          API.call('adminAuth', { pw }, true).then(res => {
+          API.call('login', { name: '선생님', password: pw }, true).then(res => {
             if (res && (res.success || res.isAdmin)) {
               GameState.isAdmin = true;
               const adminBtn = document.getElementById('hud-admin-btn');
@@ -929,11 +944,9 @@
             }
           });
         } else {
-          API.call('studentLogin', { name, pw }, true).then(res => {
+          API.call('login', { name, password: pw }, true).then(res => {
             if (res && res.success && res.student) {
               GameState.student = res.student;
-              GameState.rankingList = res.ranking || [];
-              GameState.settings = res.settings || {};
               const perm = res.student.permission || res.student.권한 || '일반';
               if (perm === '전체' || res.student.name === '선생님') {
                 GameState.isAdmin = true;
