@@ -193,73 +193,76 @@ const ModalManager = (() => {
         ];
 
         container.innerHTML = `
-          <div class="stock-panel">
-            <div style="background:#f0fdf4; border:2px solid #86efac; padding:10px 14px; border-radius:10px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <span style="font-size:14px; font-weight:bold; color:#166534;">📈 실시간 증권 거래소</span>
-                <span style="font-size:11px; color:#15803d; margin-left:6px;" id="stock-mode-badge">(구글 & 야후 금융 실시간 연동)</span>
+          <div class="stock-panel" style="display:flex; flex-direction:column; gap:8px; max-width:100%; overflow:hidden;">
+            <!-- 상단 요약 바 -->
+            <div style="background:#f0fdf4; border:2px solid #86efac; padding:6px 12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+              <div style="font-size:13px; font-weight:bold; color:#166534;">
+                📈 실시간 증권 거래소 <span style="font-size:11px; color:#15803d; font-weight:normal;" id="stock-mode-badge">(실시간 연동)</span>
               </div>
               <div style="font-size:12px; color:#166534;">
-                💰 내 현금: <strong id="stock-my-cash-val">${myCash.toLocaleString()}원</strong>
+                💰 현금: <strong id="stock-my-cash-val" style="color:#15803d; font-size:13px;">${myCash.toLocaleString()}원</strong>
               </div>
             </div>
 
             <!-- 종목 선택 탭 -->
-            <div class="stock-tabs" id="stock-tab-buttons-wrap" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+            <div class="stock-tabs" id="stock-tab-buttons-wrap" style="display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-start;">
               ${stockList.map(s => `
-                <button class="tab-btn stock-code-tab ${s.code === '005930' ? 'active' : ''}" id="stock-tab-${s.code}" onclick="ModalManager.switchStockCode('${s.code}')" style="padding:6px 10px; font-size:12px;">
+                <button class="tab-btn stock-code-tab ${s.code === '005930' ? 'active' : ''}" id="stock-tab-${s.code}" onclick="ModalManager.switchStockCode('${s.code}')" style="padding:4px 8px; font-size:11px;">
                   ${s.icon} ${s.name}
                 </button>
               `).join('')}
             </div>
 
-            <!-- 선택 종목 시세 헤더 -->
-            <div class="stock-header-grid" style="display:flex; justify-content:space-between; background:#ffffff; padding:12px 16px; border:2px solid #cbd5e1; border-radius:10px; margin-bottom:12px;">
-              <div>
-                <div style="font-size:13px; color:#64748b;" id="stock-active-name">📱 삼성전자 (005930)</div>
-                <div style="display:flex; align-items:baseline; gap:8px;">
-                  <div style="font-size:24px; font-weight:900; color:#ef4444;" id="stock-active-price">실시간 시세 조회 중...</div>
-                  <div style="font-size:13px; font-weight:bold; color:#ef4444;" id="stock-active-rate">...</div>
+            <!-- 메인 시세 및 매매 2열 그리드 -->
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:8px;">
+              <!-- 좌측: 현재가 헤더 & 미니 차트 -->
+              <div style="background:#ffffff; border:2px solid #cbd5e1; border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; justify-content:space-between;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                  <div>
+                    <div style="font-size:12px; color:#64748b; font-weight:bold;" id="stock-active-name">📱 삼성전자 (005930)</div>
+                    <div style="display:flex; align-items:baseline; gap:6px; margin-top:2px;">
+                      <div style="font-size:20px; font-weight:900; color:#ef4444;" id="stock-active-price">시세 조회 중...</div>
+                      <div style="font-size:12px; font-weight:bold; color:#ef4444;" id="stock-active-rate">...</div>
+                    </div>
+                  </div>
+                  <div style="text-align:right; font-size:11px; color:#475569;">
+                    <div>보유: <strong id="stock-active-holdings" style="color:#0f172a; font-size:12px;">0주</strong></div>
+                    <div>평가액: <strong id="stock-active-eval" style="color:#2563eb; font-size:12px;">0원</strong></div>
+                  </div>
+                </div>
+                <!-- 캔버스 차트 -->
+                <div style="margin-top:6px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0; height:80px; overflow:hidden;">
+                  <canvas id="stock-chart-canvas" width="360" height="80" style="width:100%; height:80px; display:block;"></canvas>
                 </div>
               </div>
-              <div style="text-align:right;">
-                <div style="font-size:12px; color:#64748b;">내 보유 수량: <strong id="stock-active-holdings" style="color:#0f172a; font-size:14px;">0주</strong></div>
-                <div style="font-size:12px; color:#64748b;">평가 금액: <strong id="stock-active-eval" style="color:#2563eb; font-size:14px;">0원</strong></div>
+
+              <!-- 우측: 매수 & 매도 컨트롤 박스 -->
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="background:#fef2f2; border:2px solid #fca5a5; padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                  <span style="color:#991b1b; font-weight:bold; font-size:12px; white-space:nowrap;">🔴 매수</span>
+                  <input type="number" id="multi-stock-buy-qty" placeholder="수량" min="1" value="1" style="width:70px; padding:4px 6px; border:1px solid #f87171; border-radius:4px; font-size:12px; text-align:center;">
+                  <button class="pixel-btn-primary" style="width:auto; padding:4px 12px; font-size:11px; background:#dc2626;" onclick="ModalManager.handleTradeMultiStock('매수')">사기</button>
+                </div>
+
+                <div style="background:#eff6ff; border:2px solid #bfdbfe; padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                  <span style="color:#1e40af; font-weight:bold; font-size:12px; white-space:nowrap;">🔵 매도</span>
+                  <input type="number" id="multi-stock-sell-qty" placeholder="수량" min="1" value="1" style="width:70px; padding:4px 6px; border:1px solid #60a5fa; border-radius:4px; font-size:12px; text-align:center;">
+                  <button class="pixel-btn-secondary" style="width:auto; padding:4px 12px; font-size:11px; background:#2563eb;" onclick="ModalManager.handleTradeMultiStock('매도')">팔기</button>
+                </div>
               </div>
             </div>
 
-            <!-- 실시간 주가 차트 캔버스 -->
-            <div class="stock-chart-wrap" style="background:#fff; border:2px solid #cbd5e1; border-radius:10px; padding:10px; text-align:center; margin-bottom:12px;">
-              <canvas id="stock-chart-canvas" width="600" height="150" style="width:100%; max-width:600px; height:150px;"></canvas>
-            </div>
-
-            <!-- 매수 & 매도 컨트롤 박스 -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
-              <div style="background:#fef2f2; border:2px solid #fca5a5; padding:10px; border-radius:8px;">
-                <h4 style="color:#991b1b; font-size:13px; margin-bottom:6px;">🔴 매수 (사기)</h4>
-                <div style="display:flex; gap:6px;">
-                  <input type="number" id="multi-stock-buy-qty" placeholder="수량" min="1" value="1" style="flex:1; padding:6px; border:1px solid #f87171; border-radius:4px; font-size:13px;">
-                  <button class="pixel-btn-primary" style="width:auto; padding:6px 14px; background:#dc2626;" onclick="ModalManager.handleTradeMultiStock('매수')">매수</button>
-                </div>
+            <!-- 하단: 내 주식 보유 포트폴리오 (슬림 테이블) -->
+            <div style="background:#ffffff; border:2px solid #cbd5e1; border-radius:8px; padding:6px 10px;">
+              <div style="font-size:11px; font-weight:bold; color:#475569; margin-bottom:4px;">📊 나의 주식 보유 현황</div>
+              <div class="table-wrap" style="max-height:100px; overflow-y:auto;">
+                <table class="pixel-table" style="font-size:11px;">
+                  <thead><tr><th>종목명</th><th>현재가</th><th>보유수량</th><th>총평가액</th></tr></thead>
+                  <tbody id="multi-stock-portfolio-tbody">
+                    <tr><td colspan="4" style="text-align:center; padding:6px;">포트폴리오 조회 중...</td></tr>
+                  </tbody>
+                </table>
               </div>
-              <div style="background:#eff6ff; border:2px solid #bfdbfe; padding:10px; border-radius:8px;">
-                <h4 style="color:#1e40af; font-size:13px; margin-bottom:6px;">🔵 매도 (팔기)</h4>
-                <div style="display:flex; gap:6px;">
-                  <input type="number" id="multi-stock-sell-qty" placeholder="수량" min="1" value="1" style="flex:1; padding:6px; border:1px solid #60a5fa; border-radius:4px; font-size:13px;">
-                  <button class="pixel-btn-secondary" style="background:#2563eb;" onclick="ModalManager.handleTradeMultiStock('매도')">매도</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 내 주식 보유 포트폴리오 -->
-            <h4 style="margin-bottom:6px; font-size:13px; color:#334155;">📊 나의 주식 보유 포트폴리오</h4>
-            <div class="table-wrap" style="max-height:120px; overflow-y:auto;">
-              <table class="pixel-table">
-                <thead><tr><th>종목명</th><th>실시간 현재가</th><th>보유 수량</th><th>총 평가금액</th></tr></thead>
-                <tbody id="multi-stock-portfolio-tbody">
-                  <tr><td colspan="4" style="text-align:center; padding:10px;">포트폴리오를 불러오는 중...</td></tr>
-                </tbody>
-              </table>
             </div>
           </div>
         `;
@@ -1512,13 +1515,13 @@ const ModalManager = (() => {
       const cvs = document.getElementById('stock-chart-canvas');
       if (cvs && curStock.price && curStock.price > 0) {
         const ctx = cvs.getContext('2d');
-        const W = cvs.width, H = cvs.height, padding = 25;
+        const W = cvs.width, H = cvs.height, padding = 12;
         const p = curStock.price;
         const hist = [p * 0.97, p * 0.99, p * 0.98, p * 1.01, p * 0.995, p];
         const max = Math.max(...hist) * 1.02, min = Math.min(...hist) * 0.98, range = Math.max(1, max - min);
         ctx.clearRect(0, 0, W, H);
         ctx.strokeStyle = (curStock.changeRate || '').includes('+') ? '#ef4444' : '#3b82f6';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
         hist.forEach((val, idx) => {
           const x = padding + (idx / (hist.length - 1)) * (W - padding * 2);
