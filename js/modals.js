@@ -324,13 +324,31 @@ const ModalManager = (() => {
           { id: 'aura_rainbow', name: '🌈 무지개 빛 잔상 오라', price: 20000, desc: '화려한 7색 무지개 오라' }
         ];
 
+        const mounts = [
+          { id: 'mount_kickboard', name: '🛴 스피드 킥보드', price: 10000, desc: '이동속도 1.5배 증가 버프', speed: 1.5, emoji: '🛴' },
+          { id: 'mount_skateboard', name: '🛹 스트리트 스케이트보드', price: 15000, desc: '이동속도 1.7배 증가 버프', speed: 1.7, emoji: '🛹' },
+          { id: 'mount_bicycle', name: '🚲 클래식 꼬마 자전거', price: 20000, desc: '이동속도 1.8배 증가 버프', speed: 1.8, emoji: '🚲' },
+          { id: 'mount_cart', name: '🏎️ 미니 붕붕 레이싱카트', price: 30000, desc: '이동속도 2.0배 폭풍 질주', speed: 2.0, emoji: '🏎️' },
+          { id: 'mount_cloud', name: '☁️ 둥실둥실 마법구름', price: 50000, desc: '이동속도 2.2배 구름 비행', speed: 2.2, emoji: '☁️' }
+        ];
+
+        const perfumes = [
+          { id: 'perfume_rose', name: '🌹 로즈 퍼퓸', price: 6000, desc: '장미 꽃잎 파티클 이펙트', emoji: '🌹' },
+          { id: 'perfume_sparkle', name: '✨ 스타더스트 퍼퓸', price: 7000, desc: '반짝이는 별가루 파티클', emoji: '✨' },
+          { id: 'perfume_bubble', name: '🫧 무지개 방울 퍼퓸', price: 6500, desc: '방울방울 비누방울 이펙트', emoji: '🫧' },
+          { id: 'potion_giant', name: '🍄 거인 성장 물약', price: 8000, desc: '캐릭터 1.3배 거대화 효과', emoji: '🍄' },
+          { id: 'potion_tiny', name: '🧪 요정 축소 물약', price: 8000, desc: '캐릭터 0.7배 미니멀 효과', emoji: '🧪' }
+        ];
+
         container.innerHTML = `
           <div class="shop-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
             <button class="tab-btn active" onclick="ModalManager.switchShopTab('furn')">🛋️ 미니룸 가구</button>
-            <button class="tab-btn" onclick="ModalManager.switchShopTab('hair')">💇‍♀️ 헤어 염색 살롱</button>
+            <button class="tab-btn" onclick="ModalManager.switchShopTab('mount')">🚀 탈 것 (속도증가)</button>
+            <button class="tab-btn" onclick="ModalManager.switchShopTab('perfume')">🌺 퍼퓸 & 물약</button>
+            <button class="tab-btn" onclick="ModalManager.switchShopTab('hair')">💇‍♀️ 헤어 염색</button>
             <button class="tab-btn" onclick="ModalManager.switchShopTab('costume')">👗 패션 코스튬</button>
             <button class="tab-btn" onclick="ModalManager.switchShopTab('hat')">👑 모자/머리띠</button>
-            <button class="tab-btn" onclick="ModalManager.switchShopTab('aura')">✨ 특수 오라/이펙트</button>
+            <button class="tab-btn" onclick="ModalManager.switchShopTab('aura')">✨ 특수 오라</button>
           </div>
 
           <!-- 1. 미니룸 가구 탭 -->
@@ -341,6 +359,32 @@ const ModalManager = (() => {
                 <div class="item-name">${f.name}</div>
                 <div class="item-price">💰 ${f.price.toLocaleString()}원</div>
                 <button class="pixel-btn-primary" onclick="ModalManager.buyFurniture('${f.id}', ${f.price}, '${f.name}')">구매하기</button>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- 1-1. 🚀 탈 것 (속도 버프) 탭 -->
+          <div id="shop-tab-mount" class="shop-grid" style="display:none;">
+            ${mounts.map(m => `
+              <div class="shop-item-card" style="border-color:#38bdf8;">
+                <div style="font-size:36px; margin-bottom:4px;">${m.emoji}</div>
+                <div class="item-name">${m.name}</div>
+                <div class="item-desc" style="color:#0369a1; font-weight:bold;">${m.desc}</div>
+                <div class="item-price">💰 ${m.price.toLocaleString()}원</div>
+                <button class="pixel-btn-primary" style="background:#0284c7;" onclick="ModalManager.buyMount('${m.id}', ${m.price}, '${m.name}', ${m.speed})">탑승 장착</button>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- 1-2. 🌺 퍼퓸 & 크기 물약 탭 -->
+          <div id="shop-tab-perfume" class="shop-grid" style="display:none;">
+            ${perfumes.map(p => `
+              <div class="shop-item-card" style="border-color:#f472b6;">
+                <div style="font-size:36px; margin-bottom:4px;">${p.emoji}</div>
+                <div class="item-name">${p.name}</div>
+                <div class="item-desc" style="color:#be185d;">${p.desc}</div>
+                <div class="item-price">💰 ${p.price.toLocaleString()}원</div>
+                <button class="pixel-btn-primary" style="background:#db2777;" onclick="ModalManager.buyPerfume('${p.id}', ${p.price}, '${p.name}')">효과 적용</button>
               </div>
             `).join('')}
           </div>
@@ -623,33 +667,97 @@ const ModalManager = (() => {
         break;
       }
 
-      // 10. 부동산 중개소
+      // 10. 부동산 중개소 (교실 좌석 매매 & 제안/협상)
       case 'realestate': {
         container.innerHTML = `
           <div class="realestate-panel">
-            <div style="background:#fef3c7; border:2px solid #fcd34d; padding:12px; border-radius:8px; margin-bottom:12px;">
-              <h3 style="color:#92400e; font-size:15px;">🏢 교실 좌석 부동산 배치도</h3>
-              <p style="font-size:12px; color:#b45309;">원하는 교실 좌석을 클릭하여 구매 또는 양도받을 수 있습니다.</p>
+            <div style="background:#fef3c7; border:2px solid #fcd34d; padding:10px 12px; border-radius:8px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h3 style="color:#92400e; font-size:14px; margin:0;">🏢 교실 좌석 부동산 배치도 (20석)</h3>
+                <p style="font-size:11px; color:#b45309; margin:2px 0 0 0;">내 자리를 매물로 등록하거나, 원하는 좌석에 구매 제안을 보내보세요!</p>
+              </div>
+              <div style="font-size:11px; color:#78350f;">칠판 (앞쪽) ⬇️</div>
             </div>
-            <div class="seat-grid" id="seats-grid" style="display:grid; grid-template-columns:repeat(6, 1fr); gap:6px; margin-bottom:12px;">
-              <div style="grid-column:span 6; text-align:center; padding:15px;">좌석 배치도를 불러오는 중...</div>
+
+            <!-- 교실 20개 좌석 2D 그리드 (4분단 x 5줄) -->
+            <div class="seat-grid" id="seats-grid" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:12px;">
+              <div style="grid-column:span 4; text-align:center; padding:15px;">좌석 배치도를 불러오는 중...</div>
+            </div>
+
+            <div style="display:flex; justify-content:space-around; font-size:11px; color:#64748b; background:#f8fafc; padding:6px; border-radius:6px; border:1px solid #e2e8f0;">
+              <span>🟩 내 좌석</span>
+              <span>🟨 판매중 매물</span>
+              <span>🟧 구매 제안중</span>
+              <span>⬜ 일반 좌석</span>
             </div>
           </div>
         `;
 
-        API.call('getRealEstateData', {}, true).then(res => {
+        API.call('getSeatMap', { name: me }, true).then(res => {
           const seats = res.seats || [];
           const grid = document.getElementById('seats-grid');
           if (grid && seats.length > 0) {
-            grid.innerHTML = seats.map(s => `
-              <div style="background:${s.owner === me ? '#bbf7d0' : '#fff'}; border:2px solid #94a3b8; border-radius:6px; padding:8px 4px; text-align:center; cursor:pointer;" onclick="ModalManager.buySeatModal('${s.id}', ${s.price}, '${s.owner}')">
-                <div style="font-size:10px; font-weight:bold; color:#64748b;">${s.id}</div>
-                <div style="font-size:11px; font-weight:bold; margin:2px 0;">${s.owner || '빈자리'}</div>
-                <div style="font-size:9px; color:#0284c7;">${(s.price || 5000).toLocaleString()}원</div>
-              </div>
-            `).join('');
+            grid.innerHTML = seats.map(s => {
+              const seatNum = Number(s.좌석번호 || s.id || 0);
+              const owner = String(s.소유자 || s.owner || '빈자리').trim();
+              const isMy = owner === me;
+              const isSale = (s.매물등록 || s.isForSale) === '판매중';
+              const price = Number(s.희망가격 || s.price || 10000);
+              const proposer = String(s.제안자 || '').trim();
+              const offerPrice = Number(s.제안금액 || 0);
+              const hasOffer = !!proposer && offerPrice > 0;
+
+              let bgColor = '#ffffff';
+              let borderColor = '#cbd5e1';
+              if (isMy) { bgColor = '#dcfce7'; borderColor = '#22c55e'; }
+              else if (hasOffer) { bgColor = '#ffedd5'; borderColor = '#ea580c'; }
+              else if (isSale) { bgColor = '#fef9c3'; borderColor = '#eab308'; }
+
+              return `
+                <div class="seat-card" style="background:${bgColor}; border:2px solid ${borderColor}; border-radius:8px; padding:8px 6px; text-align:center; cursor:pointer; transition:transform 0.1s;" onclick="ModalManager.openSeatActionModal(${seatNum}, '${owner}', ${price}, '${proposer}', ${offerPrice})">
+                  <div style="font-size:11px; font-weight:bold; color:#475569;">🪑 ${seatNum}번 자리</div>
+                  <div style="font-size:12px; font-weight:bold; color:#0f172a; margin:3px 0;">${owner}</div>
+                  <div style="font-size:10px; color:${isSale ? '#dc2626' : '#2563eb'}; font-weight:bold;">
+                    ${isSale ? `🏷️ ${price.toLocaleString()}원` : `${price.toLocaleString()}원`}
+                  </div>
+                  ${hasOffer && isMy ? '<div style="font-size:9px; background:#ef4444; color:#fff; border-radius:4px; padding:1px 3px; margin-top:2px;">제안도착!</div>' : ''}
+                </div>
+              `;
+            }).join('');
           }
         });
+        break;
+      }
+
+      // 10-1. 놀이기구 탑승 모달
+      case 'ride_modal': {
+        const ride = data || { name: '놀이기구', emoji: '🎠' };
+        container.innerHTML = `
+          <div style="text-align:center; padding:16px;">
+            <div style="font-size:56px; margin-bottom:10px; animation:bounce 1s infinite alternate;">${ride.emoji || '🎠'}</div>
+            <h3 style="font-size:18px; color:#1e293b; margin-bottom:6px;">${ride.name}</h3>
+            <p style="font-size:12px; color:#64748b; margin-bottom:16px;">신나게 탑승하여 친구들과 즐거운 추억을 만들고 스트레스를 풀어보세요!</p>
+            <button class="pixel-btn-primary" style="width:auto; padding:10px 28px; font-size:15px; background:#0284c7;" onclick="ModalManager.enjoyRide('${ride.name}')">
+              🎡 신나게 탑승하기!
+            </button>
+          </div>
+        `;
+        break;
+      }
+
+      // 10-2. NPC 대화 모달
+      case 'npc_modal': {
+        const npc = data || { name: '주민', dialog: '반가워요!' };
+        container.innerHTML = `
+          <div style="padding:16px; text-align:center;">
+            <div style="font-size:48px; margin-bottom:8px;">💬</div>
+            <h3 style="font-size:16px; color:#1e293b; margin-bottom:6px;">${npc.name || '마을 주민'}</h3>
+            <div style="background:#f8fafc; border:2px solid #cbd5e1; border-radius:10px; padding:14px; font-size:13px; color:#334155; line-height:1.6; margin-bottom:16px;">
+              "${npc.dialog || '오늘도 활기찬 클래스타운에서 행복한 하루 보내세요!'}"
+            </div>
+            <button class="pixel-btn-secondary" style="width:auto; padding:8px 24px;" onclick="ModalManager.close()">대화 마치기</button>
+          </div>
+        `;
         break;
       }
 
@@ -741,22 +849,48 @@ const ModalManager = (() => {
         break;
       }
 
-      // 12. 우체국
+      // 12. 우체국 (친구 송금 및 칭찬카드)
       case 'postoffice': {
+        const students = (GameState.rankingList && GameState.rankingList.length > 0)
+          ? GameState.rankingList
+          : [{ name: '김현주' }, { name: '이하진' }, { name: '정수빈' }, { name: '서언' }, { name: '고설아' }];
+
+        const optionsHtml = students
+          .filter(s => s.name !== me)
+          .map(s => `<option value="${s.name}">${s.name} (${s.job || '학생'})</option>`)
+          .join('');
+
         container.innerHTML = `
           <div class="post-panel">
-            <h3>📮 친구에게 용돈 송금하기</h3>
-            <div class="input-group" style="display:flex; gap:8px; margin:12px 0;">
-              <input type="text" id="transfer-target" placeholder="받는 친구 이름" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
-              <input type="number" id="transfer-amount" placeholder="송금할 금액" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
-              <button class="pixel-btn-primary" style="width:auto; padding:8px 16px;" onclick="ModalManager.handleTransfer()">송금하기</button>
+            <div style="background:#eff6ff; border:2px solid #93c5fd; padding:12px; border-radius:8px; margin-bottom:14px;">
+              <h3 style="color:#1e40af; font-size:15px; margin:0 0 4px 0;">📮 친구에게 용돈 송금하기</h3>
+              <p style="font-size:11px; color:#3b82f6; margin:0 0 10px 0;">목록에서 친구를 선택하고 안전하게 용돈을 이체해보세요.</p>
+              <div class="input-group" style="display:flex; flex-direction:column; gap:8px;">
+                <select id="transfer-target" style="width:100%; padding:9px; border:2px solid #94a3b8; border-radius:6px; font-weight:bold; font-size:13px; background:#fff;">
+                  <option value="">-- 송금받을 친구 선택 --</option>
+                  ${optionsHtml}
+                </select>
+                <div style="display:flex; gap:6px;">
+                  <input type="number" id="transfer-amount" placeholder="송금할 금액(원)" style="flex:1; padding:9px; border:2px solid #94a3b8; border-radius:6px; font-size:13px;">
+                  <button class="pixel-btn-primary" style="width:auto; padding:9px 20px; background:#0284c7;" onclick="ModalManager.handleTransfer()">💸 송금하기</button>
+                </div>
+              </div>
             </div>
-            <h4 style="margin-top:20px;">💌 칭찬 카드 보내기 (보너스 장학금 동봉)</h4>
-            <div class="form-group" style="margin-top:8px;">
-              <input type="text" id="praise-target" placeholder="칭찬할 친구 이름" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px; margin-bottom:6px;">
-              <textarea id="praise-msg" placeholder="친구를 칭찬하는 따뜻한 메시지를 적어주세요." style="width:100%; height:60px; padding:8px; border:2px solid #94a3b8; border-radius:6px; margin-bottom:6px;"></textarea>
-              <input type="number" id="praise-bonus" placeholder="동봉할 칭찬 보너스 금액(원) (기본 500원)" value="500" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px; margin-bottom:8px;">
-              <button class="pixel-btn-secondary" onclick="ModalManager.sendPraise()">칭찬카드 발송</button>
+
+            <div style="background:#fefce8; border:2px solid #fde047; padding:12px; border-radius:8px;">
+              <h3 style="color:#854d0e; font-size:15px; margin:0 0 4px 0;">💌 칭찬 카드 보내기 (보너스 장학금 동봉)</h3>
+              <p style="font-size:11px; color:#a16207; margin:0 0 10px 0;">따뜻한 칭찬 메시지와 함께 소정의 장학금을 선물하세요.</p>
+              <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                <select id="praise-target" style="width:100%; padding:9px; border:2px solid #94a3b8; border-radius:6px; font-weight:bold; font-size:13px; background:#fff;">
+                  <option value="">-- 칭찬할 친구 선택 --</option>
+                  ${optionsHtml}
+                </select>
+                <textarea id="praise-msg" placeholder="친구를 칭찬하는 따뜻한 메시지를 적어주세요. (예: 오늘 발표 정말 멋졌어!)" style="width:100%; height:60px; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;"></textarea>
+                <div style="display:flex; gap:6px;">
+                  <input type="number" id="praise-bonus" placeholder="동봉할 장학금(원)" value="500" style="flex:1; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;">
+                  <button class="pixel-btn-primary" style="width:auto; padding:8px 20px; background:#ca8a04;" onclick="ModalManager.sendPraise()">✨ 칭찬카드 발송</button>
+                </div>
+              </div>
             </div>
           </div>
         `;
@@ -1099,12 +1233,12 @@ const ModalManager = (() => {
     open,
     close,
     switchShopTab: (tab) => {
-      ['furn', 'hair', 'costume', 'hat', 'aura'].forEach(t => {
+      const tabs = ['furn', 'mount', 'perfume', 'hair', 'costume', 'hat', 'aura'];
+      tabs.forEach(t => {
         const el = document.getElementById(`shop-tab-${t}`);
         if (el) el.style.display = t === tab ? 'grid' : 'none';
       });
       document.querySelectorAll('.shop-tabs .tab-btn').forEach((b, i) => {
-        const tabs = ['furn', 'hair', 'costume', 'hat', 'aura'];
         b.classList.toggle('active', tabs[i] === tab);
       });
       SoundEngine.click();
@@ -1321,6 +1455,200 @@ const ModalManager = (() => {
       }
     },
 
+    // 🚀 탈 것 구매 & 이동속도 버프
+    buyMount: async (id, price, name, speedMult) => {
+      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하여 탑승하시겠습니까?\n(이동속도 ${speedMult}배 즉각 적용)`)) return;
+      const st = GameState.student;
+      const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
+      const mType = id.replace('mount_', '');
+
+      API.showLoading('탈 것 탑승 준비 중...');
+      const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '탈것', prop: mType });
+      API.hideLoading();
+
+      if (buyRes && buyRes.success) {
+        if (buyRes.student) {
+          GameState.student = buyRes.student;
+          const cashEl = document.getElementById('hud-cash-val');
+          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        }
+        if (!GameState.characterStyle) GameState.characterStyle = {};
+        GameState.characterStyle.mount = mType;
+        GameState.characterStyle.speedMult = speedMult;
+        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
+        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
+
+        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
+          window.MainGameScene.reloadPlayerTexture();
+        }
+        SoundEngine.fanfare();
+        alert(`🚀 ${name} 탑승 완료! 이동속도가 ${speedMult}배로 빨라졌습니다.`);
+      } else {
+        alert(buyRes?.msg || '구매 실패');
+      }
+    },
+
+    // 🌺 퍼퓸 & 크기 물약
+    buyPerfume: async (id, price, name) => {
+      if (!confirm(`[${name}] 효과를 ${price.toLocaleString()}원에 구매하여 적용하시겠습니까?`)) return;
+      const st = GameState.student;
+      const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
+      const pType = id.replace('perfume_', '').replace('potion_', '');
+
+      API.showLoading('물약/향수 효과 적용 중...');
+      const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '퍼퓸', prop: pType });
+      API.hideLoading();
+
+      if (buyRes && buyRes.success) {
+        if (buyRes.student) {
+          GameState.student = buyRes.student;
+          const cashEl = document.getElementById('hud-cash-val');
+          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        }
+        if (!GameState.characterStyle) GameState.characterStyle = {};
+        GameState.characterStyle.perfume = pType;
+        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
+        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
+
+        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
+          window.MainGameScene.reloadPlayerTexture();
+        }
+        SoundEngine.fanfare();
+        alert(`🌺 ${name} 적용 완료! 특별한 효과가 부여되었습니다.`);
+      } else {
+        alert(buyRes?.msg || '구매 실패');
+      }
+    },
+
+    // 🎡 놀이기구 탑승
+    enjoyRide: (rideName) => {
+      SoundEngine.fanfare();
+      alert(`🎉 [${rideName}]에 신나게 탑승했습니다!\n스트레스가 해소되고 기분이 최고로 좋아졌습니다! ✨ (+행복도 100)`);
+      ModalManager.close();
+    },
+
+    // 🏢 부동산 좌석 상호작용 모달
+    openSeatActionModal: (seatNum, owner, price, proposer, offerPrice) => {
+      const st = GameState.student;
+      const me = st ? (st.name || st.이름) : '나';
+      const isMy = owner === me;
+      const hasOffer = !!proposer && offerPrice > 0;
+
+      let html = `
+        <div style="padding:16px; text-align:center;">
+          <div style="font-size:48px; margin-bottom:8px;">🪑</div>
+          <h3 style="font-size:18px; color:#1e293b; margin-bottom:4px;">교실 ${seatNum}번 좌석</h3>
+          <p style="font-size:12px; color:#64748b; margin-bottom:14px;">현재 소유자: <strong>${owner}</strong> | 기준 가격: <strong>${price.toLocaleString()}원</strong></p>
+      `;
+
+      if (isMy) {
+        if (hasOffer) {
+          html += `
+            <div style="background:#ffedd5; border:2px solid #ea580c; border-radius:8px; padding:12px; margin-bottom:14px; text-align:left;">
+              <div style="font-weight:bold; color:#c2410c; margin-bottom:4px;">💬 구매 제안 도착!</div>
+              <div style="font-size:12px; color:#9a3412;">제안자: <strong>${proposer}</strong></div>
+              <div style="font-size:13px; font-weight:bold; color:#ea580c;">제안 금액: ${offerPrice.toLocaleString()}원</div>
+            </div>
+            <div style="display:flex; gap:6px; justify-content:center;">
+              <button class="pixel-btn-primary" style="background:#16a34a;" onclick="ModalManager.handleRespondSeatOffer(${seatNum}, '수락')">🤝 제안 수락</button>
+              <button class="pixel-btn-secondary" style="background:#dc2626; color:#fff;" onclick="ModalManager.handleRespondSeatOffer(${seatNum}, '거절')">❌ 거절</button>
+              <button class="pixel-btn-secondary" style="background:#ca8a04; color:#fff;" onclick="ModalManager.handleCounterSeatOffer(${seatNum})">🔄 역제안(협상)</button>
+            </div>
+          `;
+        } else {
+          html += `
+            <div style="background:#f0fdf4; border:2px solid #86efac; border-radius:8px; padding:12px; margin-bottom:14px;">
+              <div style="font-weight:bold; color:#15803d; margin-bottom:6px;">내 소유 좌석입니다.</div>
+              <p style="font-size:11px; color:#166534; margin-bottom:8px;">희망 가격을 정해 학급 부동산 매물로 등록할 수 있습니다.</p>
+              <input type="number" id="seat-sale-price-input" placeholder="매물 희망 가격(원)" value="${price}" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-size:13px; margin-bottom:8px;">
+              <button class="pixel-btn-primary" style="background:#0284c7;" onclick="ModalManager.handleRegisterSeatSale(${seatNum})">🏷️ 매물 등록하기</button>
+            </div>
+          `;
+        }
+      } else {
+        html += `
+          <div style="background:#eff6ff; border:2px solid #93c5fd; border-radius:8px; padding:12px; margin-bottom:14px;">
+            <div style="font-weight:bold; color:#1e40af; margin-bottom:6px;">구매 제안하기</div>
+            <p style="font-size:11px; color:#3b82f6; margin-bottom:8px;">소유자(${owner})에게 원하는 구매 희망 금액을 제안해보세요.</p>
+            <input type="number" id="seat-offer-price-input" placeholder="구매 제안 금액(원)" value="${price}" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-size:13px; margin-bottom:8px;">
+            <button class="pixel-btn-primary" style="background:#2563eb;" onclick="ModalManager.handleOfferSeatBuy(${seatNum})">💬 구매 제안 발송</button>
+          </div>
+        `;
+      }
+
+      html += `
+          <div style="margin-top:12px;">
+            <button class="pixel-btn-secondary" style="width:auto; padding:6px 20px;" onclick="ModalManager.open('realestate')">⬅️ 좌석도 돌아가기</button>
+          </div>
+        </div>
+      `;
+
+      const modalBody = document.getElementById('modal-body');
+      if (modalBody) modalBody.innerHTML = html;
+      SoundEngine.open();
+    },
+
+    handleRegisterSeatSale: async (seatNum) => {
+      const price = Number(document.getElementById('seat-sale-price-input')?.value || 0);
+      if (!price || price <= 0) return alert('올바른 희망 가격을 입력하세요.');
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '나';
+
+      API.showLoading('매물 등록 중...');
+      const res = await API.call('registerSeatSale', { name: myName, seatNum, price });
+      API.hideLoading();
+
+      if (res && res.success) {
+        SoundEngine.fanfare();
+        alert(res.msg || '매물 등록 완료!');
+        ModalManager.open('realestate');
+      } else {
+        alert(res?.msg || '매물 등록 실패');
+      }
+    },
+
+    handleOfferSeatBuy: async (seatNum) => {
+      const price = Number(document.getElementById('seat-offer-price-input')?.value || 0);
+      if (!price || price <= 0) return alert('올바른 제안 금액을 입력하세요.');
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '나';
+
+      API.showLoading('구매 제안 발송 중...');
+      const res = await API.call('offerSeatBuy', { buyer: myName, name: myName, seatNum, price });
+      API.hideLoading();
+
+      if (res && res.success) {
+        SoundEngine.fanfare();
+        alert(res.msg || '구매 제안이 발송되었습니다!');
+        ModalManager.open('realestate');
+      } else {
+        alert(res?.msg || '제안 실패');
+      }
+    },
+
+    handleRespondSeatOffer: async (seatNum, action, counterPrice = 0) => {
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '나';
+
+      API.showLoading(`제안 ${action} 처리 중...`);
+      const res = await API.call('respondSeatOffer', { name: myName, seatNum, action, counterPrice });
+      API.hideLoading();
+
+      if (res && res.success) {
+        SoundEngine.fanfare();
+        alert(res.msg || '처리 완료!');
+        ModalManager.open('realestate');
+      } else {
+        alert(res?.msg || '처리 실패');
+      }
+    },
+
+    handleCounterSeatOffer: async (seatNum) => {
+      const counter = prompt('역제안(협상)할 새 희망 금액(원)을 입력하세요:');
+      if (!counter || isNaN(counter) || Number(counter) <= 0) return;
+      ModalManager.handleRespondSeatOffer(seatNum, '협상', Number(counter));
+    },
+
     buyFurniture: async (id, price, name) => {
       if (!confirm(`[${name}] 가구를 ${price.toLocaleString()}원에 구매하시겠습니까?`)) return;
       const st = GameState.student;
@@ -1485,7 +1813,14 @@ const ModalManager = (() => {
       const stocks = ModalManager.multiStockCache || [];
       const curStock = stocks.find(s => s.code === code) || stocks[0] || { name: '삼성전자', code: '005930', price: 0, changeRate: '...' };
       const holdings = ModalManager.multiStockHoldings || {};
+      const avgPrices = ModalManager.multiStockAvgPrices || {};
+      const profitLosses = ModalManager.multiStockProfitLosses || {};
+      const profitRates = ModalManager.multiStockProfitRates || {};
+
       const myQty = holdings[code] || holdings[curStock.name] || 0;
+      const myAvg = avgPrices[code] || (myQty > 0 ? curStock.price : 0);
+      const myProfitLoss = profitLosses[code] || (myQty * (curStock.price - myAvg));
+      const myProfitRate = profitRates[code] || (myAvg > 0 ? `${(((curStock.price - myAvg) / myAvg) * 100).toFixed(2)}%` : '0.00%');
 
       const nameEl = document.getElementById('stock-active-name');
       const priceEl = document.getElementById('stock-active-price');
@@ -1509,8 +1844,11 @@ const ModalManager = (() => {
         rateEl.textContent = curStock.changeRate || '0.00%';
         rateEl.style.color = isUp ? '#ef4444' : '#3b82f6';
       }
-      if (holdEl) holdEl.textContent = `${myQty.toLocaleString()}주`;
-      if (evalEl) evalEl.textContent = `${(myQty * (curStock.price || 0)).toLocaleString()}원`;
+      if (holdEl) holdEl.innerHTML = `${myQty.toLocaleString()}주 <span style="font-size:10px; color:#64748b;">(평단가: ${myAvg.toLocaleString()}원)</span>`;
+      if (evalEl) {
+        const isProfit = myProfitLoss >= 0;
+        evalEl.innerHTML = `${(myQty * (curStock.price || 0)).toLocaleString()}원 <span style="font-size:10px; color:${isProfit ? '#ef4444' : '#3b82f6'}; font-weight:bold;">(${isProfit ? '+' : ''}${myProfitRate})</span>`;
+      }
 
       const cvs = document.getElementById('stock-chart-canvas');
       if (cvs && curStock.price && curStock.price > 0) {
@@ -1535,11 +1873,16 @@ const ModalManager = (() => {
       if (pTbody) {
         pTbody.innerHTML = stocks.map(s => {
           const q = holdings[s.code] || holdings[s.name] || 0;
+          const avg = avgPrices[s.code] || 0;
+          const pr = profitRates[s.code] || '0.00%';
+          const isProf = !pr.includes('-');
           return `
             <tr style="${s.code === code ? 'background:#f0fdf4;' : ''}">
               <td><strong>${s.icon || '📈'} ${s.name}</strong></td>
-              <td>${(s.price || 0).toLocaleString()}원 <span style="color:${(s.changeRate||'').includes('+')?'#ef4444':'#3b82f6'}; font-size:11px;">(${s.changeRate||'0%'})</span></td>
+              <td>${(s.price || 0).toLocaleString()}원</td>
               <td><strong>${q.toLocaleString()}주</strong></td>
+              <td>${avg > 0 ? avg.toLocaleString() + '원' : '-'}</td>
+              <td style="color:${isProf ? '#ef4444' : '#3b82f6'}; font-weight:bold;">${q > 0 ? (isProf ? '+' : '') + pr : '-'}</td>
               <td>${(q * (s.price || 0)).toLocaleString()}원</td>
             </tr>
           `;

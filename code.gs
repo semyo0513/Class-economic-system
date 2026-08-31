@@ -9,14 +9,16 @@ const SPREADSHEET_ID = '1LR7KcbrRyY5EnZoLPMFmkXSwQtSnBU0PgcEnRmGg8KU';
 const ADMIN_PASSWORD = '0513';
 const TEACHER_EMAIL = 'semyo0513@naver.com';
 
-// ─── 12개 체계적 시트 명칭 정의 ───
+// ─── 14개 체계적 시트 명칭 정의 ───
 const SH = {
-  USERS: '사용자',          // 학생 기본정보 및 실시간 자산현황
+  USERS: '사용자',          // 학생 기본정보 및 실시간 자산현황 (현금+주식+예금=총자산, 레벨 자동부여)
   SETTINGS: '환경설정',      // 경제 파라미터, 학교명, NEIS 설정, 주식모드
   TX_LOG: '거래LOG',        // 모든 입출금, 세금, 주식, 상점 거래 내역
   TREASURY: '국고관리',      // 학급 국고 입출금 및 잔액 장부
   STOCK: '주식시장',        // 일자별 주가 시세 및 경제 뉴스
-  ASSETS: '자산현황',        // 예금, 상점아이템, 캐릭터장착템, 마트물품, 부동산좌석
+  ASSETS: '자산현황',        // 상점아이템, 캐릭터장착템, 마트물품, 주식보유내역
+  DEPOSITS: '예금',         // 학생별 정기예금 계좌 원금, 이율, 상태 장부
+  SEATS: '부동산좌석',       // 교실 좌석 소유권, 매물 등록 및 구매 제안/협상 장부
   LEARNING: '학습관리',      // 공지사항, 과제, 급식, 시간표
   ACTIVITY: '학급활동',      // 감정신호등, 자기평가, 호출, 칭찬카드, 캐릭터스타일
   ASSIGNMENT: '과제',        // 과제 공고 및 학생 제출물
@@ -33,6 +35,8 @@ const SCHEMA = {
   [SH.TREASURY]: ['일시', '구분', '유형', '금액', '국고잔액', '담당자', '사유', '거래ID'],
   [SH.STOCK]: ['일시', '카테고리', '값1', '값2', '값3'],
   [SH.ASSETS]: ['일시', '이름', '카테고리', '아이템명', '금액', '수량', '속성', '상태', '구매자', '메타'],
+  [SH.DEPOSITS]: ['가입일시', '이름', '예금원금', '이율', '상태', '해지일시', '수령이자'],
+  [SH.SEATS]: ['좌석번호', '행', '열', '소유자', '매물등록', '희망가격', '제안자', '제안금액', '상태', '최종거래일'],
   [SH.LEARNING]: ['일시', '카테고리', 'ID', '제목', '내용', '대상', '마감일', '작성자', '상태', '중요도'],
   [SH.ACTIVITY]: ['일시', '이름', '카테고리', '내용1', '내용2', '내용3', '점수', '상태', '메세지', '답변'],
   [SH.ASSIGNMENT]: ['과제ID', '등록일', '제목', '내용', '기간시작', '기간종료', '파일유형', '수당', '상태', '작성자'],
@@ -41,7 +45,7 @@ const SCHEMA = {
   [SH.CHAT_LOG]: ['일시', '이름', '메시지']
 };
 
-// 패션 & 뷰티 살롱 기본 카탈로그
+// 패션, 뷰티, 탈 것, 퍼퓸 살롱 종합 카탈로그
 const DEFAULT_FASHION_CATALOG = {
   // 헤어염색
   '✨ 골드 블론드 염색약': { cat: '헤어', price: 4000, prop: '#eab308' },
@@ -52,13 +56,13 @@ const DEFAULT_FASHION_CATALOG = {
   '💜 라벤더 퍼플 염색약': { cat: '헤어', price: 4500, prop: '#a855f7' },
   '🔥 핫 레드 염색약': { cat: '헤어', price: 4000, prop: '#ef4444' },
   '🖤 흑발 딥블랙 염색약': { cat: '헤어', price: 3000, prop: '#0f172a' },
-  // 코스튬
+  // 코스튬 & 의상
   '🎓 스마트 명문 교복': { cat: '의상', price: 8000, prop: 'school' },
   '🧸 핑크 곰돌이 잠옷': { cat: '의상', price: 7000, prop: 'pajama' },
   '🔮 신비한 마법사 로브': { cat: '의상', price: 12000, prop: 'magic' },
   '⚡ 사이버 네온 슈트': { cat: '의상', price: 15000, prop: 'cyber' },
   '👑 화려한 공주 드레스': { cat: '의상', price: 18000, prop: 'dress' },
-  // 모자
+  // 모자 & 액세서리
   '🐱 냥냥 고양이 귀': { cat: '모자', price: 5000, prop: 'cat_ears' },
   '👑 황금 보석 왕관': { cat: '모자', price: 10000, prop: 'crown' },
   '😇 빛나는 천사 링': { cat: '모자', price: 8000, prop: 'halo' },
@@ -67,10 +71,18 @@ const DEFAULT_FASHION_CATALOG = {
   '✨ 황금 오라 이펙트': { cat: '오라', price: 15000, prop: 'gold' },
   '🌸 벚꽃잎 휘날림 오라': { cat: '오라', price: 12000, prop: 'cherry' },
   '🌈 무지개 빛 잔상 오라': { cat: '오라', price: 20000, prop: 'rainbow' },
-  // 기타 아이템
-  '👟 스피드 롤러스케이트': { cat: '아이템', price: 5000, prop: 'speed' },
-  '🍄 슈퍼 아이키커 버섯': { cat: '아이템', price: 6000, prop: 'giant' },
-  '🪽 천사의 날개': { cat: '아이템', price: 10000, prop: 'wings' }
+  // 🚀 탈 것 (이동속도 증가 버프)
+  '🛴 스피드 킥보드 (이동속도 1.5배)': { cat: '탈것', price: 10000, prop: 'kickboard', speedMult: 1.5 },
+  '🛹 스트리트 스케이트보드 (이동속도 1.7배)': { cat: '탈것', price: 15000, prop: 'skateboard', speedMult: 1.7 },
+  '🚲 클래식 꼬마 자전거 (이동속도 1.8배)': { cat: '탈것', price: 20000, prop: 'bicycle', speedMult: 1.8 },
+  '🏎️ 미니 붕붕 레이싱카트 (이동속도 2.0배)': { cat: '탈것', price: 30000, prop: 'cart', speedMult: 2.0 },
+  '☁️ 둥실둥실 날으는 마법구름 (이동속도 2.2배)': { cat: '탈것', price: 50000, prop: 'cloud', speedMult: 2.2 },
+  // 🌺 향수 & 크기 물약
+  '🌹 매혹의 로즈 퍼퓸 (꽃잎 파티클)': { cat: '퍼퓸', price: 6000, prop: 'rose' },
+  '✨ 스타더스트 샤인 퍼퓸 (별가루 파티클)': { cat: '퍼퓸', price: 7000, prop: 'sparkle' },
+  '🫧 무지개 방울 퍼퓸 (비누방울 파티클)': { cat: '퍼퓸', price: 6500, prop: 'bubble' },
+  '🍄 거인화 성장 물약 (캐릭터 1.3배)': { cat: '효과', price: 8000, prop: 'giant', scaleMult: 1.3 },
+  '🧪 요정화 축소 물약 (캐릭터 0.7배)': { cat: '효과', price: 8000, prop: 'tiny', scaleMult: 0.7 }
 };
 
 /* ══════════════════════════════════════════════
@@ -175,7 +187,17 @@ function initSystemSheets() {
     });
   }
 
-  return { success: true, msg: '12개 시스템 시트가 완벽하게 구성되었습니다.' };
+  // 6. 교실 20개 좌석 부동산 기본 세팅 (SH.SEATS)
+  const seatSh = getOrCreateSheet(SH.SEATS);
+  if (seatSh.getLastRow() <= 1) {
+    for (let sNum = 1; sNum <= 20; sNum++) {
+      const row = Math.ceil(sNum / 4);
+      const col = ((sNum - 1) % 4) + 1;
+      seatSh.appendRow([sNum, `${row}줄`, `${col}분단`, `학생${sNum}`, '미등록', 10000, '', 0, '보유', nowStr()]);
+    }
+  }
+
+  return { success: true, msg: '14개 시스템 시트가 완벽하게 구성되었습니다.' };
 }
 
 function nowStr() {
@@ -527,10 +549,11 @@ function syncStudentAssets(studentName) {
   const jobCol = headers.findIndex(h => h === '직업명' || h === '직업');
   const permCol = headers.findIndex(h => h === '권한' || h === '직무권한');
   const idCol = headers.findIndex(h => h === '번호' || h === 'ID' || h === '학번');
+  const levelCol = headers.findIndex(h => h === '레벨' || h === '등급');
 
   const curStockPrice = getCurrentStockPrice();
 
-  // 다종목 주식 보유 현황 계산 (SH.ASSETS)
+  // 1. 다종목 주식 보유 현황 계산 (SH.ASSETS)
   let multiStockQty = 0;
   let multiStockVal = 0;
   try {
@@ -551,6 +574,18 @@ function syncStudentAssets(studentName) {
     }
   } catch (e) {}
 
+  // 2. 활성 정기예금 원금 합산 (SH.DEPOSITS)
+  let depositVal = 0;
+  try {
+    const depSh = getOrCreateSheet(SH.DEPOSITS);
+    const depData = depSh.getDataRange().getValues();
+    for (let k = 1; k < depData.length; k++) {
+      if (String(depData[k][1]).trim() === nameTrim && String(depData[k][4]).trim() === '활성') {
+        depositVal += Number(depData[k][2]) || 0;
+      }
+    }
+  } catch (e) {}
+
   for (let i = 1; i < data.length; i++) {
     const rowName = String(data[i][nameCol >= 0 ? nameCol : 1]).trim();
     if (rowName === nameTrim) {
@@ -566,8 +601,19 @@ function syncStudentAssets(studentName) {
         if (sIdx >= 0) sh.getRange(i + 1, sIdx + 1).setValue(stockQty);
       }
 
-      const totalAsset = cash + stockVal;
+      // 총자산 = 현금 + 주식평가액 + 예금원금
+      const totalAsset = cash + stockVal + depositVal;
 
+      // 자산 기준 자동 레벨 산정
+      let autoLevel = '브론즈(Lv.1)';
+      if (totalAsset >= 3000000) autoLevel = '마스터(Lv.6)';
+      else if (totalAsset >= 1000000) autoLevel = '다이아(Lv.5)';
+      else if (totalAsset >= 500000) autoLevel = '플래티넘(Lv.4)';
+      else if (totalAsset >= 200000) autoLevel = '골드(Lv.3)';
+      else if (totalAsset >= 50000) autoLevel = '실버(Lv.2)';
+
+      const lvIdx = levelCol >= 0 ? levelCol : 4;
+      sh.getRange(i + 1, lvIdx + 1).setValue(autoLevel);
       if (stockValCol >= 0) sh.getRange(i + 1, stockValCol + 1).setValue(stockVal);
       if (totalCol >= 0) sh.getRange(i + 1, totalCol + 1).setValue(totalAsset);
 
@@ -575,9 +621,10 @@ function syncStudentAssets(studentName) {
         id: data[i][idCol >= 0 ? idCol : 0] || i,
         name: rowName,
         job: data[i][jobCol >= 0 ? jobCol : 3] || '학생',
-        level: data[i][4] || '브론즈',
+        level: autoLevel,
         permission: data[i][permCol >= 0 ? permCol : 5] || '일반',
         cash: cash,
+        depositVal: depositVal,
         stockQty: stockQty,
         stockVal: stockVal,
         totalAsset: totalAsset
@@ -908,7 +955,7 @@ function handleRequest(payload, callback) {
         break;
       }
 
-      // 3. 다종목 네이버 실시간 주식 거래 & 모드 설정
+      // 3. 다종목 네이버 실시간 주식 거래 & 모드 설정 & 평단가/수익률 계산
       case 'getMultiStockData': {
         const cfg = getSettings();
         const activeCodes = (cfg['STOCK_ACTIVE_CODES'] || '005930,035720,035420,086520,005380,CLASS').split(',');
@@ -934,20 +981,185 @@ function handleRequest(payload, callback) {
         const sh = getOrCreateSheet(SH.ASSETS);
         const myStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && r['상태'] === '보유');
         const holdings = {};
+        const totalInvests = {};
+        const avgPrices = {};
+        const profitLosses = {};
+        const profitRates = {};
+
         myStocks.forEach(r => {
           const code = String(r['속성'] || '').trim();
           const name = String(r['아이템명'] || '').trim();
           const q = Number(r['수량'] || 1);
-          if (code) holdings[code] = (holdings[code] || 0) + q;
-          if (name) holdings[name] = (holdings[name] || 0) + q;
+          const p = Number(r['금액'] || 0); // 매수가격
+          const totalPaid = p * q;
+
+          if (code) {
+            holdings[code] = (holdings[code] || 0) + q;
+            totalInvests[code] = (totalInvests[code] || 0) + totalPaid;
+          }
+          if (name) {
+            holdings[name] = (holdings[name] || 0) + q;
+            totalInvests[name] = (totalInvests[name] || 0) + totalPaid;
+          }
+        });
+
+        stocks.forEach(s => {
+          const q = holdings[s.code] || 0;
+          const invest = totalInvests[s.code] || 0;
+          if (q > 0 && invest > 0) {
+            const avg = Math.round(invest / q);
+            avgPrices[s.code] = avg;
+            const evalVal = q * (s.price || 0);
+            const diff = evalVal - invest;
+            profitLosses[s.code] = diff;
+            profitRates[s.code] = ((diff / invest) * 100).toFixed(2) + '%';
+          } else {
+            avgPrices[s.code] = 0;
+            profitLosses[s.code] = 0;
+            profitRates[s.code] = '0.00%';
+          }
         });
 
         result = {
           success: true,
           stockMode: cfg['STOCK_MODE'] || 'REALTIME_NAVER',
           stocks: stocks,
-          holdings: holdings
+          holdings: holdings,
+          avgPrices: avgPrices,
+          profitLosses: profitLosses,
+          profitRates: profitRates
         };
+        break;
+      }
+
+      // 3-1. 부동산 교실 좌석 매매 & 제안 & 협상
+      case 'getSeatMap': {
+        const studentName = String(payload.name || '').trim();
+        const seatSh = getOrCreateSheet(SH.SEATS);
+        const seats = sheetToObj(seatSh);
+        result = { success: true, seats: seats, myName: studentName };
+        break;
+      }
+
+      case 'registerSeatSale': {
+        const studentName = String(payload.name || '').trim();
+        const seatNum = Number(payload.seatNum);
+        const price = Number(payload.price);
+        if (!seatNum || !price || price <= 0) {
+          result = { success: false, msg: '올바른 매물 희망 가격을 입력하세요.' };
+          break;
+        }
+
+        const seatSh = getOrCreateSheet(SH.SEATS);
+        const data = seatSh.getDataRange().getValues();
+        let updated = false;
+
+        for (let i = 1; i < data.length; i++) {
+          if (Number(data[i][0]) === seatNum) {
+            if (String(data[i][3]).trim() !== studentName && studentName !== '선생님') {
+              result = { success: false, msg: '본인 소유의 좌석만 매물로 등록할 수 있습니다.' };
+              break;
+            }
+            seatSh.getRange(i + 1, 5).setValue('판매중');
+            seatSh.getRange(i + 1, 6).setValue(price);
+            seatSh.getRange(i + 1, 9).setValue('매물등록');
+            updated = true;
+            break;
+          }
+        }
+
+        if (updated) result = { success: true, msg: `${seatNum}번 좌석이 ${price.toLocaleString()}원에 매물로 등록되었습니다!` };
+        else if (!result.msg) result = { success: false, msg: '해당 좌석을 찾을 수 없습니다.' };
+        break;
+      }
+
+      case 'offerSeatBuy': {
+        const buyerName = String(payload.buyer || payload.name || '').trim();
+        const seatNum = Number(payload.seatNum);
+        const offerPrice = Number(payload.price);
+
+        let st = syncStudentAssets(buyerName);
+        if (st && st.cash < offerPrice && buyerName !== '선생님') {
+          result = { success: false, msg: `제안 금액보다 보유 현금이 부족합니다! (보유: ${st.cash.toLocaleString()}원)` };
+          break;
+        }
+
+        const seatSh = getOrCreateSheet(SH.SEATS);
+        const data = seatSh.getDataRange().getValues();
+        let found = false;
+
+        for (let i = 1; i < data.length; i++) {
+          if (Number(data[i][0]) === seatNum) {
+            seatSh.getRange(i + 1, 7).setValue(buyerName);
+            seatSh.getRange(i + 1, 8).setValue(offerPrice);
+            seatSh.getRange(i + 1, 9).setValue('제안중');
+            found = true;
+            break;
+          }
+        }
+
+        if (found) result = { success: true, msg: `${seatNum}번 좌석에 ${offerPrice.toLocaleString()}원 구매 제안을 발송했습니다!` };
+        else result = { success: false, msg: '좌석 정보를 찾을 수 없습니다.' };
+        break;
+      }
+
+      case 'respondSeatOffer': {
+        const studentName = String(payload.name || '').trim();
+        const seatNum = Number(payload.seatNum);
+        const action = payload.action; // '수락' | '거절' | '협상'
+        const counterPrice = Number(payload.counterPrice || 0);
+
+        const seatSh = getOrCreateSheet(SH.SEATS);
+        const data = seatSh.getDataRange().getValues();
+        let targetRow = -1;
+        let buyer = '';
+        let agreedPrice = 0;
+
+        for (let i = 1; i < data.length; i++) {
+          if (Number(data[i][0]) === seatNum) {
+            targetRow = i + 1;
+            buyer = String(data[i][6]).trim();
+            agreedPrice = Number(data[i][7]) || 0;
+            break;
+          }
+        }
+
+        if (targetRow <= 0 || !buyer) {
+          result = { success: false, msg: '진행 중인 구매 제안이 없습니다.' };
+          break;
+        }
+
+        if (action === '수락') {
+          let bSt = syncStudentAssets(buyer);
+          if (bSt && bSt.cash < agreedPrice && buyer !== '선생님') {
+            result = { success: false, msg: `구매자(${buyer})의 잔액이 부족하여 거래를 완료할 수 없습니다.` };
+            break;
+          }
+
+          // 자금 이체: 구매자 차감, 판매자 지급
+          updateCash(buyer, -agreedPrice, `[부동산] ${seatNum}번 좌석 매수`, '부동산');
+          updateCash(studentName, agreedPrice, `[부동산] ${seatNum}번 좌석 매도`, '부동산');
+
+          // 좌석 소유권 이전
+          seatSh.getRange(targetRow, 4).setValue(buyer);
+          seatSh.getRange(targetRow, 5).setValue('미등록');
+          seatSh.getRange(targetRow, 6).setValue(agreedPrice);
+          seatSh.getRange(targetRow, 7).setValue('');
+          seatSh.getRange(targetRow, 8).setValue(0);
+          seatSh.getRange(targetRow, 9).setValue('거래완료');
+          seatSh.getRange(targetRow, 10).setValue(nowStr());
+
+          result = { success: true, msg: `${seatNum}번 좌석 거래가 완료되었습니다! (${agreedPrice.toLocaleString()}원 정산)` };
+        } else if (action === '거절') {
+          seatSh.getRange(targetRow, 7).setValue('');
+          seatSh.getRange(targetRow, 8).setValue(0);
+          seatSh.getRange(targetRow, 9).setValue('제안거절');
+          result = { success: true, msg: `구매 제안을 거절했습니다.` };
+        } else if (action === '협상') {
+          seatSh.getRange(targetRow, 6).setValue(counterPrice);
+          seatSh.getRange(targetRow, 9).setValue('협상중');
+          result = { success: true, msg: `${counterPrice.toLocaleString()}원으로 역제안(협상)을 보냈습니다.` };
+        }
         break;
       }
 
@@ -980,15 +1192,41 @@ function handleRequest(payload, callback) {
 
           const curStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && r['상태'] === '보유');
           const curHoldings = {};
+          const curTotalInvests = {};
+          const curAvgPrices = {};
+          const curProfitLosses = {};
+          const curProfitRates = {};
+
           curStocks.forEach(r => {
             const code = String(r['속성'] || '').trim();
             const name = String(r['아이템명'] || '').trim();
             const q = Number(r['수량'] || 1);
-            if (code) curHoldings[code] = (curHoldings[code] || 0) + q;
-            if (name) curHoldings[name] = (curHoldings[name] || 0) + q;
+            const p = Number(r['금액'] || 0);
+            const paid = p * q;
+            if (code) { curHoldings[code] = (curHoldings[code] || 0) + q; curTotalInvests[code] = (curTotalInvests[code] || 0) + paid; }
+            if (name) { curHoldings[name] = (curHoldings[name] || 0) + q; curTotalInvests[name] = (curTotalInvests[name] || 0) + paid; }
           });
 
-          result = { success: true, msg: `${live.name} ${qty}주를 매수했습니다! (총 ${cost.toLocaleString()}원)`, student: st, holdings: curHoldings };
+          const liveCur = fetchNaverStockPrice(stockCode);
+          const curQ = curHoldings[stockCode] || 0;
+          const curInv = curTotalInvests[stockCode] || 0;
+          if (curQ > 0 && curInv > 0) {
+            const avg = Math.round(curInv / curQ);
+            curAvgPrices[stockCode] = avg;
+            const diff = (curQ * liveCur.price) - curInv;
+            curProfitLosses[stockCode] = diff;
+            curProfitRates[stockCode] = ((diff / curInv) * 100).toFixed(2) + '%';
+          }
+
+          result = {
+            success: true,
+            msg: `${live.name} ${qty}주를 매수했습니다! (총 ${cost.toLocaleString()}원)`,
+            student: st,
+            holdings: curHoldings,
+            avgPrices: curAvgPrices,
+            profitLosses: curProfitLosses,
+            profitRates: curProfitRates
+          };
         } else {
           const myStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && (r['속성'] === stockCode || r['아이템명'] === live.name) && r['상태'] === '보유');
           let totalQty = 0;
@@ -1021,15 +1259,41 @@ function handleRequest(payload, callback) {
 
           const curStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && r['상태'] === '보유');
           const curHoldings = {};
+          const curTotalInvests = {};
+          const curAvgPrices = {};
+          const curProfitLosses = {};
+          const curProfitRates = {};
+
           curStocks.forEach(r => {
             const code = String(r['속성'] || '').trim();
             const name = String(r['아이템명'] || '').trim();
             const q = Number(r['수량'] || 1);
-            if (code) curHoldings[code] = (curHoldings[code] || 0) + q;
-            if (name) curHoldings[name] = (curHoldings[name] || 0) + q;
+            const p = Number(r['금액'] || 0);
+            const paid = p * q;
+            if (code) { curHoldings[code] = (curHoldings[code] || 0) + q; curTotalInvests[code] = (curTotalInvests[code] || 0) + paid; }
+            if (name) { curHoldings[name] = (curHoldings[name] || 0) + q; curTotalInvests[name] = (curTotalInvests[name] || 0) + paid; }
           });
 
-          result = { success: true, msg: `${live.name} ${qty}주를 매도했습니다! (총 ${income.toLocaleString()}원 입금)`, student: st, holdings: curHoldings };
+          const liveCur = fetchNaverStockPrice(stockCode);
+          const curQ = curHoldings[stockCode] || 0;
+          const curInv = curTotalInvests[stockCode] || 0;
+          if (curQ > 0 && curInv > 0) {
+            const avg = Math.round(curInv / curQ);
+            curAvgPrices[stockCode] = avg;
+            const diff = (curQ * liveCur.price) - curInv;
+            curProfitLosses[stockCode] = diff;
+            curProfitRates[stockCode] = ((diff / curInv) * 100).toFixed(2) + '%';
+          }
+
+          result = {
+            success: true,
+            msg: `${live.name} ${qty}주를 매도했습니다! (총 ${income.toLocaleString()}원 입금)`,
+            student: st,
+            holdings: curHoldings,
+            avgPrices: curAvgPrices,
+            profitLosses: curProfitLosses,
+            profitRates: curProfitRates
+          };
           break;
         }
         break;
