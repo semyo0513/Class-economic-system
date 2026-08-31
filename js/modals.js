@@ -516,21 +516,28 @@ const ModalManager = (() => {
               <p style="font-size:12px; color:#15803d;">오늘 나의 마음 상태를 선택하고 등록하면 매일 1회 학급화폐 장학금이 지급됩니다!</p>
             </div>
 
-            <div class="emotion-select-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px;">
-              <button class="emotion-opt-btn active" style="background:#dcfce7; border:2px solid #22c55e; padding:12px; border-radius:8px; text-align:center;" onclick="ModalManager.selectEmotion('🟢 좋음', this)">
-                <div style="font-size:26px;">🟢</div>
-                <div style="font-weight:bold; color:#15803d; font-size:13px; margin-top:2px;">기분 최고!</div>
-                <div style="font-size:11px; color:#166534;">(+500원)</div>
+            <div id="emotion-selected-display" style="background:#f1f5f9; border:2px solid #94a3b8; padding:8px 12px; border-radius:8px; margin-bottom:12px; font-weight:bold; font-size:13px; color:#1e293b; text-align:center;">
+              선택한 기분: <span id="emotion-selected-badge" style="color:#16a34a; font-size:14px;">🟢 기분 최고! (장학금 +500원)</span>
+            </div>
+
+            <div class="emotion-select-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:14px;">
+              <button class="emotion-opt-btn active" id="btn-emotion-good" style="cursor:pointer; background:#dcfce7; border:4px solid #16a34a; padding:14px 8px; border-radius:12px; text-align:center; transform:scale(1.05); box-shadow:0 6px 12px rgba(22,163,74,0.3); transition:all 0.15s ease;" onclick="ModalManager.selectEmotion('🟢 좋음', '기분 최고!', 500, this)">
+                <div style="font-size:32px;">🟢</div>
+                <div style="font-weight:900; color:#15803d; font-size:14px; margin-top:4px;">기분 최고!</div>
+                <div style="font-size:12px; font-weight:bold; color:#166534; margin-top:2px;">(+500원)</div>
+                <div class="emotion-check-tag" style="margin-top:6px; font-size:11px; font-weight:bold; color:#15803d; background:#bbf7d0; border-radius:10px; padding:2px 6px;">선택됨 ✅</div>
               </button>
-              <button class="emotion-opt-btn" style="background:#fef9c3; border:2px solid #eab308; padding:12px; border-radius:8px; text-align:center;" onclick="ModalManager.selectEmotion('🟡 보통', this)">
-                <div style="font-size:26px;">🟡</div>
-                <div style="font-weight:bold; color:#854d0e; font-size:13px; margin-top:2px;">그냥 그래요</div>
-                <div style="font-size:11px; color:#854d0e;">(+300원)</div>
+              <button class="emotion-opt-btn" id="btn-emotion-normal" style="cursor:pointer; background:#fef9c3; border:2px solid #eab308; padding:14px 8px; border-radius:12px; text-align:center; opacity:0.75; transition:all 0.15s ease;" onclick="ModalManager.selectEmotion('🟡 보통', '그냥 그래요', 300, this)">
+                <div style="font-size:32px;">🟡</div>
+                <div style="font-weight:900; color:#854d0e; font-size:14px; margin-top:4px;">그냥 그래요</div>
+                <div style="font-size:12px; font-weight:bold; color:#854d0e; margin-top:2px;">(+300원)</div>
+                <div class="emotion-check-tag" style="display:none; margin-top:6px; font-size:11px; font-weight:bold; color:#854d0e; background:#fef08a; border-radius:10px; padding:2px 6px;">선택됨 ✅</div>
               </button>
-              <button class="emotion-opt-btn" style="background:#fee2e2; border:2px solid #ef4444; padding:12px; border-radius:8px; text-align:center;" onclick="ModalManager.selectEmotion('🔴 힘듦', this)">
-                <div style="font-size:26px;">🔴</div>
-                <div style="font-weight:bold; color:#991b1b; font-size:13px; margin-top:2px;">힘들고 지쳐요</div>
-                <div style="font-size:11px; color:#991b1b;">(+1,000원)</div>
+              <button class="emotion-opt-btn" id="btn-emotion-hard" style="cursor:pointer; background:#fee2e2; border:2px solid #ef4444; padding:14px 8px; border-radius:12px; text-align:center; opacity:0.75; transition:all 0.15s ease;" onclick="ModalManager.selectEmotion('🔴 힘듦', '힘들고 지쳐요', 1000, this)">
+                <div style="font-size:32px;">🔴</div>
+                <div style="font-weight:900; color:#991b1b; font-size:14px; margin-top:4px;">힘들고 지쳐요</div>
+                <div style="font-size:12px; font-weight:bold; color:#991b1b; margin-top:2px;">(+1,000원)</div>
+                <div class="emotion-check-tag" style="display:none; margin-top:6px; font-size:11px; font-weight:bold; color:#991b1b; background:#fecaca; border-radius:10px; padding:2px 6px;">선택됨 ✅</div>
               </button>
             </div>
 
@@ -1687,10 +1694,39 @@ const ModalManager = (() => {
 
     // ─── 감정신호등 ───
     selectedEmotionVal: '🟢 좋음',
-    selectEmotion: (val, btn) => {
+    selectEmotion: (val, label, bonus, btn) => {
       ModalManager.selectedEmotionVal = val;
-      document.querySelectorAll('.emotion-opt-btn').forEach(b => b.classList.remove('active'));
-      if (btn) btn.classList.add('active');
+
+      // 1. 모든 버튼 초기화
+      document.querySelectorAll('.emotion-opt-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.transform = 'scale(1)';
+        b.style.boxShadow = 'none';
+        b.style.opacity = '0.75';
+        const tag = b.querySelector('.emotion-check-tag');
+        if (tag) tag.style.display = 'none';
+      });
+
+      // 2. 클릭된 버튼 강조 활성화
+      if (btn) {
+        btn.classList.add('active');
+        btn.style.transform = 'scale(1.06)';
+        btn.style.opacity = '1';
+        btn.style.boxShadow = '0 8px 16px rgba(0,0,0,0.2)';
+        const tag = btn.querySelector('.emotion-check-tag');
+        if (tag) tag.style.display = 'inline-block';
+      }
+
+      // 3. 상단 텍스트 배지 즉시 갱신
+      const badgeEl = document.getElementById('emotion-selected-badge');
+      if (badgeEl) {
+        let color = '#16a34a';
+        if (val.includes('보통')) color = '#ca8a04';
+        if (val.includes('힘듦')) color = '#dc2626';
+        badgeEl.style.color = color;
+        badgeEl.textContent = `${val} ${label} (장학금 +${bonus.toLocaleString()}원)`;
+      }
+
       SoundEngine.click();
     },
     submitEmotion: async () => {
