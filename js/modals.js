@@ -1891,6 +1891,7 @@ const ModalManager = (() => {
     },
 
     handleTradeMultiStock: async (type) => {
+      if (ModalManager._actionLock) return;
       const code = ModalManager.activeMultiStockCode || '005930';
       const qtyInput = document.getElementById(type === '매수' ? 'multi-stock-buy-qty' : 'multi-stock-sell-qty');
       const qty = parseInt(qtyInput?.value, 10);
@@ -1899,28 +1900,36 @@ const ModalManager = (() => {
       const st = GameState.student;
       const myName = st ? (st.name || st.이름) : '나';
 
+      ModalManager._actionLock = true;
       API.showLoading(`네이버 증시 ${type} 주문 체결 중...`);
-      const res = await API.call('tradeMultiStock', { name: myName, code: code, qty: qty, type: type });
-      API.hideLoading();
+      try {
+        const res = await API.call('tradeMultiStock', { name: myName, code: code, qty: qty, type: type });
+        API.hideLoading();
 
-      if (res && res.success) {
-        if (res.student) {
-          GameState.student = res.student;
-          const cashEl = document.getElementById('hud-cash-val');
-          const stockEl = document.getElementById('hud-stock-val');
-          const curC = res.student.cash ?? res.student.현금 ?? 0;
-          const curS = res.student.stock ?? res.student.stockVal ?? res.student.주식 ?? 0;
-          if (cashEl) cashEl.textContent = `${curC.toLocaleString()}원`;
-          if (stockEl) stockEl.textContent = `${curS.toLocaleString()}원`;
+        if (res && res.success) {
+          if (res.student) {
+            GameState.student = res.student;
+            const cashEl = document.getElementById('hud-cash-val');
+            const stockEl = document.getElementById('hud-stock-val');
+            const curC = res.student.cash ?? res.student.현금 ?? 0;
+            const curS = res.student.stock ?? res.student.stockVal ?? res.student.주식 ?? 0;
+            if (cashEl) cashEl.textContent = `${curC.toLocaleString()}원`;
+            if (stockEl) stockEl.textContent = `${curS.toLocaleString()}원`;
+          }
+          if (res.holdings) ModalManager.multiStockHoldings = res.holdings;
+          if (res.avgPrices) ModalManager.multiStockAvgPrices = res.avgPrices;
+          if (res.profitLosses) ModalManager.multiStockProfitLosses = res.profitLosses;
+          if (res.profitRates) ModalManager.multiStockProfitRates = res.profitRates;
+
+          SoundEngine.fanfare();
+          alert(res.msg);
+          open('stock');
+        } else {
+          alert(res?.msg || '주문 실패');
         }
-        if (res.holdings) {
-          ModalManager.multiStockHoldings = res.holdings;
-        }
-        SoundEngine.fanfare();
-        alert(res.msg);
-        open('stock');
-      } else {
-        alert(res?.msg || '주문 실패');
+      } finally {
+        ModalManager._actionLock = false;
+        API.hideLoading();
       }
     },
 
@@ -2304,58 +2313,96 @@ const ModalManager = (() => {
       ModalManager.loadAdminItems();
     },
 
+    _actionLock: false,
+
     handleDeposit: async () => {
+      if (ModalManager._actionLock) return;
       const input = document.getElementById('deposit-amount-input');
       const amt = Number(input?.value);
       if (!amt || amt < 1000) return alert('예금 최소 금액은 1,000원입니다.');
       const st = GameState.student;
       const myName = st ? (st.name || st.이름) : '나';
 
+      ModalManager._actionLock = true;
       API.showLoading('예금 계좌 개설 중...');
-      const res = await API.call('deposit', { name: myName, amount: amt });
-      API.hideLoading();
-      if (res && res.success) {
-        SoundEngine.fanfare();
-        alert('정기예금에 성공적으로 가입되었습니다!');
-        open('bank');
-      } else {
-        alert(res?.msg || '예금 가입 실패');
+      try {
+        const res = await API.call('deposit', { name: myName, amount: amt });
+        API.hideLoading();
+        if (res && res.success) {
+          if (res.student) {
+            GameState.student = res.student;
+            const cashEl = document.getElementById('hud-cash-val');
+            if (cashEl) cashEl.textContent = `${(res.student.cash || 0).toLocaleString()}원`;
+          }
+          SoundEngine.fanfare();
+          alert('정기예금에 성공적으로 가입되었습니다!');
+          open('bank');
+        } else {
+          alert(res?.msg || '예금 가입 실패');
+        }
+      } finally {
+        ModalManager._actionLock = false;
+        API.hideLoading();
       }
     },
 
     handleWithdraw: async (index) => {
+      if (ModalManager._actionLock) return;
       if (!confirm('정기예금을 만기 해지하여 원금과 이자를 수령하시겠습니까?')) return;
       const st = GameState.student;
       const myName = st ? (st.name || st.이름) : '나';
 
+      ModalManager._actionLock = true;
       API.showLoading('예금 해지 및 정산 중...');
-      const res = await API.call('withdraw', { name: myName, index: index });
-      API.hideLoading();
-      if (res && res.success) {
-        SoundEngine.fanfare();
-        alert(`예금 만기 해지 완료! 원금과 이자(${res.amount?.toLocaleString()}원)가 지급되었습니다.`);
-        open('bank');
-      } else {
-        alert(res?.msg || '해지 실패');
+      try {
+        const res = await API.call('withdraw', { name: myName, index: index });
+        API.hideLoading();
+        if (res && res.success) {
+          if (res.student) {
+            GameState.student = res.student;
+            const cashEl = document.getElementById('hud-cash-val');
+            if (cashEl) cashEl.textContent = `${(res.student.cash || 0).toLocaleString()}원`;
+          }
+          SoundEngine.fanfare();
+          alert(`예금 만기 해지 완료! 원금과 이자(${res.amount?.toLocaleString()}원)가 지급되었습니다.`);
+          open('bank');
+        } else {
+          alert(res?.msg || '해지 실패');
+        }
+      } finally {
+        ModalManager._actionLock = false;
+        API.hideLoading();
       }
     },
 
     handleTransfer: async () => {
+      if (ModalManager._actionLock) return;
       const target = document.getElementById('transfer-target')?.value;
       const amt = Number(document.getElementById('transfer-amount')?.value);
       if (!target || !amt || amt <= 0) return alert('받는 친구 이름과 올바른 송금 금액을 입력하세요.');
       const st = GameState.student;
       const myName = st ? (st.name || st.이름) : '나';
 
+      ModalManager._actionLock = true;
       API.showLoading('용돈 송금 중...');
-      const res = await API.call('transfer', { sender: myName, receiver: target, amount: amt });
-      API.hideLoading();
-      if (res && res.success) {
-        SoundEngine.fanfare();
-        alert(`[${target}] 친구에게 ${amt.toLocaleString()}원을 송금했습니다!`);
-        open('postoffice');
-      } else {
-        alert(res?.msg || '송금 실패');
+      try {
+        const res = await API.call('transfer', { sender: myName, receiver: target, amount: amt });
+        API.hideLoading();
+        if (res && res.success) {
+          if (res.student) {
+            GameState.student = res.student;
+            const cashEl = document.getElementById('hud-cash-val');
+            if (cashEl) cashEl.textContent = `${(res.student.cash || 0).toLocaleString()}원`;
+          }
+          SoundEngine.fanfare();
+          alert(`[${target}] 친구에게 ${amt.toLocaleString()}원을 송금했습니다!`);
+          open('postoffice');
+        } else {
+          alert(res?.msg || '송금 실패');
+        }
+      } finally {
+        ModalManager._actionLock = false;
+        API.hideLoading();
       }
     },
 

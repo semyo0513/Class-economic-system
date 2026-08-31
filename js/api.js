@@ -36,49 +36,27 @@ const API = (() => {
         return getMockResponse(action, payload);
       }
 
-      const mergedPayload = { action: action, ...payload };
+      // Google Apps Script REST 통신: GET 방식으로 단 1회 초고속 호출 (CORS 100% 호환 & 이중 실행 원천 차단)
+      const dataStr = encodeURIComponent(JSON.stringify(payload));
+      const getUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action) + '&data=' + dataStr + '&t=' + Date.now();
 
-      // 1. POST 방식 시도
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        const response = await fetch(gasUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(mergedPayload),
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
+      const response = await fetch(getUrl, {
+        method: 'GET',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
 
-        if (response.ok) {
-          const res = await response.json();
-          if (res) return res;
-        }
-      } catch (postErr) {
-        console.warn('[POST attempt failed, trying GET...]', postErr);
-      }
-
-      // 2. GET 방식 시도 (CORS 100% 호환)
-      try {
-        const getUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action) + '&data=' + encodeURIComponent(JSON.stringify(payload));
-        const controller2 = new AbortController();
-        const timeoutId2 = setTimeout(() => controller2.abort(), 6000);
-
-        const response2 = await fetch(getUrl, { signal: controller2.signal });
-        clearTimeout(timeoutId2);
-
-        if (response2.ok) {
-          const res2 = await response2.json();
-          if (res2) return res2;
-        }
-      } catch (getErr) {
-        console.warn('[GET attempt failed]', getErr);
+      if (response.ok) {
+        const res = await response.json();
+        if (res) return res;
       }
 
       return getMockResponse(action, payload);
     } catch (err) {
-      console.warn(`[API Fallback] Action: ${action}, Error:`, err);
+      console.warn(`[API Call Info] Action: ${action}`, err);
       return getMockResponse(action, payload);
     } finally {
       if (!silent) hideLoading();
