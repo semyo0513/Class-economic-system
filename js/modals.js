@@ -1566,9 +1566,12 @@ const ModalManager = (() => {
           const cashEl = document.getElementById('hud-cash-val');
           const stockEl = document.getElementById('hud-stock-val');
           const curC = res.student.cash ?? res.student.현금 ?? 0;
-          const curS = res.student.stock ?? res.student.주식 ?? 0;
+          const curS = res.student.stock ?? res.student.stockVal ?? res.student.주식 ?? 0;
           if (cashEl) cashEl.textContent = `${curC.toLocaleString()}원`;
           if (stockEl) stockEl.textContent = `${curS.toLocaleString()}원`;
+        }
+        if (res.holdings) {
+          ModalManager.multiStockHoldings = res.holdings;
         }
         SoundEngine.fanfare();
         alert(res.msg);

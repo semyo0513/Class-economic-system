@@ -530,14 +530,42 @@ function syncStudentAssets(studentName) {
 
   const curStockPrice = getCurrentStockPrice();
 
+  // 다종목 주식 보유 현황 계산 (SH.ASSETS)
+  let multiStockQty = 0;
+  let multiStockVal = 0;
+  try {
+    const astSh = getOrCreateSheet(SH.ASSETS);
+    const astData = astSh.getDataRange().getValues();
+    for (let j = 1; j < astData.length; j++) {
+      if (astData[j][2] === '다종목주식' && String(astData[j][1]).trim() === nameTrim && astData[j][7] === '보유') {
+        const q = Number(astData[j][5]) || 1;
+        const code = String(astData[j][6] || '').trim();
+        let p = Number(astData[j][4]) || 0;
+        if (code) {
+          const live = fetchNaverStockPrice(code);
+          if (live && live.price > 0) p = live.price;
+        }
+        multiStockQty += q;
+        multiStockVal += (p * q);
+      }
+    }
+  } catch (e) {}
+
   for (let i = 1; i < data.length; i++) {
     const rowName = String(data[i][nameCol >= 0 ? nameCol : 1]).trim();
     if (rowName === nameTrim) {
       const cIdx = cashCol >= 0 ? cashCol : 6;
       const sIdx = stockCol >= 0 ? stockCol : 7;
       const cash = Number(data[i][cIdx]) || 0;
-      const stockQty = Number(data[i][sIdx]) || 0;
-      const stockVal = stockQty * curStockPrice;
+      let stockQty = Number(data[i][sIdx]) || 0;
+      let stockVal = stockQty * curStockPrice;
+
+      if (multiStockQty > 0 || multiStockVal > 0) {
+        stockQty = multiStockQty;
+        stockVal = multiStockVal;
+        if (sIdx >= 0) sh.getRange(i + 1, sIdx + 1).setValue(stockQty);
+      }
+
       const totalAsset = cash + stockVal;
 
       if (stockValCol >= 0) sh.getRange(i + 1, stockValCol + 1).setValue(stockVal);
@@ -770,7 +798,7 @@ function handleRequest(payload, callback) {
         break;
       }
 
-      // 1. 전체 학생 목록 (선생님 제외)
+      // 1. 전체 학생 목록
       case 'getStudents':
       case 'getRanking': {
         const students = getStudentsWithAssets();
@@ -884,7 +912,7 @@ function handleRequest(payload, callback) {
       case 'getMultiStockData': {
         const cfg = getSettings();
         const activeCodes = (cfg['STOCK_ACTIVE_CODES'] || '005930,035720,035420,086520,005380,CLASS').split(',');
-        const studentName = payload.name;
+        const studentName = String(payload.name || '').trim();
 
         const iconMap = {
           '005930': '📱', '035720': '🟡', '035420': '🟢', '086520': '🔋', '005380': '🚗', 'CLASS': '🏫'
@@ -907,8 +935,11 @@ function handleRequest(payload, callback) {
         const myStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && r['상태'] === '보유');
         const holdings = {};
         myStocks.forEach(r => {
-          const c = String(r['속성'] || r['아이템명']);
-          holdings[c] = (holdings[c] || 0) + Number(r['수량'] || 1);
+          const code = String(r['속성'] || '').trim();
+          const name = String(r['아이템명'] || '').trim();
+          const q = Number(r['수량'] || 1);
+          if (code) holdings[code] = (holdings[code] || 0) + q;
+          if (name) holdings[name] = (holdings[name] || 0) + q;
         });
 
         result = {
@@ -946,7 +977,18 @@ function handleRequest(payload, callback) {
           updateCash(studentName, -cost, `[주식매수] ${live.name} ${qty}주`, '주식');
           sh.appendRow([nowStr(), studentName, '다종목주식', live.name, price, qty, stockCode, '보유', '', '']);
           st = syncStudentAssets(studentName);
-          result = { success: true, msg: `${live.name} ${qty}주를 매수했습니다! (총 ${cost.toLocaleString()}원)`, student: st };
+
+          const curStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && r['상태'] === '보유');
+          const curHoldings = {};
+          curStocks.forEach(r => {
+            const code = String(r['속성'] || '').trim();
+            const name = String(r['아이템명'] || '').trim();
+            const q = Number(r['수량'] || 1);
+            if (code) curHoldings[code] = (curHoldings[code] || 0) + q;
+            if (name) curHoldings[name] = (curHoldings[name] || 0) + q;
+          });
+
+          result = { success: true, msg: `${live.name} ${qty}주를 매수했습니다! (총 ${cost.toLocaleString()}원)`, student: st, holdings: curHoldings };
         } else {
           const myStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && (r['속성'] === stockCode || r['아이템명'] === live.name) && r['상태'] === '보유');
           let totalQty = 0;
@@ -976,7 +1018,19 @@ function handleRequest(payload, callback) {
           const income = price * qty;
           updateCash(studentName, income, `[주식매도] ${live.name} ${qty}주`, '주식');
           st = syncStudentAssets(studentName);
-          result = { success: true, msg: `${live.name} ${qty}주를 매도하여 ${income.toLocaleString()}원을 수령했습니다!`, student: st };
+
+          const curStocks = sheetToObj(sh).filter(r => r['카테고리'] === '다종목주식' && String(r['소유자'] || r['이름']).trim() === studentName && r['상태'] === '보유');
+          const curHoldings = {};
+          curStocks.forEach(r => {
+            const code = String(r['속성'] || '').trim();
+            const name = String(r['아이템명'] || '').trim();
+            const q = Number(r['수량'] || 1);
+            if (code) curHoldings[code] = (curHoldings[code] || 0) + q;
+            if (name) curHoldings[name] = (curHoldings[name] || 0) + q;
+          });
+
+          result = { success: true, msg: `${live.name} ${qty}주를 매도했습니다! (총 ${income.toLocaleString()}원 입금)`, student: st, holdings: curHoldings };
+          break;
         }
         break;
       }
