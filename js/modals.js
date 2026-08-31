@@ -460,31 +460,45 @@ const ModalManager = (() => {
         break;
       }
 
-      // 6. 복권방
+      // 6. 복권방 (리얼 인터랙티브 캔버스 스크래치 복권)
       case 'lottery': {
         container.innerHTML = `
           <div class="lottery-panel" style="text-align:center; padding:10px;">
-            <div style="background:#fef3c7; border:2px solid #f59e0b; padding:14px; border-radius:10px; margin-bottom:14px;">
-              <h3 style="color:#b45309; font-size:18px; margin-bottom:4px;">🎰 ${schoolName} 행운의 즉석 스크래치 복권</h3>
-              <p style="font-size:12px; color:#92400e;">1장당 <strong>500원</strong>! 긁어서 최고 <strong>50,000원</strong>의 행운을 잡으세요! (4등 상금 3,000원)</p>
+            <div style="background:#fef3c7; border:2px solid #f59e0b; padding:12px; border-radius:10px; margin-bottom:14px;">
+              <h3 style="color:#b45309; font-size:17px; margin-bottom:4px;">🎰 ${schoolName} 행운의 즉석 스크래치 복권</h3>
+              <p style="font-size:12px; color:#92400e;">1장당 <strong>500원</strong> (국고 귀속) | 최고 <strong>50,000원</strong> 대박 행운! (4등 3,000원)</p>
             </div>
 
-            <div class="scratch-card" id="lottery-scratch-box" style="background:#fff; border:3px dashed #d97706; border-radius:12px; padding:24px; margin:0 auto 16px; max-width:320px;">
-              <div id="scratch-prompt">
+            <div id="lottery-game-area" style="text-align:center;">
+              <!-- 1단계: 구매 전 안내 카드 -->
+              <div id="lottery-before-buy" style="background:#fff; border:3px dashed #d97706; border-radius:12px; padding:24px; margin:0 auto 16px; max-width:340px;">
                 <div style="font-size:48px; margin-bottom:8px;">🎟️</div>
-                <div style="font-size:15px; font-weight:bold; color:#1e293b;">행운의 복권 한 장</div>
-                <div style="font-size:12px; color:#64748b; margin-top:4px;">구매 후 즉시 긁어서 당첨금을 확인하세요!</div>
+                <div style="font-size:16px; font-weight:bold; color:#1e293b;">행운의 즉석 스크래치 복권</div>
+                <div style="font-size:12px; color:#64748b; margin-top:4px;">구매 후 마우스나 손가락으로 직접 긁어보세요!</div>
+                <button class="pixel-btn-primary" style="margin-top:16px; width:auto; padding:10px 24px; font-size:15px; background:#d97706;" onclick="ModalManager.buyScratchLottery()">
+                  🎟️ 복권 1장 구매하기 (500원)
+                </button>
               </div>
-              <div id="scratch-result" style="display:none;">
-                <div style="font-size:40px; margin-bottom:4px;">🎉</div>
-                <div style="font-size:20px; font-weight:900; color:#ef4444;" id="scratch-title">1등 당첨!</div>
-                <div style="font-size:13px; font-weight:bold; color:#1e293b; margin-top:6px;" id="scratch-msg">50,000원 획득!</div>
+
+              <!-- 2단계: 스크래치 캔버스 스테이지 -->
+              <div id="lottery-scratch-stage" style="display:none; position:relative; width:340px; height:180px; margin:0 auto 16px; border:3px solid #b45309; border-radius:12px; overflow:hidden; box-shadow:0 6px 0 #78350f;">
+                <!-- 밑바닥 당첨 결과 레이어 -->
+                <div id="lottery-result-underlay" style="position:absolute; inset:0; background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px;">
+                  <div id="lottery-prize-icon" style="font-size:36px; margin-bottom:4px;">🎉</div>
+                  <div id="lottery-prize-title" style="font-size:22px; font-weight:900; color:#ef4444;">1등 당첨!</div>
+                  <div id="lottery-prize-msg" style="font-size:15px; font-weight:bold; color:#1e293b; margin-top:4px;">50,000원 획득!</div>
+                </div>
+                <!-- 윗면 스크래치 은박 코팅 캔버스 -->
+                <canvas id="lottery-scratch-canvas" width="340" height="180" style="position:absolute; inset:0; cursor:pointer; touch-action:none;"></canvas>
+              </div>
+
+              <!-- 3단계: 긁기 완료 후 재도전 버튼 -->
+              <div id="lottery-after-scratch" style="display:none;">
+                <button class="pixel-btn-primary" style="width:auto; padding:10px 24px; font-size:15px; background:#d97706;" onclick="ModalManager.buyScratchLottery()">
+                  🎟️ 한 장 더 구매하여 긁기 (500원)
+                </button>
               </div>
             </div>
-
-            <button class="pixel-btn-primary" style="width:auto; padding:10px 24px; font-size:15px; background:#d97706;" onclick="ModalManager.playLottery()">
-              🎟️ 복권 구매 & 긁기 (500원)
-            </button>
           </div>
         `;
         break;
@@ -1554,14 +1568,14 @@ const ModalManager = (() => {
       }
     },
 
-    // ─── 복권 ───
-    playLottery: async () => {
+    // ─── 리얼 인터랙티브 캔버스 스크래치 복권 ───
+    buyScratchLottery: async () => {
       const st = GameState.student;
       const myName = st ? (st.name || st.이름) : '나';
       const cash = st ? (st.cash || 0) : 0;
-      if (cash < 500) return alert('복권 구매를 위한 현금(500원)이 부족합니다.');
+      if (cash < 500 && myName !== '선생님') return alert('복권 구매를 위한 현금(500원)이 부족합니다!');
 
-      API.showLoading('복권을 구매하여 긁는 중...');
+      API.showLoading('새 복권을 발권하는 중...');
       const buyRes = await API.call('buyLottery', { name: myName });
       if (!buyRes || !buyRes.success) {
         API.hideLoading();
@@ -1571,22 +1585,104 @@ const ModalManager = (() => {
       const scrRes = await API.call('scratchLottery', { name: myName });
       API.hideLoading();
 
-      if (st) st.cash = (st.cash || 0) - 500 + (scrRes?.prize || 0);
+      if (st && myName !== '선생님') st.cash = (st.cash || 0) - 500;
       const cashEl = document.getElementById('hud-cash-val');
-      if (cashEl && st) cashEl.textContent = `${st.cash.toLocaleString()}원`;
+      if (cashEl && st) cashEl.textContent = `${(st.cash || 0).toLocaleString()}원`;
 
-      const promptEl = document.getElementById('scratch-prompt');
-      const resultEl = document.getElementById('scratch-result');
-      const titleEl = document.getElementById('scratch-title');
-      const msgEl = document.getElementById('scratch-msg');
+      // 1단계 카드 숨기고 2단계 스크래치 스테이지 노출
+      const beforeBuy = document.getElementById('lottery-before-buy');
+      const scratchStage = document.getElementById('lottery-scratch-stage');
+      const afterScratch = document.getElementById('lottery-after-scratch');
+      if (beforeBuy) beforeBuy.style.display = 'none';
+      if (afterScratch) afterScratch.style.display = 'none';
+      if (scratchStage) scratchStage.style.display = 'block';
 
-      if (promptEl) promptEl.style.display = 'none';
-      if (resultEl) resultEl.style.display = 'block';
-      if (titleEl) titleEl.textContent = scrRes?.title || '꽝!';
-      if (msgEl) msgEl.textContent = scrRes?.msg || '다음 기회에!';
+      // 당첨 결과 텍스트 바인딩
+      const titleEl = document.getElementById('lottery-prize-title');
+      const msgEl = document.getElementById('lottery-prize-msg');
+      const iconEl = document.getElementById('lottery-prize-icon');
 
-      if (scrRes?.prize > 0) SoundEngine.fanfare();
-      else SoundEngine.snap();
+      const isWinner = (scrRes?.prize || 0) > 0;
+      if (titleEl) titleEl.textContent = scrRes?.title || (isWinner ? '당첨!' : '꽝!');
+      if (msgEl) msgEl.textContent = scrRes?.msg || (isWinner ? `${scrRes.prize.toLocaleString()}원 획득!` : '다음 기회에!');
+      if (iconEl) iconEl.textContent = isWinner ? '🎉' : '💨';
+
+      // 캔버스 은박 코팅 초기화 & 스크래치 이벤트 바인딩
+      const cvs = document.getElementById('lottery-scratch-canvas');
+      if (!cvs) return;
+      const ctx = cvs.getContext('2d');
+      const W = cvs.width, H = cvs.height;
+
+      // 은박 스크래치 질감 렌더링
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(0, 0, W, H);
+
+      // 반짝이 격자 무늬
+      ctx.fillStyle = '#cbd5e1';
+      for (let x = 0; x < W; x += 24) {
+        for (let y = 0; y < H; y += 24) {
+          if ((x + y) % 48 === 0) ctx.fillRect(x, y, 12, 12);
+        }
+      }
+
+      // 안내 문구
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 15px Galmuri11, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🪙 동전이나 마우스로 긁어보세요! 🪙', W / 2, H / 2 - 4);
+      ctx.font = '11px Galmuri11, sans-serif';
+      ctx.fillStyle = '#475569';
+      ctx.fillText('(드래그 / 터치하여 은박을 지우세요)', W / 2, H / 2 + 18);
+
+      let isDrawing = false;
+      let scratchCount = 0;
+      let isRevealed = false;
+
+      function getPos(e) {
+        const rect = cvs.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+          x: (clientX - rect.left) * (W / rect.width),
+          y: (clientY - rect.top) * (H / rect.height)
+        };
+      }
+
+      function scratchAt(x, y) {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(x, y, 22, 0, Math.PI * 2);
+        ctx.fill();
+
+        scratchCount++;
+        if (Math.random() < 0.25) SoundEngine.step();
+
+        // 35회 이상 긁었을 때 전체 공개 및 당첨금 지급 처리
+        if (scratchCount > 35 && !isRevealed) {
+          isRevealed = true;
+          setTimeout(() => {
+            ctx.clearRect(0, 0, W, H);
+            if (st && (scrRes?.prize || 0) > 0) {
+              st.cash = (st.cash || 0) + scrRes.prize;
+              const curCashEl = document.getElementById('hud-cash-val');
+              if (curCashEl) curCashEl.textContent = `${(st.cash || 0).toLocaleString()}원`;
+              SoundEngine.fanfare();
+            } else {
+              SoundEngine.snap();
+            }
+            if (afterScratch) afterScratch.style.display = 'block';
+          }, 200);
+        }
+      }
+
+      cvs.onmousedown = (e) => { isDrawing = true; const p = getPos(e); scratchAt(p.x, p.y); };
+      cvs.onmousemove = (e) => { if (isDrawing) { const p = getPos(e); scratchAt(p.x, p.y); } };
+      window.onmouseup = () => { isDrawing = false; };
+
+      cvs.ontouchstart = (e) => { isDrawing = true; e.preventDefault(); const p = getPos(e); scratchAt(p.x, p.y); };
+      cvs.ontouchmove = (e) => { if (isDrawing) { e.preventDefault(); const p = getPos(e); scratchAt(p.x, p.y); } };
+      cvs.ontouchend = () => { isDrawing = false; };
     },
 
     // ─── 감정신호등 ───

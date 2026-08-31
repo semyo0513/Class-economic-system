@@ -803,6 +803,83 @@ function handleRequest(payload, callback) {
         break;
       }
 
+      // 2-1. 개인 정기예금 (조회, 가입, 만기해지)
+      case 'getDeposits': {
+        const studentName = String(payload.name || '').trim();
+        const cfg = getSettings();
+        const rateVal = Number(cfg['예금_기본이자율'] || 0.05);
+        const depSh = getOrCreateSheet(SH.DEPOSITS);
+        const allDeps = sheetToObj(depSh);
+        const myDeps = allDeps.filter(r => String(r['이름'] || r['학생명'] || '').trim() === studentName && String(r['상태'] || '활성').trim() === '활성');
+        result = { success: true, rate: rateVal, deposits: myDeps };
+        break;
+      }
+
+      case 'deposit':
+      case 'depositMoney': {
+        const studentName = String(payload.name || '').trim();
+        const amt = Number(payload.amount);
+        if (!studentName || !amt || amt < 1000) {
+          result = { success: false, msg: '최소 예금 가입 금액은 1,000원입니다.' };
+          break;
+        }
+        let st = syncStudentAssets(studentName);
+        if (!st) {
+          result = { success: false, msg: '학생 정보를 찾을 수 없습니다.' };
+          break;
+        }
+        if (st.cash < amt && studentName !== '선생님') {
+          result = { success: false, msg: `현금 잔액이 부족합니다! (보유: ${st.cash.toLocaleString()}원 / 신청: ${amt.toLocaleString()}원)` };
+          break;
+        }
+
+        const cfg = getSettings();
+        const rateVal = Number(cfg['예금_기본이자율'] || 0.05);
+        updateCash(studentName, -amt, `정기예금 가입 (${(rateVal * 100).toFixed(1)}%)`, '예금');
+
+        const depSh = getOrCreateSheet(SH.DEPOSITS);
+        depSh.appendRow([nowStr().slice(0, 10), studentName, amt, rateVal, '활성', '']);
+        st = syncStudentAssets(studentName);
+        result = { success: true, msg: `${amt.toLocaleString()}원 정기예금 가입 완료! (연 ${(rateVal * 100).toFixed(1)}%)`, student: st };
+        break;
+      }
+
+      case 'withdraw':
+      case 'withdrawDeposit': {
+        const studentName = String(payload.name || '').trim();
+        const depIndex = Number(payload.index || 0);
+        const depSh = getOrCreateSheet(SH.DEPOSITS);
+        const data = depSh.getDataRange().getValues();
+        let matchCount = 0;
+        let foundRow = -1;
+        let principal = 0;
+        let rate = 0.05;
+
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][1]).trim() === studentName && String(data[i][4]).trim() === '활성') {
+            if (matchCount === depIndex) {
+              foundRow = i + 1;
+              principal = Number(data[i][2]) || 0;
+              rate = Number(data[i][3]) || 0.05;
+              break;
+            }
+            matchCount++;
+          }
+        }
+
+        if (foundRow > 0 && principal > 0) {
+          const interest = Math.round(principal * rate);
+          const totalPayout = principal + interest;
+          depSh.getRange(foundRow, 5).setValue('해지');
+          updateCash(studentName, totalPayout, `정기예금 만기해지 (원금 ${principal.toLocaleString()}원 + 이자 ${interest.toLocaleString()}원)`, '예금');
+          const st = syncStudentAssets(studentName);
+          result = { success: true, amount: totalPayout, principal: principal, interest: interest, msg: `정기예금 해지 완료! 원금+이자 총 ${totalPayout.toLocaleString()}원이 지급되었습니다.`, student: st };
+        } else {
+          result = { success: false, msg: '해당 예금 계좌를 찾을 수 없거나 이미 해지되었습니다.' };
+        }
+        break;
+      }
+
       // 3. 다종목 네이버 실시간 주식 거래 & 모드 설정
       case 'getMultiStockData': {
         const cfg = getSettings();
