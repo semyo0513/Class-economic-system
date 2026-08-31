@@ -255,11 +255,11 @@ const ModalManager = (() => {
             <!-- 하단: 내 주식 보유 포트폴리오 (슬림 테이블) -->
             <div style="background:#ffffff; border:2px solid #cbd5e1; border-radius:8px; padding:6px 10px;">
               <div style="font-size:11px; font-weight:bold; color:#475569; margin-bottom:4px;">📊 나의 주식 보유 현황</div>
-              <div class="table-wrap" style="max-height:100px; overflow-y:auto;">
+              <div class="table-wrap" style="max-height:110px; overflow-y:auto;">
                 <table class="pixel-table" style="font-size:11px;">
-                  <thead><tr><th>종목명</th><th>현재가</th><th>보유수량</th><th>총평가액</th></tr></thead>
+                  <thead><tr><th>종목명</th><th>현재가</th><th>보유수량</th><th>평단가</th><th>수익률</th><th>총평가액</th></tr></thead>
                   <tbody id="multi-stock-portfolio-tbody">
-                    <tr><td colspan="4" style="text-align:center; padding:6px;">포트폴리오 조회 중...</td></tr>
+                    <tr><td colspan="6" style="text-align:center; padding:6px;">포트폴리오 조회 중...</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -1915,15 +1915,17 @@ const ModalManager = (() => {
             const curS = res.student.stock ?? res.student.stockVal ?? res.student.주식 ?? 0;
             if (cashEl) cashEl.textContent = `${curC.toLocaleString()}원`;
             if (stockEl) stockEl.textContent = `${curS.toLocaleString()}원`;
+            const stockCashEl = document.getElementById('stock-my-cash-val');
+            if (stockCashEl) stockCashEl.textContent = `${curC.toLocaleString()}원`;
           }
           if (res.holdings) ModalManager.multiStockHoldings = res.holdings;
           if (res.avgPrices) ModalManager.multiStockAvgPrices = res.avgPrices;
           if (res.profitLosses) ModalManager.multiStockProfitLosses = res.profitLosses;
           if (res.profitRates) ModalManager.multiStockProfitRates = res.profitRates;
 
+          ModalManager.updateMultiStockUI();
           SoundEngine.fanfare();
           alert(res.msg);
-          open('stock');
         } else {
           alert(res?.msg || '주문 실패');
         }

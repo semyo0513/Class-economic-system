@@ -279,6 +279,16 @@ function fetchNaverStockPrice(code) {
   };
   const defaultName = stockNames[code] || code;
 
+  // 0. 초고속 캐시 조회 (60초 메모리 캐싱으로 0.001초 응답 보장)
+  const cacheKey = 'stock_live_v2_' + code;
+  try {
+    const cache = CacheService.getScriptCache();
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (_) {}
+
   // 1. Google Finance 실시간 웹 크롤링
   try {
     const exchange = code === '086520' ? 'KOSDAQ' : 'KRX';
@@ -299,13 +309,17 @@ function fetchNaverStockPrice(code) {
         const pNum = Number(priceMatch[1].replace(/[₩,]/g, '').trim());
         if (!isNaN(pNum) && pNum > 0) {
           const rateStr = rateMatch ? rateMatch[1] : '0.00%';
-          return {
+          const stockResult = {
             code: code,
             name: defaultName,
             price: pNum,
             changeRate: rateStr.startsWith('+') || rateStr.startsWith('-') ? rateStr : ('+' + rateStr),
             changePrice: rateStr
           };
+          try {
+            CacheService.getScriptCache().put(cacheKey, JSON.stringify(stockResult), 60);
+          } catch (_) {}
+          return stockResult;
         }
       }
     }
