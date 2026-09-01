@@ -1316,27 +1316,49 @@ function handleRequest(payload, callback) {
         break;
       }
 
+      case 'updateFinancialSettings':
       case 'updateStockSettings': {
-        const mode = payload.mode || 'REALTIME_NAVER';
-        const codes = payload.codes || '005930,035720,035420,086520,005380,CLASS';
+        const mode = payload.mode || payload.stockMode || 'REALTIME_NAVER';
+        const codes = payload.codes || payload.stockCodes || '005930,035720,035420,086520,005380,CLASS';
         const customPrice = Number(payload.customPrice);
+        const depositRate = (payload.depositRate !== undefined && !isNaN(Number(payload.depositRate))) ? Number(payload.depositRate) : null;
+        const taxRate = (payload.taxRate !== undefined && !isNaN(Number(payload.taxRate))) ? Number(payload.taxRate) : null;
+        const lotteryPrice = (payload.lotteryPrice !== undefined && !isNaN(Number(payload.lotteryPrice))) ? Number(payload.lotteryPrice) : null;
+        const defaultSalary = (payload.defaultSalary !== undefined && !isNaN(Number(payload.defaultSalary))) ? Number(payload.defaultSalary) : null;
+        const schoolName = payload.schoolName || null;
 
         const setSh = getOrCreateSheet(SH.SETTINGS);
         const data = setSh.getDataRange().getValues();
-        let modeUpdated = false, codesUpdated = false;
+        const settingsMap = {
+          'STOCK_MODE': mode,
+          'STOCK_ACTIVE_CODES': codes
+        };
+        if (depositRate !== null) settingsMap['예금_기본이자율'] = depositRate;
+        if (taxRate !== null) settingsMap['세금_기본세율'] = taxRate;
+        if (lotteryPrice !== null) settingsMap['복권_가격'] = lotteryPrice;
+        if (defaultSalary !== null) settingsMap['월급_기본금액'] = defaultSalary;
+        if (schoolName) settingsMap['학교명'] = schoolName;
 
-        for (let i = 1; i < data.length; i++) {
-          if (data[i][0] === 'STOCK_MODE') { setSh.getRange(i + 1, 2).setValue(mode); modeUpdated = true; }
-          if (data[i][0] === 'STOCK_ACTIVE_CODES') { setSh.getRange(i + 1, 2).setValue(codes); codesUpdated = true; }
-        }
-        if (!modeUpdated) setSh.appendRow(['STOCK_MODE', mode, '주식 운영 방식']);
-        if (!codesUpdated) setSh.appendRow(['STOCK_ACTIVE_CODES', codes, '활성화 종목 코드']);
+        Object.keys(settingsMap).forEach(key => {
+          let updated = false;
+          for (let i = 1; i < data.length; i++) {
+            if (String(data[i][0]).trim() === key) {
+              setSh.getRange(i + 1, 2).setValue(settingsMap[key]);
+              updated = true;
+              break;
+            }
+          }
+          if (!updated) {
+            setSh.appendRow([key, settingsMap[key], '관리자 설정']);
+          }
+        });
 
         if (!isNaN(customPrice) && customPrice > 0) {
           getOrCreateSheet(SH.STOCK).appendRow([nowStr(), '주가', customPrice, '', '']);
         }
 
-        result = { success: true, msg: '주식 운영 모드 및 활성 종목 설정이 저장되었습니다!' };
+        const freshSettings = getSettings();
+        result = { success: true, msg: '금융, 경제 및 주식 운영 설정이 성공적으로 저장되었습니다!', settings: freshSettings };
         break;
       }
 
@@ -1440,27 +1462,33 @@ function handleRequest(payload, callback) {
         break;
       }
 
+      case 'updateMartItem':
       case 'updateItemPriceAndStock': {
-        const itemName = payload.itemName;
-        const newPrice = Number(payload.price);
-        const newStock = Number(payload.stock);
+        const oldItemName = String(payload.oldItemName || payload.itemName || '').trim();
+        const newItemName = String(payload.newItemName || payload.name || oldItemName).trim();
+        const newPrice = Number(payload.price !== undefined ? payload.price : payload.금액);
+        const newStock = Number(payload.stock !== undefined ? payload.stock : payload.수량);
+        const category = payload.category || payload.카테고리 || (payload.action === 'updateMartItem' ? '마트물품' : '아이템');
         const sh = getOrCreateSheet(SH.ASSETS);
         const data = sh.getDataRange().getValues();
         let found = false;
 
         for (let i = 1; i < data.length; i++) {
-          if (String(data[i][3]).trim() === itemName) {
+          if (String(data[i][3]).trim() === oldItemName || String(data[i][3]).trim() === newItemName) {
+            if (newItemName) sh.getRange(i + 1, 4).setValue(newItemName);
             if (!isNaN(newPrice)) sh.getRange(i + 1, 5).setValue(newPrice);
             if (!isNaN(newStock)) sh.getRange(i + 1, 6).setValue(newStock);
+            if (category) sh.getRange(i + 1, 3).setValue(category);
             found = true;
             break;
           }
         }
-        if (!found) {
-          sh.appendRow([nowStr(), '선생님', '아이템', itemName, newPrice || 5000, newStock || 99, '', '판매중', '', '']);
+        if (!found && (newItemName || oldItemName)) {
+          const finalName = newItemName || oldItemName;
+          sh.appendRow([nowStr(), '선생님', category, finalName, isNaN(newPrice) ? 1000 : newPrice, isNaN(newStock) ? 20 : newStock, '', '판매중', '', '']);
           found = true;
         }
-        result = { success: true, msg: `[${itemName}] 가격 및 수량이 저장되었습니다.` };
+        result = { success: true, msg: `[${newItemName || oldItemName}] 물품 정보(이름/가격/재고)가 저장되었습니다.` };
         break;
       }
 

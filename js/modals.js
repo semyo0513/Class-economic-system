@@ -1220,15 +1220,39 @@ const ModalManager = (() => {
 
             <!-- ════════ 탭 3: 금융 및 경제 설정 ════════ -->
             <div id="admin-cat-finance" class="admin-category-panel" style="display:none;">
+              <!-- 1. 은행 / 세금 / 복권 / 월급 기본 경제 변수 -->
+              <div style="background:#ffffff; border:2px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+                <div style="font-weight:bold; font-size:13px; color:#1e293b; margin-bottom:8px;">🏦 은행 & 기본 경제 파라미터</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label style="display:block; font-size:11px; font-weight:bold; margin-bottom:2px;">예금 기본 이자율 (%)</label>
+                    <input type="number" step="0.1" id="admin-deposit-rate" value="${(Number(GameState.settings?.['예금_기본이자율'] !== undefined ? GameState.settings['예금_기본이자율'] : 0.05) * 100).toFixed(1)}" style="width:100%; padding:6px 8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;">
+                  </div>
+                  <div class="form-group">
+                    <label style="display:block; font-size:11px; font-weight:bold; margin-bottom:2px;">학급 기본 세율 (%)</label>
+                    <input type="number" step="0.1" id="admin-tax-rate" value="${(Number(GameState.settings?.['세금_기본세율'] !== undefined ? GameState.settings['세금_기본세율'] : 0.10) * 100).toFixed(1)}" style="width:100%; padding:6px 8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;">
+                  </div>
+                  <div class="form-group">
+                    <label style="display:block; font-size:11px; font-weight:bold; margin-bottom:2px;">복권 1장 가격 (원)</label>
+                    <input type="number" id="admin-lottery-price" value="${Number(GameState.settings?.['복권_가격'] !== undefined ? GameState.settings['복권_가격'] : 500)}" style="width:100%; padding:6px 8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;">
+                  </div>
+                  <div class="form-group">
+                    <label style="display:block; font-size:11px; font-weight:bold; margin-bottom:2px;">1인1직업 기본 월급 (원)</label>
+                    <input type="number" id="admin-default-salary" value="${Number(GameState.settings?.['월급_기본금액'] !== undefined ? GameState.settings['월급_기본금액'] : 50000)}" style="width:100%; padding:6px 8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;">
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. 주식 운영 모드 및 시세 설정 -->
               <div style="background:#f8fafc; border:2px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
                 <div style="font-weight:bold; font-size:13px; margin-bottom:6px;">📈 주식 운영 모드 설정</div>
-                <label style="margin-right:12px; font-size:12px;"><input type="radio" name="stock-mode-radio" value="REALTIME_NAVER" checked> 실시간 네이버 증권 (다종목)</label>
-                <label style="font-size:12px;"><input type="radio" name="stock-mode-radio" value="MANUAL"> 교사 수동 조정 주식 (학급 자체 주가)</label>
+                <label style="margin-right:12px; font-size:12px;"><input type="radio" name="stock-mode-radio" value="REALTIME_NAVER" ${(GameState.settings?.['STOCK_MODE'] !== 'MANUAL') ? 'checked' : ''}> 실시간 네이버 증권 (다종목)</label>
+                <label style="font-size:12px;"><input type="radio" name="stock-mode-radio" value="MANUAL" ${(GameState.settings?.['STOCK_MODE'] === 'MANUAL') ? 'checked' : ''}> 교사 수동 조정 주식 (학급 자체 주가)</label>
               </div>
 
               <div class="form-group" style="margin-bottom:10px;">
                 <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">활성화할 주식 종목 코드 (쉼표로 구분)</label>
-                <input type="text" id="admin-stock-codes" value="005930,035720,035420,086520,005380,CLASS" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;">
+                <input type="text" id="admin-stock-codes" value="${GameState.settings?.['STOCK_ACTIVE_CODES'] || '005930,035720,035420,086520,005380,CLASS'}" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;">
                 <div style="font-size:11px; color:#64748b; margin-top:2px;">(005930=삼성전자, 035720=카카오, 035420=NAVER, 086520=에코프로, CLASS=학급주식)</div>
               </div>
 
@@ -1237,12 +1261,7 @@ const ModalManager = (() => {
                 <input type="number" id="admin-new-stock-price" placeholder="예: 1300" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
               </div>
 
-              <div class="form-group" style="margin-bottom:12px;">
-                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">주식 경제 뉴스 제목</label>
-                <input type="text" id="admin-stock-news-title" placeholder="예: 학급 마트 신규 오픈 호재" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
-              </div>
-
-              <button class="pixel-btn-primary" onclick="ModalManager.saveStockSettings()">💾 주식 모드 및 시세 설정 저장</button>
+              <button class="pixel-btn-primary" onclick="ModalManager.saveFinancialSettings()">💾 금융 및 경제설정 전체 저장</button>
             </div>
 
             <!-- ════════ 탭 4: 시스템 및 공지 관리 ════════ -->
@@ -2001,19 +2020,57 @@ const ModalManager = (() => {
       ModalManager.open('inventory');
     },
 
-    // ─── 주식 설정 저장 (교장실) ───
-    saveStockSettings: async () => {
+    // ─── 금융 및 경제 설정 저장 (교장실) ───
+    saveFinancialSettings: async () => {
       const modeEl = document.querySelector('input[name="stock-mode-radio"]:checked');
       const mode = modeEl ? modeEl.value : 'REALTIME_NAVER';
       const codes = document.getElementById('admin-stock-codes')?.value || '005930,035720,035420,086520,005380,CLASS';
       const price = Number(document.getElementById('admin-new-stock-price')?.value);
-      const title = document.getElementById('admin-stock-news-title')?.value || '';
 
-      API.showLoading('주식 설정 저장 중...');
-      const res = await API.call('updateStockSettings', { mode: mode, codes: codes, customPrice: price });
+      const depositRatePct = Number(document.getElementById('admin-deposit-rate')?.value);
+      const taxRatePct = Number(document.getElementById('admin-tax-rate')?.value);
+      const lotteryPrice = Number(document.getElementById('admin-lottery-price')?.value);
+      const defaultSalary = Number(document.getElementById('admin-default-salary')?.value);
+
+      const depositRate = !isNaN(depositRatePct) ? (depositRatePct / 100) : 0.05;
+      const taxRate = !isNaN(taxRatePct) ? (taxRatePct / 100) : 0.10;
+
+      API.showLoading('금융 및 경제설정 저장 중...');
+      const payload = {
+        mode: mode,
+        stockMode: mode,
+        codes: codes,
+        stockCodes: codes,
+        customPrice: price,
+        depositRate: depositRate,
+        taxRate: taxRate,
+        lotteryPrice: isNaN(lotteryPrice) ? 500 : lotteryPrice,
+        defaultSalary: isNaN(defaultSalary) ? 50000 : defaultSalary
+      };
+
+      const res = await API.call('updateFinancialSettings', payload);
       API.hideLoading();
+
+      if (!GameState.settings) GameState.settings = {};
+      GameState.settings['STOCK_MODE'] = mode;
+      GameState.settings['STOCK_ACTIVE_CODES'] = codes;
+      GameState.settings['예금_기본이자율'] = depositRate;
+      GameState.settings['세금_기본세율'] = taxRate;
+      GameState.settings['복권_가격'] = isNaN(lotteryPrice) ? 500 : lotteryPrice;
+      GameState.settings['월급_기본금액'] = isNaN(defaultSalary) ? 50000 : defaultSalary;
+
+      if (res && res.settings) {
+        GameState.settings = { ...GameState.settings, ...res.settings };
+      }
+      try {
+        localStorage.setItem('classbank_system_settings', JSON.stringify(GameState.settings));
+      } catch (_) {}
+
       SoundEngine.fanfare();
-      alert(res?.msg || '주식 설정이 성공적으로 저장되었습니다!');
+      alert(res?.msg || '금융 및 경제설정이 성공적으로 저장되었습니다!');
+    },
+    saveStockSettings: async () => {
+      await ModalManager.saveFinancialSettings();
     },
 
     activeMultiStockCode: '005930',
@@ -2804,13 +2861,20 @@ const ModalManager = (() => {
     },
 
     editItemPriceAndStock: async (itemName, curPrice, curStock) => {
-      const newPrice = prompt(`[${itemName}] 새 판매 가격(원):`, curPrice);
-      if (newPrice === null) return;
-      const newStock = prompt(`[${itemName}] 새 재고 수량(개):`, curStock);
-      if (newStock === null) return;
+      const newName = prompt(`[${itemName}] 물품명 (변경하지 않으려면 그대로 유지):`, itemName);
+      if (newName === null) return;
+      const finalName = newName.trim() || itemName;
+
+      const newPriceStr = prompt(`[${finalName}] 새 판매 가격(원):`, curPrice);
+      if (newPriceStr === null) return;
+      const newStockStr = prompt(`[${finalName}] 새 재고 수량(개):`, curStock);
+      if (newStockStr === null) return;
+
+      const newPrice = Number(newPriceStr);
+      const newStock = Number(newStockStr);
 
       API.showLoading('아이템 정보 수정 중...');
-      const res = await API.call('updateItemPriceAndStock', { itemName, price: Number(newPrice), stock: Number(newStock) });
+      const res = await API.call('updateItemPriceAndStock', { oldItemName: itemName, newItemName: finalName, itemName: finalName, price: newPrice, stock: newStock });
       API.hideLoading();
       SoundEngine.coin();
       alert(res?.msg || '수정 완료');
@@ -2956,7 +3020,7 @@ const ModalManager = (() => {
       if (isNaN(stock)) return;
 
       API.showLoading('마트 물품 등록 중...');
-      API.call('updateMartItem', { itemName: name, price: price, stock: stock, status: '판매중' }).then(res => {
+      API.call('updateMartItem', { itemName: name.trim(), price: price, stock: stock, status: '판매중', category: '마트물품' }).then(res => {
         API.hideLoading();
         SoundEngine.fanfare();
         alert(res?.msg || '물품 등록 완료');
@@ -2965,13 +3029,17 @@ const ModalManager = (() => {
     },
 
     editMartItem: (name, curPrice, curStock) => {
-      const price = Number(prompt(`[${name}] 변경할 가격(원):`, curPrice));
+      const newName = prompt(`[${name}] 물품명 (변경하지 않으려면 그대로 유지):`, name);
+      if (newName === null) return;
+      const finalName = newName.trim() || name;
+
+      const price = Number(prompt(`[${finalName}] 변경할 가격(원):`, curPrice));
       if (isNaN(price)) return;
-      const stock = Number(prompt(`[${name}] 변경할 재고 수량:`, curStock));
+      const stock = Number(prompt(`[${finalName}] 변경할 재고 수량(개):`, curStock));
       if (isNaN(stock)) return;
 
       API.showLoading('물품 정보 수정 중...');
-      API.call('updateMartItem', { itemName: name, price: price, stock: stock, status: '판매중' }).then(res => {
+      API.call('updateMartItem', { oldItemName: name, newItemName: finalName, itemName: finalName, price: price, stock: stock, status: '판매중', category: '마트물품' }).then(res => {
         API.hideLoading();
         SoundEngine.coin();
         alert(res?.msg || '수정 완료');
@@ -2991,6 +3059,13 @@ const ModalManager = (() => {
         API.hideLoading();
         SoundEngine.fanfare();
         alert(res?.msg || '공지사항이 등록되었습니다.');
+
+        // 상단 흘러가는 공지사항 전광판 텍스트 즉시 갱신
+        const tickerEl = document.getElementById('notice-ticker-text');
+        if (tickerEl) {
+          tickerEl.textContent = `📢 [${urgent ? '긴급' : '공지'}] ${title}: ${content} ✨`;
+        }
+
         open('school');
       });
     },

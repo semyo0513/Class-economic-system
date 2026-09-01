@@ -213,10 +213,70 @@
       50% { transform: scale(1.04); }
     }
 
+    /* 상단 실시간 흘러가는 공지사항 전광판 (Marquee Ticker) */
+    #notice-ticker-bar {
+      position: absolute;
+      top: 50px;
+      left: 8px;
+      right: 150px;
+      height: 28px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(6px);
+      border: 2px solid #38bdf8;
+      border-radius: 14px;
+      padding: 2px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 1000;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .ticker-badge {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 900;
+      padding: 1px 6px;
+      border-radius: 10px;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .ticker-content-box {
+      flex: 1;
+      overflow: hidden;
+      white-space: nowrap;
+      position: relative;
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+    .marquee-text {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: bold;
+      color: #f8fafc;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+      white-space: nowrap;
+      padding-left: 100%;
+      animation: marqueeAnim 30s linear infinite;
+    }
+    .marquee-text:hover {
+      animation-play-state: paused;
+    }
+    @keyframes marqueeAnim {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+
     /* 실시간 미니맵 레이더 HUD */
     #minimap-hud-wrap {
       position: absolute;
-      top: 60px;
+      top: 50px;
       right: 8px;
       background: rgba(255, 253, 247, 0.95);
       border: 3px solid #334155;
@@ -750,6 +810,17 @@
       </div>
     </div>
 
+    <!-- 상단 실시간 흘러가는 공지사항 전광판 (Marquee Ticker) -->
+    <div id="notice-ticker-bar" onclick="ModalManager.open('school')">
+      <div class="ticker-badge">📢 공지</div>
+      <div class="ticker-content-box">
+        <div id="notice-ticker-text" class="marquee-text">
+          🌳 행복초 2D 클래스타운에 오신 것을 환영합니다! 기숙사 미니룸을 예쁘게 꾸미고 다양한 활동에 참여해보세요 ✨
+        </div>
+      </div>
+      <div style="font-size:10px; color:#38bdf8; white-space:nowrap; font-weight:bold;">열기 ➡️</div>
+    </div>
+
     <!-- 실시간 미니맵 레이더 HUD -->
     <div id="minimap-hud-wrap">
       <div class="minimap-title">
@@ -983,6 +1054,14 @@
               document.title = `${schName} 클래스타운 - 동물의 숲 2D 학급경영`;
               const logoEl = document.querySelector('.login-logo');
               if (logoEl) logoEl.innerHTML = `🌳 ${schName} 클래스타운`;
+              const hudSchool = document.getElementById('hud-school-name');
+              if (hudSchool) hudSchool.textContent = `🏫 ${schName}`;
+            }
+          }
+          if (res && res.notices && res.notices.length > 0) {
+            const tickerEl = document.getElementById('notice-ticker-text');
+            if (tickerEl) {
+              tickerEl.textContent = res.notices.slice(0, 5).map(n => `[${n.중요도 === '긴급' ? '🚨긴급' : '📢공지'}] ${n.제목}: ${n.내용}`).join('   |   ');
             }
           }
           if (res && (res.ranking || res.allStudents || res.students)) {
@@ -1020,6 +1099,14 @@
               document.title = `${schName} 클래스타운 - 동물의 숲 2D 학급경영`;
               const logoEl = document.querySelector('.login-logo');
               if (logoEl) logoEl.innerHTML = `🌳 ${schName} 클래스타운`;
+              const hudSchool = document.getElementById('hud-school-name');
+              if (hudSchool) hudSchool.textContent = `🏫 ${schName}`;
+            }
+          }
+          if (res && res.notices && res.notices.length > 0) {
+            const tickerEl = document.getElementById('notice-ticker-text');
+            if (tickerEl) {
+              tickerEl.textContent = res.notices.slice(0, 5).map(n => `[${n.중요도 === '긴급' ? '🚨긴급' : '📢공지'}] ${n.제목}: ${n.내용}`).join('   |   ');
             }
           }
           if (res && (res.ranking || res.allStudents || res.students)) {
