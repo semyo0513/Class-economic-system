@@ -803,7 +803,8 @@ const MiniroomSystem = (() => {
       }
     },
     promptBuyInPalette: async (id, price, name) => {
-      if (confirm(`[${name}] 소품을 ${price.toLocaleString()}원에 구매하시겠습니까?`)) {
+      const ok = await AppDialog.confirm(`[${name}] 소품을 ${price.toLocaleString()}원에 구매하시겠습니까?`, '🛍️ 소품 구매');
+      if (ok) {
         await ModalManager.buyFurniture(id, price, name);
         if (currentRoomOwner) openRoom(currentRoomOwner, true);
       }

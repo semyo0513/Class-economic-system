@@ -908,6 +908,26 @@
     </div>
   </div>
 
+  <!-- 4. 커스텀 시스템 대화상자 모달 (Alert / Confirm / Prompt 웹앱 팝업) -->
+  <div id="app-dialog-overlay" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.72); backdrop-filter:blur(5px); z-index:30000; align-items:center; justify-content:center; padding:16px;" onmousedown="event.stopPropagation()" onpointerdown="event.stopPropagation()">
+    <div id="app-dialog-container" style="width:100%; max-width:440px; background:#ffffff; border:4px solid #334155; border-radius:16px; box-shadow:0 10px 0 #1e293b, 0 25px 40px rgba(0,0,0,0.4); overflow:hidden; animation:popIn 0.15s ease-out;" onclick="event.stopPropagation()">
+      <div id="app-dialog-header" style="background:#f1f5f9; border-bottom:3px solid #cbd5e1; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
+        <div id="app-dialog-title" style="font-weight:bold; font-size:14px; color:#1e293b; display:flex; align-items:center; gap:6px;">🔔 알림</div>
+        <div class="modal-close-btn" style="width:24px; height:24px; font-size:12px;" onclick="AppDialog.cancel()">✕</div>
+      </div>
+      <div style="padding:18px 20px;">
+        <div id="app-dialog-message" style="font-size:13px; color:#334155; line-height:1.6; white-space:pre-wrap; word-break:break-all; margin-bottom:14px;"></div>
+        <div id="app-dialog-input-wrap" style="display:none; margin-bottom:14px;">
+          <input type="text" id="app-dialog-input" style="width:100%; padding:9px 12px; border:2px solid #94a3b8; border-radius:8px; font-size:13px; outline:none; background:#f8fafc;" onkeydown="if(event.key==='Enter') AppDialog.confirmAction()">
+        </div>
+        <div id="app-dialog-actions" style="display:flex; justify-content:flex-end; gap:8px;">
+          <button id="app-dialog-btn-cancel" class="pixel-btn-secondary" style="padding:7px 16px; font-size:12px; display:none;" onclick="AppDialog.cancel()">취소</button>
+          <button id="app-dialog-btn-confirm" class="pixel-btn-primary" style="width:auto; padding:7px 20px; font-size:12px;" onclick="AppDialog.confirmAction()">확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 전체화면 블로킹 로딩 오버레이 (로딩 중 중복 터치/클릭 원천 차단) -->
   <div id="global-loading" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.65); backdrop-filter:blur(3px); z-index:999999; flex-direction:column; align-items:center; justify-content:center; pointer-events:all; cursor:wait;">
     <div style="background:#ffffff; border:3px solid #1e293b; border-radius:14px; padding:20px 28px; display:flex; flex-direction:column; align-items:center; gap:12px; box-shadow:0 12px 24px rgba(0,0,0,0.3);">
@@ -932,6 +952,110 @@
   <script src="js/game.js"></script>
 
   <script>
+    // 🌟 커스텀 인앱 다이얼로그 시스템 (브라우저 시스템 팝업 완전 대체)
+    window.AppDialog = (() => {
+      let resolveFn = null;
+
+      function show(type, message, options = {}) {
+        return new Promise((resolve) => {
+          resolveFn = resolve;
+          const overlay = document.getElementById('app-dialog-overlay');
+          const titleEl = document.getElementById('app-dialog-title');
+          const msgEl = document.getElementById('app-dialog-message');
+          const inputWrap = document.getElementById('app-dialog-input-wrap');
+          const inputEl = document.getElementById('app-dialog-input');
+          const cancelBtn = document.getElementById('app-dialog-btn-cancel');
+          const confirmBtn = document.getElementById('app-dialog-btn-confirm');
+
+          if (!overlay || !msgEl) {
+            if (type === 'confirm') return resolve(window.confirm(message));
+            if (type === 'prompt') return resolve(window.prompt(message, options.defaultValue || ''));
+            window.alert(message);
+            return resolve(true);
+          }
+
+          SoundEngine.open();
+          msgEl.textContent = String(message || '');
+
+          if (type === 'alert') {
+            titleEl.innerHTML = options.title || '🔔 알림';
+            inputWrap.style.display = 'none';
+            cancelBtn.style.display = 'none';
+            confirmBtn.textContent = options.confirmText || '확인';
+            confirmBtn.style.background = '#0284c7';
+          } else if (type === 'confirm') {
+            titleEl.innerHTML = options.title || '❓ 확인';
+            inputWrap.style.display = 'none';
+            cancelBtn.style.display = 'inline-block';
+            cancelBtn.textContent = options.cancelText || '취소';
+            confirmBtn.textContent = options.confirmText || '확인';
+            confirmBtn.style.background = '#16a34a';
+          } else if (type === 'prompt') {
+            titleEl.innerHTML = options.title || '✏️ 입력';
+            inputWrap.style.display = 'block';
+            inputEl.value = options.defaultValue !== undefined ? options.defaultValue : '';
+            cancelBtn.style.display = 'inline-block';
+            cancelBtn.textContent = options.cancelText || '취소';
+            confirmBtn.textContent = options.confirmText || '입력 완료';
+            confirmBtn.style.background = '#2563eb';
+            setTimeout(() => {
+              inputEl.focus();
+              inputEl.select();
+            }, 80);
+          }
+
+          overlay.style.display = 'flex';
+        });
+      }
+
+      function confirmAction() {
+        SoundEngine.click();
+        const overlay = document.getElementById('app-dialog-overlay');
+        const inputWrap = document.getElementById('app-dialog-input-wrap');
+        const inputEl = document.getElementById('app-dialog-input');
+
+        if (overlay) overlay.style.display = 'none';
+
+        if (resolveFn) {
+          const cb = resolveFn;
+          resolveFn = null;
+          if (inputWrap && inputWrap.style.display !== 'none') {
+            cb(inputEl ? inputEl.value : '');
+          } else {
+            cb(true);
+          }
+        }
+      }
+
+      function cancel() {
+        SoundEngine.close();
+        const overlay = document.getElementById('app-dialog-overlay');
+        const inputWrap = document.getElementById('app-dialog-input-wrap');
+
+        if (overlay) overlay.style.display = 'none';
+
+        if (resolveFn) {
+          const cb = resolveFn;
+          resolveFn = null;
+          if (inputWrap && inputWrap.style.display !== 'none') {
+            cb(null);
+          } else {
+            cb(false);
+          }
+        }
+      }
+
+      return {
+        alert: (msg, title) => show('alert', msg, { title }),
+        confirm: (msg, title) => show('confirm', msg, { title }),
+        prompt: (msg, defaultVal, title) => show('prompt', msg, { defaultValue: defaultVal, title }),
+        confirmAction,
+        cancel
+      };
+    })();
+
+    // 글로벌 alert 커스텀 모달 오버라이드
+    window.alert = (msg, title) => { AppDialog.alert(msg, title); };
     window.MobileJoystickVector = { x: 0, y: 0 };
     function setDpad(x, y) {
       window.MobileJoystickVector.x = x;

@@ -1553,44 +1553,43 @@ const ModalManager = (() => {
     },
 
     // ─── 국고 직접 입금 & 지출 집행 ───
-    openTreasuryDepositModal: () => {
-      const amt = prompt('국고에 입금할 금액(원)을 입력하세요:');
+    openTreasuryDepositModal: async () => {
+      const amt = await AppDialog.prompt('국고에 입금할 금액(원)을 입력하세요:', '', '🏦 국고 입금');
       if (!amt || isNaN(amt) || Number(amt) <= 0) return;
-      const reason = prompt('입금 사유(예: 교사 특별 보조금 등):', '교사 보조금 입금');
+      const reason = await AppDialog.prompt('입금 사유(예: 교사 특별 보조금 등):', '교사 보조금 입금', '📝 입금 사유');
       if (!reason) return;
 
       API.showLoading('국고 입금 집행 중...');
-      API.call('manageTreasury', { type: '입금', amount: Number(amt), reason: reason, person: '선생님' }).then(res => {
-        API.hideLoading();
-        SoundEngine.fanfare();
-        alert(res?.msg || '입금 완료');
-        open('bank');
-      });
+      const res = await API.call('manageTreasury', { type: '입금', amount: Number(amt), reason: reason, person: '선생님' });
+      API.hideLoading();
+      SoundEngine.fanfare();
+      await AppDialog.alert(res?.msg || '입금 완료', '🎉 입금 완료');
+      open('bank');
     },
 
-    openTreasuryExpenseModal: () => {
-      const amt = prompt('국고에서 지출할 금액(원)을 입력하세요:');
+    openTreasuryExpenseModal: async () => {
+      const amt = await AppDialog.prompt('국고에서 지출할 금액(원)을 입력하세요:', '', '🏦 국고 지출');
       if (!amt || isNaN(amt) || Number(amt) <= 0) return;
-      const reason = prompt('지출 사유(예: 학급 피자 파티 비용, 장학금 지급):', '학급 행사비 지출');
+      const reason = await AppDialog.prompt('지출 사유(예: 학급 피자 파티 비용, 장학금 지급):', '학급 행사비 지출', '📝 지출 사유');
       if (!reason) return;
 
       API.showLoading('국고 지출 집행 중...');
-      API.call('manageTreasury', { type: '출금', amount: Number(amt), reason: reason, person: '선생님' }).then(res => {
-        API.hideLoading();
-        SoundEngine.coin();
-        alert(res?.msg || '지출 집행 완료');
-        open('bank');
-      });
+      const res = await API.call('manageTreasury', { type: '출금', amount: Number(amt), reason: reason, person: '선생님' });
+      API.hideLoading();
+      SoundEngine.coin();
+      await AppDialog.alert(res?.msg || '지출 집행 완료', '💸 지출 완료');
+      open('bank');
     },
 
     // ─── 패션 살롱 & 아이템 구매 (인벤토리 보관 후 장착 원칙) ───
     buyHairDye: async (id, color, price, name) => {
-      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 염색/장착 가능)`)) return;
+      const ok = await AppDialog.confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 염색/장착 가능)`, '🛍️ 아이템 구매');
+      if (!ok) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
 
       if (st && (st.cash || 0) < price) {
-        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+        return AppDialog.alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`, '⚠️ 잔액 부족');
       }
 
       API.showLoading('헤어 염색약 구매 중...');
@@ -1607,20 +1606,21 @@ const ModalManager = (() => {
         if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
         SoundEngine.fanfare();
-        alert(`🎁 [${name}] 구매 완료!\n아이템이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 언제든 장착할 수 있습니다.`);
+        await AppDialog.alert(`🎁 [${name}] 구매 완료!\n아이템이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 언제든 장착할 수 있습니다.`, '🎉 구매 완료');
       } else {
-        alert(buyRes?.msg || '구매 실패');
+        await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
     },
 
     buyCostume: async (id, price, name) => {
-      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 착용 가능)`)) return;
+      const ok = await AppDialog.confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 착용 가능)`, '🛍️ 의상 구매');
+      if (!ok) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const cType = id.replace('costume_', '');
 
       if (st && (st.cash || 0) < price) {
-        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+        return AppDialog.alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`, '⚠️ 잔액 부족');
       }
 
       API.showLoading('의상 코스튬 구매 중...');
@@ -1637,20 +1637,21 @@ const ModalManager = (() => {
         if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
         SoundEngine.fanfare();
-        alert(`🎁 [${name}] 구매 완료!\n의상이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 착용할 수 있습니다.`);
+        await AppDialog.alert(`🎁 [${name}] 구매 완료!\n의상이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 착용할 수 있습니다.`, '🎉 구매 완료');
       } else {
-        alert(buyRes?.msg || '구매 실패');
+        await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
     },
 
     buyHat: async (id, price, name) => {
-      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 장착 가능)`)) return;
+      const ok = await AppDialog.confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 장착 가능)`, '🛍️ 모자/액세서리 구매');
+      if (!ok) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const hType = id.replace('hat_', '');
 
       if (st && (st.cash || 0) < price) {
-        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+        return AppDialog.alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`, '⚠️ 잔액 부족');
       }
 
       API.showLoading('액세서리 구매 중...');
@@ -1667,20 +1668,21 @@ const ModalManager = (() => {
         if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
         SoundEngine.fanfare();
-        alert(`🎁 [${name}] 구매 완료!\n아이템이 내 인벤토리(🎒)에 보관되었습니다.\n인벤토리에서 언제든 장착할 수 있습니다.`);
+        await AppDialog.alert(`🎁 [${name}] 구매 완료!\n아이템이 내 인벤토리(🎒)에 보관되었습니다.\n인벤토리에서 언제든 장착할 수 있습니다.`, '🎉 구매 완료');
       } else {
-        alert(buyRes?.msg || '구매 실패');
+        await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
     },
 
     buyAura: async (id, price, name) => {
-      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 오라 발동 가능)`)) return;
+      const ok = await AppDialog.confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 오라 발동 가능)`, '✨ 오라 구매');
+      if (!ok) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const aType = id.replace('aura_', '');
 
       if (st && (st.cash || 0) < price) {
-        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+        return AppDialog.alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`, '⚠️ 잔액 부족');
       }
 
       API.showLoading('특수 오라 구매 중...');
@@ -1697,21 +1699,22 @@ const ModalManager = (() => {
         if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
         SoundEngine.fanfare();
-        alert(`🎁 [${name}] 구매 완료!\n오라가 내 인벤토리(🎒)에 보관되었습니다.\n인벤토리에서 언제든 발동할 수 있습니다.`);
+        await AppDialog.alert(`🎁 [${name}] 구매 완료!\n오라가 내 인벤토리(🎒)에 보관되었습니다.\n인벤토리에서 언제든 발동할 수 있습니다.`, '🎉 구매 완료');
       } else {
-        alert(buyRes?.msg || '구매 실패');
+        await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
     },
 
     // 🚀 탈 것 구매 (인벤토리 보관 후 인벤토리에서 탑승)
     buyMount: async (id, price, name, speedMult) => {
-      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(이동속도 ${speedMult}배 / 구매 후 인벤토리에서 탑승 가능)`)) return;
+      const ok = await AppDialog.confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(이동속도 ${speedMult}배 / 구매 후 인벤토리에서 탑승 가능)`, '🛴 탈 것 구매');
+      if (!ok) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const mType = id.replace('mount_', '');
 
       if (st && (st.cash || 0) < price) {
-        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+        return AppDialog.alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`, '⚠️ 잔액 부족');
       }
 
       API.showLoading('탈 것 구매 중...');
@@ -1728,21 +1731,22 @@ const ModalManager = (() => {
         if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
         SoundEngine.fanfare();
-        alert(`🎁 [${name}] 구매 완료!\n탈 것이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 언제든 탑승/해제할 수 있습니다.`);
+        await AppDialog.alert(`🎁 [${name}] 구매 완료!\n탈 것이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 언제든 탑승/해제할 수 있습니다.`, '🎉 구매 완료');
       } else {
-        alert(buyRes?.msg || '구매 실패');
+        await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
     },
 
     // 🌺 퍼퓸 & 크기 물약 구매
     buyPerfume: async (id, price, name) => {
-      if (!confirm(`[${name}] 효과를 ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 효과 적용 가능)`)) return;
+      const ok = await AppDialog.confirm(`[${name}] 효과를 ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 효과 적용 가능)`, '🌺 퍼퓸/물약 구매');
+      if (!ok) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const pType = id.replace('perfume_', '').replace('potion_', '');
 
       if (st && (st.cash || 0) < price) {
-        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+        return AppDialog.alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`, '⚠️ 잔액 부족');
       }
 
       API.showLoading('물약/향수 구매 중...');
@@ -1889,18 +1893,19 @@ const ModalManager = (() => {
     },
 
     handleCounterSeatOffer: async (seatNum) => {
-      const counter = prompt('역제안(협상)할 새 희망 금액(원)을 입력하세요:');
+      const counter = await AppDialog.prompt('역제안(협상)할 새 희망 금액(원)을 입력하세요:', '', '🤝 가격 협상');
       if (!counter || isNaN(counter) || Number(counter) <= 0) return;
       ModalManager.handleRespondSeatOffer(seatNum, '협상', Number(counter));
     },
 
     buyFurniture: async (id, price, name) => {
-      if (!confirm(`[${name}] 가구를 ${price.toLocaleString()}원에 구매하시겠습니까?`)) return;
+      const ok = await AppDialog.confirm(`[${name}] 가구를 ${price.toLocaleString()}원에 구매하시겠습니까?`, '🛋️ 가구 구매');
+      if (!ok) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
 
       if (st && (st.cash || 0) < price) {
-        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+        return AppDialog.alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`, '⚠️ 잔액 부족');
       }
 
       API.showLoading('가구 구매 중...');
@@ -1918,9 +1923,9 @@ const ModalManager = (() => {
 
         MiniroomSystem.addFurnitureToInventory(myName, id);
         SoundEngine.fanfare();
-        alert(`🛋️ [${name}] 구매 완료! 미니룸 인벤토리에 보관되었습니다.`);
+        await AppDialog.alert(`🛋️ [${name}] 구매 완료! 미니룸 인벤토리에 보관되었습니다.`, '🎉 구매 완료');
       } else {
-        alert(buyRes?.msg || '구매 실패');
+        await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
     },
 
@@ -2565,8 +2570,9 @@ const ModalManager = (() => {
         }
       });
 
-      if (targets.length === 0) return alert('지급할 금액이 0원 이상이어야 합니다.');
-      if (!confirm(`선택한 ${targets.length}명의 학생에게 총 ${totalAmount.toLocaleString()}원의 월급을 배부하시겠습니까?`)) return;
+      if (targets.length === 0) return AppDialog.alert('지급할 금액이 0원 이상이어야 합니다.', '⚠️ 금액 확인');
+      const ok = await AppDialog.confirm(`선택한 ${targets.length}명의 학생에게 총 ${totalAmount.toLocaleString()}원의 월급을 배부하시겠습니까?`, '💰 월급 일괄 배부');
+      if (!ok) return;
 
       API.showLoading('월급을 배부하는 중...');
       const res = await API.call('payBatchSalaries', { targets, reason });
@@ -2574,10 +2580,10 @@ const ModalManager = (() => {
 
       if (res && res.success) {
         SoundEngine.fanfare();
-        alert(res.msg || `${targets.length}명에게 월급 배부가 완료되었습니다!`);
+        await AppDialog.alert(res?.msg || '월급 일괄 배부가 완료되었습니다!', '🎉 배부 완료');
         open('principal');
       } else {
-        alert(res?.msg || '월급 배부 실패');
+        await AppDialog.alert(res?.msg || '월급 배부 처리에 실패했습니다.', '⚠️ 배부 실패');
       }
     },
 
@@ -2720,12 +2726,13 @@ const ModalManager = (() => {
     },
 
     adminInitSheets: async () => {
-      if (!confirm('정말로 구글 시트의 12개 시트를 초기화하시겠습니까?\n기본 시트 구조와 파라미터가 재생성됩니다.')) return;
+      const ok = await AppDialog.confirm('정말로 구글 시트의 12개 시스템 시트를 자동 초기화하시겠습니까?\n(기존 데이터가 기본 구조로 재구성됩니다)', '⚠️ 시스템 시트 초기화');
+      if (!ok) return;
       API.showLoading('시트 전체 자동 초기화 중...');
       const res = await API.call('initAllSheets', {});
       API.hideLoading();
       SoundEngine.fanfare();
-      alert(res?.msg || '초기화 완료');
+      await AppDialog.alert(res?.msg || '초기화가 완료되었습니다.', '🎉 초기화 완료');
     },
 
     adminStudentsCache: [],
@@ -3085,18 +3092,19 @@ const ModalManager = (() => {
     buySeatModal: async (seatId, price, curOwner) => {
       const st = GameState.student;
       const myName = st ? (st.name || st.이름) : '나';
-      if (curOwner === myName) return alert('이미 내가 보유한 교실 좌석입니다.');
+      if (curOwner === myName) return AppDialog.alert('이미 내가 보유한 교실 좌석입니다.', '🏢 부동산 안내');
 
-      if (!confirm(`[${seatId}] 좌석을 ${price.toLocaleString()}원에 매입하시겠습니까?`)) return;
+      const ok = await AppDialog.confirm(`[${seatId}] 좌석을 ${price.toLocaleString()}원에 매입하시겠습니까?`, '🏢 좌석 매입');
+      if (!ok) return;
       API.showLoading('좌석 매입 중...');
       const res = await API.call('buySeat', { buyerName: myName, seatId: seatId, price: price });
       API.hideLoading();
       if (res && res.success) {
         SoundEngine.fanfare();
-        alert(`[${seatId}] 좌석을 성공적으로 매입했습니다!`);
+        await AppDialog.alert(`[${seatId}] 좌석을 성공적으로 매입했습니다!`, '🎉 매입 완료');
         open('realestate');
       } else {
-        alert(res?.msg || '매입 실패');
+        await AppDialog.alert(res?.msg || '매입 실패', '⚠️ 매입 실패');
       }
     },
 
