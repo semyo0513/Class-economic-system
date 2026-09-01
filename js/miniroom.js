@@ -396,29 +396,33 @@ const MiniroomSystem = (() => {
 
   // 3. 배치된 오브젝트 렌더링 (실사 PNG 에셋 & 자유 크기 조절 Scale 지원)
   function renderPlacedObjects(items) {
+    const st = GameState.student;
+    const isMe = st && (st.name === currentRoomOwner || st.이름 === currentRoomOwner);
+    const canDrag = isMe || isEditing;
+
     return items.map((it, idx) => {
       const def = CONFIG.FURNITURE_CATALOG.find(f => f.id === it.id);
       if (!def) return '';
-      const left = it.x || 100;
-      const top = it.y || 100;
+      const left = it.x !== undefined ? it.x : 100;
+      const top = it.y !== undefined ? it.y : 100;
       const scale = (it.scale !== undefined && it.scale > 0) ? it.scale : 1.0;
       const flipScale = it.flip ? -scale : scale;
       const baseW = def.w || (def.type === 'prop' ? 45 : 70);
       const baseH = def.h || (def.type === 'prop' ? 45 : 70);
 
       return `
-        <div class="placed-furniture ${isEditing ? 'editable-furniture' : ''}"
+        <div class="placed-furniture ${canDrag ? 'editable-furniture' : ''}"
              id="furn_${idx}"
-             style="position:absolute; left: ${left}px; top: ${top}px; width:${baseW}px; height:${baseH}px; cursor:${isEditing ? 'grab' : 'default'}; user-select:none; z-index:${Math.floor(top + 30)}; filter:drop-shadow(0 6px 8px rgba(0,0,0,0.3)); display:flex; align-items:center; justify-content:center;"
+             style="position:absolute; left: ${left}px; top: ${top}px; width:${baseW}px; height:${baseH}px; cursor:${canDrag ? 'grab' : 'default'}; user-select:none; z-index:${Math.floor(top + 30)}; filter:drop-shadow(0 6px 8px rgba(0,0,0,0.3)); display:flex; align-items:center; justify-content:center; touch-action:none;"
              onmousedown="MiniroomSystem.startDrag(event, ${idx})"
              ontouchstart="MiniroomSystem.startTouchDrag(event, ${idx})"
              title="${def.name}">
           ${def.image ? `
-            <img src="${def.image}" draggable="false" style="width:100%; height:100%; object-fit:contain; transform: scaleX(${flipScale}) scaleY(${scale}); pointer-events:none; image-rendering:pixelated;">
+            <img src="${def.image}" draggable="false" style="width:100%; height:100%; object-fit:contain; transform: scaleX(${flipScale}) scaleY(${scale}); pointer-events:none; image-rendering:pixelated; -webkit-user-drag:none;">
           ` : `
-            <div style="font-size:${def.type === 'prop' ? '30px' : '42px'}; transform: scaleX(${flipScale}) scaleY(${scale});">${def.emoji}</div>
+            <div style="font-size:${def.type === 'prop' ? '30px' : '42px'}; transform: scaleX(${flipScale}) scaleY(${scale}); pointer-events:none;">${def.emoji}</div>
           `}
-          ${isEditing ? `
+          ${canDrag ? `
             <div class="furn-control-btns" style="position:absolute; top:-14px; right:-14px; display:flex; gap:2px; z-index:9999; background:rgba(15,23,42,0.9); padding:2px 4px; border-radius:10px; border:1px solid #94a3b8; box-shadow:0 2px 6px rgba(0,0,0,0.4);">
               <span class="furn-ctrl-btn" style="color:#38bdf8; font-size:10px; font-weight:bold; cursor:pointer; padding:0 2px;" onclick="event.stopPropagation(); MiniroomSystem.scaleFurniture(${idx}, 0.15)" title="크기 확대">🔍+</span>
               <span class="furn-ctrl-btn" style="color:#fbbf24; font-size:10px; font-weight:bold; cursor:pointer; padding:0 2px;" onclick="event.stopPropagation(); MiniroomSystem.scaleFurniture(${idx}, -0.15)" title="크기 축소">🔍-</span>
@@ -464,33 +468,57 @@ const MiniroomSystem = (() => {
 
   // 5. 드래그 앤 드롭 시스템
   function startDrag(e, idx) {
-    if (!isEditing) return;
+    const st = GameState.student;
+    const isMe = st && (st.name === currentRoomOwner || st.이름 === currentRoomOwner);
+    if (!isEditing && !isMe) return;
+
     e.preventDefault();
+    e.stopPropagation();
     draggingItemIdx = idx;
+
     const el = document.getElementById(`furn_${idx}`);
     if (el) {
       const rect = el.getBoundingClientRect();
-      dragOffset.x = e.clientX - rect.left - rect.width / 2;
-      dragOffset.y = e.clientY - rect.top - rect.height / 2;
+      dragOffset.x = e.clientX - rect.left;
+      dragOffset.y = e.clientY - rect.top;
+      el.style.cursor = 'grabbing';
+      el.style.zIndex = '9999';
     }
+
+    window.removeEventListener('mousemove', onStageMouseMove);
+    window.removeEventListener('mouseup', onStageMouseUp);
+    window.addEventListener('mousemove', onStageMouseMove);
+    window.addEventListener('mouseup', onStageMouseUp);
   }
 
   function startTouchDrag(e, idx) {
-    if (!isEditing) return;
+    const st = GameState.student;
+    const isMe = st && (st.name === currentRoomOwner || st.이름 === currentRoomOwner);
+    if (!isEditing && !isMe) return;
+
     if (e.touches && e.touches[0]) {
+      e.preventDefault();
+      e.stopPropagation();
       draggingItemIdx = idx;
       const touch = e.touches[0];
       const el = document.getElementById(`furn_${idx}`);
       if (el) {
         const rect = el.getBoundingClientRect();
-        dragOffset.x = touch.clientX - rect.left - rect.width / 2;
-        dragOffset.y = touch.clientY - rect.top - rect.height / 2;
+        dragOffset.x = touch.clientX - rect.left;
+        dragOffset.y = touch.clientY - rect.top;
+        el.style.zIndex = '9999';
       }
+
+      window.removeEventListener('touchmove', onStageTouchMove);
+      window.removeEventListener('touchend', onStageTouchEnd);
+      window.addEventListener('touchmove', onStageTouchMove, { passive: false });
+      window.addEventListener('touchend', onStageTouchEnd);
     }
   }
 
   function onStageMouseMove(e) {
     if (draggingItemIdx === null) return;
+    e.preventDefault();
     moveItemTo(e.clientX, e.clientY);
   }
 
@@ -504,19 +532,21 @@ const MiniroomSystem = (() => {
 
   function moveItemTo(clientX, clientY) {
     const stage = document.getElementById('miniroom-stage');
-    if (!stage) return;
+    if (!stage || draggingItemIdx === null) return;
     const rect = stage.getBoundingClientRect();
+
     let x = clientX - rect.left - dragOffset.x;
     let y = clientY - rect.top - dragOffset.y;
 
-    x = Math.max(10, Math.min(rect.width - 60, x));
-    y = Math.max(20, Math.min(rect.height - 60, y));
-
     const el = document.getElementById(`furn_${draggingItemIdx}`);
     if (el) {
-      el.style.left = `${x}px`;
-      el.style.top = `${y}px`;
-      el.style.zIndex = `${Math.floor(y + 30)}`;
+      const elW = el.offsetWidth || 50;
+      const elH = el.offsetHeight || 50;
+      x = Math.max(0, Math.min(rect.width - elW, x));
+      y = Math.max(0, Math.min(rect.height - elH, y));
+
+      el.style.left = `${Math.round(x)}px`;
+      el.style.top = `${Math.round(y)}px`;
     }
   }
 
@@ -524,9 +554,18 @@ const MiniroomSystem = (() => {
   function onStageTouchEnd() { finishDrag(); }
 
   function finishDrag() {
+    window.removeEventListener('mousemove', onStageMouseMove);
+    window.removeEventListener('mouseup', onStageMouseUp);
+    window.removeEventListener('touchmove', onStageTouchMove);
+    window.removeEventListener('touchend', onStageTouchEnd);
+
     if (draggingItemIdx === null) return;
     const el = document.getElementById(`furn_${draggingItemIdx}`);
     if (el && currentRoomOwner) {
+      el.style.cursor = 'grab';
+      const top = parseInt(el.style.top, 10) || 0;
+      el.style.zIndex = `${Math.floor(top + 30)}`;
+
       const room = getRoomData(currentRoomOwner);
       if (room.items && room.items[draggingItemIdx]) {
         room.items[draggingItemIdx].x = parseInt(el.style.left, 10);
