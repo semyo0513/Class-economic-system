@@ -100,3 +100,13 @@ const CONFIG = {
     { id: 'bgm_night_calm', title: '🌙 고요한 별빛 밤하늘', note: '차분한 자장가 피아노' }
   ]
 };
+
+// 관리자 설정 소품 가격 동기화
+try {
+  const customPrices = JSON.parse(localStorage.getItem('classbank_custom_furn_prices') || '{}');
+  CONFIG.FURNITURE_CATALOG.forEach(f => {
+    if (customPrices[f.id] !== undefined && !isNaN(customPrices[f.id])) {
+      f.price = Number(customPrices[f.id]);
+    }
+  });
+} catch (_) {}

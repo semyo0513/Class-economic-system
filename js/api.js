@@ -40,7 +40,7 @@ const API = (() => {
       const dataStr = encodeURIComponent(JSON.stringify(payload));
       const getUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action) + '&data=' + dataStr + '&t=' + Date.now();
 
-      const timeoutDuration = customTimeoutMs || (action === 'login' ? 2500 : (action === 'initData' ? 3000 : 5000));
+      const timeoutDuration = customTimeoutMs || 12000;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
@@ -57,7 +57,7 @@ const API = (() => {
 
       return getMockResponse(action, payload);
     } catch (err) {
-      console.warn(`[API Call Fast Fallback] Action: ${action}`, err);
+      console.warn(`[API Call Fallback] Action: ${action}`, err);
       return getMockResponse(action, payload);
     } finally {
       if (!silent) hideLoading();

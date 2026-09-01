@@ -13,47 +13,21 @@ const MiniroomSystem = (() => {
   let currentFilter = 'all'; // 'all', 'top', 'search'
   let searchQuery = '';
 
-  // 기본 싸이월드 감성 미니룸 템플릿 (기본 소품 풀세트 탑재)
+  // 기본 싸이월드 감성 미니룸 템플릿 (기본 빈 룸 - 소품은 상점에서 구매하여 배치)
   const DEFAULT_ROOM = {
     wallpaper: 'wp_main_pink',
     floor: 'fl_check_tile',
-    statusMsg: '어서오세요! 나만의 아늑한 2.5D 싸이월드 미니룸입니다 🌸',
+    statusMsg: '나만의 아늑한 2.5D 미니룸에 오신 것을 환영합니다! 🌸',
     feeling: 'happy', // happy, study, rest, rich, love
     bgm: 'bgm_retro_cyworld',
-    todayCount: 7,
-    totalCount: 58,
+    todayCount: 1,
+    totalCount: 1,
     lastVisitedDate: '',
-    likes: 24,
+    likes: 0,
     likedBy: [],
-    inventory: {
-      'decor_princess_bed': 1,
-      'decor_pink_closet': 1,
-      'decor_pink_sofa': 1,
-      'decor_vanity_table': 1,
-      'decor_flower_pillar': 2,
-      'decor_teddy_bear': 1,
-      'decor_sweet_cake': 1,
-      'decor_rabbit_mirror': 1,
-      'decor_round_rug': 1,
-      'decor_vintage_lamp': 1,
-      'decor_study_desk_set': 1,
-      'fn_retro_tv': 1,
-      'pet_calico_cat': 1
-    },
-    items: [
-      { id: 'decor_princess_bed', x: 35, y: 125, flip: false },
-      { id: 'decor_pink_closet', x: 260, y: 75, flip: false },
-      { id: 'decor_vanity_table', x: 350, y: 90, flip: false },
-      { id: 'decor_pink_sofa', x: 135, y: 185, flip: false },
-      { id: 'decor_round_rug', x: 170, y: 215, flip: false },
-      { id: 'decor_teddy_bear', x: 190, y: 205, flip: false },
-      { id: 'decor_flower_pillar', x: 15, y: 195, flip: false },
-      { id: 'decor_sweet_cake', x: 290, y: 195, flip: false }
-    ],
-    guestbook: [
-      { id: 'gb_1', author: '선생님', sticker: '🌸', msg: '방이 정말 사랑스럽고 레트로 감성이 넘치네요! 멋진 인테리어야 ✨', date: '2026-08-31 09:30' },
-      { id: 'gb_2', author: '이하진(반장)', sticker: '💖', msg: '파도타기 타고 놀러왔어! 우리 일촌 맺자~', date: '2026-08-31 14:15' }
-    ]
+    inventory: {},
+    items: [],
+    guestbook: []
   };
 
   const FEELING_MAP = {
@@ -399,33 +373,36 @@ const MiniroomSystem = (() => {
     return '🚶‍♂️';
   }
 
-  // 3. 배치된 오브젝트 렌더링 (실사 PNG 에셋 완벽 지원)
+  // 3. 배치된 오브젝트 렌더링 (실사 PNG 에셋 & 자유 크기 조절 Scale 지원)
   function renderPlacedObjects(items) {
     return items.map((it, idx) => {
       const def = CONFIG.FURNITURE_CATALOG.find(f => f.id === it.id);
       if (!def) return '';
       const left = it.x || 100;
       const top = it.y || 100;
-      const flip = it.flip ? 'scaleX(-1)' : 'scaleX(1)';
-      const width = def.w ? `${def.w}px` : (def.type === 'prop' ? '45px' : '70px');
-      const height = def.h ? `${def.h}px` : (def.type === 'prop' ? '45px' : '70px');
+      const scale = (it.scale !== undefined && it.scale > 0) ? it.scale : 1.0;
+      const flipScale = it.flip ? -scale : scale;
+      const baseW = def.w || (def.type === 'prop' ? 45 : 70);
+      const baseH = def.h || (def.type === 'prop' ? 45 : 70);
 
       return `
         <div class="placed-furniture ${isEditing ? 'editable-furniture' : ''}"
              id="furn_${idx}"
-             style="position:absolute; left: ${left}px; top: ${top}px; width:${width}; height:${height}; cursor:${isEditing ? 'grab' : 'default'}; user-select:none; z-index:${Math.floor(top + 30)}; filter:drop-shadow(0 6px 8px rgba(0,0,0,0.3)); display:flex; align-items:center; justify-content:center;"
+             style="position:absolute; left: ${left}px; top: ${top}px; width:${baseW}px; height:${baseH}px; cursor:${isEditing ? 'grab' : 'default'}; user-select:none; z-index:${Math.floor(top + 30)}; filter:drop-shadow(0 6px 8px rgba(0,0,0,0.3)); display:flex; align-items:center; justify-content:center;"
              onmousedown="MiniroomSystem.startDrag(event, ${idx})"
              ontouchstart="MiniroomSystem.startTouchDrag(event, ${idx})"
              title="${def.name}">
           ${def.image ? `
-            <img src="${def.image}" draggable="false" style="width:100%; height:100%; object-fit:contain; transform:${flip}; pointer-events:none; image-rendering:pixelated;">
+            <img src="${def.image}" draggable="false" style="width:100%; height:100%; object-fit:contain; transform: scaleX(${flipScale}) scaleY(${scale}); pointer-events:none; image-rendering:pixelated;">
           ` : `
-            <div style="font-size:${def.type === 'prop' ? '30px' : '42px'}; transform:${flip};">${def.emoji}</div>
+            <div style="font-size:${def.type === 'prop' ? '30px' : '42px'}; transform: scaleX(${flipScale}) scaleY(${scale});">${def.emoji}</div>
           `}
           ${isEditing ? `
-            <div class="furn-control-btns" style="position:absolute; top:-8px; right:-8px; display:flex; gap:2px; z-index:9999;">
-              <span class="furn-flip-btn" style="background:#3b82f6; color:#fff; border-radius:50%; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.3);" onclick="event.stopPropagation(); MiniroomSystem.flipFurniture(${idx})" title="좌우 반전">🔄</span>
-              <span class="furn-del-btn" style="background:#ef4444; color:#fff; border-radius:50%; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.3);" onclick="event.stopPropagation(); MiniroomSystem.removeFurniture(${idx})" title="회수">✕</span>
+            <div class="furn-control-btns" style="position:absolute; top:-14px; right:-14px; display:flex; gap:2px; z-index:9999; background:rgba(15,23,42,0.9); padding:2px 4px; border-radius:10px; border:1px solid #94a3b8; box-shadow:0 2px 6px rgba(0,0,0,0.4);">
+              <span class="furn-ctrl-btn" style="color:#38bdf8; font-size:10px; font-weight:bold; cursor:pointer; padding:0 2px;" onclick="event.stopPropagation(); MiniroomSystem.scaleFurniture(${idx}, 0.15)" title="크기 확대">🔍+</span>
+              <span class="furn-ctrl-btn" style="color:#fbbf24; font-size:10px; font-weight:bold; cursor:pointer; padding:0 2px;" onclick="event.stopPropagation(); MiniroomSystem.scaleFurniture(${idx}, -0.15)" title="크기 축소">🔍-</span>
+              <span class="furn-ctrl-btn" style="color:#a855f7; font-size:10px; cursor:pointer; padding:0 2px;" onclick="event.stopPropagation(); MiniroomSystem.flipFurniture(${idx})" title="좌우 반전">🔄</span>
+              <span class="furn-ctrl-btn" style="color:#f87171; font-size:10px; cursor:pointer; padding:0 2px;" onclick="event.stopPropagation(); MiniroomSystem.removeFurniture(${idx})" title="회수">✕</span>
             </div>
           ` : ''}
         </div>
@@ -663,6 +640,18 @@ const MiniroomSystem = (() => {
       const room = getRoomData(currentRoomOwner);
       if (room.items && room.items[idx]) {
         room.items[idx].flip = !room.items[idx].flip;
+        saveRoomData(currentRoomOwner, room);
+        openRoom(currentRoomOwner, true);
+        SoundEngine.snap();
+      }
+    },
+    scaleFurniture: (idx, delta) => {
+      if (!currentRoomOwner) return;
+      const room = getRoomData(currentRoomOwner);
+      if (room.items && room.items[idx]) {
+        const cur = (room.items[idx].scale !== undefined && room.items[idx].scale > 0) ? room.items[idx].scale : 1.0;
+        const next = Math.max(0.4, Math.min(2.2, parseFloat((cur + delta).toFixed(2))));
+        room.items[idx].scale = next;
         saveRoomData(currentRoomOwner, room);
         openRoom(currentRoomOwner, true);
         SoundEngine.snap();

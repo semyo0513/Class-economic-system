@@ -383,7 +383,7 @@ const ModalManager = (() => {
                 <div class="item-name">${m.name}</div>
                 <div class="item-desc" style="color:#0369a1; font-weight:bold;">${m.desc}</div>
                 <div class="item-price">💰 ${m.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" style="background:#0284c7;" onclick="ModalManager.buyMount('${m.id}', ${m.price}, '${m.name}', ${m.speed})">탑승 장착</button>
+                <button class="pixel-btn-primary" style="background:#0284c7;" onclick="ModalManager.buyMount('${m.id}', ${m.price}, '${m.name}', ${m.speed})">구매하기</button>
               </div>
             `).join('')}
           </div>
@@ -396,7 +396,7 @@ const ModalManager = (() => {
                 <div class="item-name">${p.name}</div>
                 <div class="item-desc" style="color:#be185d;">${p.desc}</div>
                 <div class="item-price">💰 ${p.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" style="background:#db2777;" onclick="ModalManager.buyPerfume('${p.id}', ${p.price}, '${p.name}')">효과 적용</button>
+                <button class="pixel-btn-primary" style="background:#db2777;" onclick="ModalManager.buyPerfume('${p.id}', ${p.price}, '${p.name}')">구매하기</button>
               </div>
             `).join('')}
           </div>
@@ -409,7 +409,7 @@ const ModalManager = (() => {
                 <div class="item-name">${h.name}</div>
                 <div class="item-desc">${h.desc}</div>
                 <div class="item-price">💰 ${h.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" style="background:${h.color}; color:#fff;" onclick="ModalManager.buyHairDye('${h.id}', '${h.color}', ${h.price}, '${h.name}')">염색하기</button>
+                <button class="pixel-btn-primary" style="background:${h.color}; color:#fff;" onclick="ModalManager.buyHairDye('${h.id}', '${h.color}', ${h.price}, '${h.name}')">구매하기</button>
               </div>
             `).join('')}
           </div>
@@ -422,7 +422,7 @@ const ModalManager = (() => {
                 <div class="item-name">${c.name}</div>
                 <div class="item-desc">${c.desc}</div>
                 <div class="item-price">💰 ${c.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.buyCostume('${c.id}', ${c.price}, '${c.name}')">의상 입기</button>
+                <button class="pixel-btn-primary" onclick="ModalManager.buyCostume('${c.id}', ${c.price}, '${c.name}')">구매하기</button>
               </div>
             `).join('')}
           </div>
@@ -435,7 +435,7 @@ const ModalManager = (() => {
                 <div class="item-name">${h.name}</div>
                 <div class="item-desc">${h.desc}</div>
                 <div class="item-price">💰 ${h.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.buyHat('${h.id}', ${h.price}, '${h.name}')">장착하기</button>
+                <button class="pixel-btn-primary" onclick="ModalManager.buyHat('${h.id}', ${h.price}, '${h.name}')">구매하기</button>
               </div>
             `).join('')}
           </div>
@@ -448,7 +448,7 @@ const ModalManager = (() => {
                 <div class="item-name">${a.name}</div>
                 <div class="item-desc">${a.desc}</div>
                 <div class="item-price">💰 ${a.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" style="background:#7c3aed;" onclick="ModalManager.buyAura('${a.id}', ${a.price}, '${a.name}')">오라 구매</button>
+                <button class="pixel-btn-primary" onclick="ModalManager.buyAura('${a.id}', ${a.price}, '${a.name}')">구매하기</button>
               </div>
             `).join('')}
           </div>
@@ -1246,7 +1246,7 @@ const ModalManager = (() => {
                     <div style="font-size:10px; color:#64748b;">${f.desc}</div>
                   </div>
                 </div>
-                <button class="pixel-btn-sm" style="padding:4px 8px; font-size:11px; ${disabled ? 'background:#cbd5e1; cursor:not-allowed;' : ''}">이동</button>
+                <button class="pixel-btn-sm" style="padding:4px 8px; font-size:11px; ${disabled ? 'background:#cbd5e1; cursor:not-allowed;' : ''}" onclick="event.stopPropagation(); ${disabled ? `alert('${isPrincipalDisabled ? '교사 전용 공간입니다.' : '직무 권한이 필요합니다.'}')` : `ModalManager.open('${f.id}')`}">이동</button>
               </div>
             `;
           }).join('')}
@@ -1275,13 +1275,13 @@ const ModalManager = (() => {
 
       API.call('getUserInventory', { name: me }, true).then(res => {
         const inv = res.inventory || [];
-        const equips = inv.filter(it => ['캐릭터아이템', '의상', '모자', '오라', '헤어'].includes(it.카테고리));
+        const equips = inv.filter(it => ['캐릭터아이템', '의상', '모자', '오라', '헤어', '탈것', '퍼퓸'].includes(it.카테고리));
         const coupons = inv.filter(it => it.카테고리 === '아이템');
         const furns = inv.filter(it => it.카테고리 === '가구');
 
         const eqEl = document.getElementById('inven-tab-equips');
         if (eqEl) {
-          eqEl.innerHTML = equips.length === 0 ? '<div style="padding:15px; text-align:center; color:#64748b;">보유 중인 패션 장착 아이템이 없습니다.</div>' : equips.map(e => {
+          eqEl.innerHTML = equips.length === 0 ? '<div style="padding:15px; text-align:center; color:#64748b;">보유 중인 패션/탈것 장착 아이템이 없습니다. 잡화점에서 원하는 아이템을 구매해보세요!</div>' : equips.map(e => {
             const isEquipped = e.상태 === '장착';
             return `
               <div class="shop-item-card" style="border:2px solid ${isEquipped ? '#86efac' : '#cbd5e1'}; background:${isEquipped ? '#f0fdf4' : '#ffffff'}; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -1454,190 +1454,183 @@ const ModalManager = (() => {
       });
     },
 
-    // ─── 패션 살롱 & 아이템 구매 (품절 에러 원천 방지) ───
+    // ─── 패션 살롱 & 아이템 구매 (인벤토리 보관 후 장착 원칙) ───
     buyHairDye: async (id, color, price, name) => {
-      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하여 머리를 염색하시겠습니까?`)) return;
+      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 염색/장착 가능)`)) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
 
-      API.showLoading('헤어 살롱 염색 중...');
+      if (st && (st.cash || 0) < price) {
+        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+      }
+
+      API.showLoading('헤어 염색약 구매 중...');
       const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '헤어', prop: color });
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
         if (buyRes.student) {
           GameState.student = buyRes.student;
-          const cashEl = document.getElementById('hud-cash-val');
-          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        } else if (st) {
+          st.cash = Math.max(0, (st.cash || 0) - price);
         }
-        if (!GameState.characterStyle) GameState.characterStyle = {};
-        GameState.characterStyle.hairColor = color;
-        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
-        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
+        const cashEl = document.getElementById('hud-cash-val');
+        if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
-        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
-          window.MainGameScene.reloadPlayerTexture();
-        }
         SoundEngine.fanfare();
-        alert(`✨ ${name} 적용 완료! 캐릭터 헤어가 멋지게 바뀌었습니다.`);
+        alert(`🎁 [${name}] 구매 완료!\n아이템이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 언제든 장착할 수 있습니다.`);
       } else {
         alert(buyRes?.msg || '구매 실패');
       }
     },
 
     buyCostume: async (id, price, name) => {
-      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하여 착용하시겠습니까?`)) return;
+      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 착용 가능)`)) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const cType = id.replace('costume_', '');
 
-      API.showLoading('의상 착용 중...');
+      if (st && (st.cash || 0) < price) {
+        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+      }
+
+      API.showLoading('의상 코스튬 구매 중...');
       const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '의상', prop: cType });
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
         if (buyRes.student) {
           GameState.student = buyRes.student;
-          const cashEl = document.getElementById('hud-cash-val');
-          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        } else if (st) {
+          st.cash = Math.max(0, (st.cash || 0) - price);
         }
-        if (!GameState.characterStyle) GameState.characterStyle = {};
-        GameState.characterStyle.costume = cType;
-        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
-        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
+        const cashEl = document.getElementById('hud-cash-val');
+        if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
-        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
-          window.MainGameScene.reloadPlayerTexture();
-        }
         SoundEngine.fanfare();
-        alert(`👗 ${name} 착용 완료! 패션 스타일이 업그레이드되었습니다.`);
+        alert(`🎁 [${name}] 구매 완료!\n의상이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 착용할 수 있습니다.`);
       } else {
         alert(buyRes?.msg || '구매 실패');
       }
     },
 
     buyHat: async (id, price, name) => {
-      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하여 장착하시겠습니까?`)) return;
+      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 장착 가능)`)) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const hType = id.replace('hat_', '');
 
-      API.showLoading('액세서리 장착 중...');
+      if (st && (st.cash || 0) < price) {
+        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+      }
+
+      API.showLoading('액세서리 구매 중...');
       const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '모자', prop: hType });
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
         if (buyRes.student) {
           GameState.student = buyRes.student;
-          const cashEl = document.getElementById('hud-cash-val');
-          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        } else if (st) {
+          st.cash = Math.max(0, (st.cash || 0) - price);
         }
-        if (!GameState.characterStyle) GameState.characterStyle = {};
-        GameState.characterStyle.hat = hType;
-        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
-        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
+        const cashEl = document.getElementById('hud-cash-val');
+        if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
-        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
-          window.MainGameScene.reloadPlayerTexture();
-        }
         SoundEngine.fanfare();
-        alert(`👑 ${name} 장착 완료!`);
+        alert(`🎁 [${name}] 구매 완료!\n아이템이 내 인벤토리(🎒)에 보관되었습니다.\n인벤토리에서 언제든 장착할 수 있습니다.`);
       } else {
         alert(buyRes?.msg || '구매 실패');
       }
     },
 
     buyAura: async (id, price, name) => {
-      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?`)) return;
+      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 오라 발동 가능)`)) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const aType = id.replace('aura_', '');
 
-      API.showLoading('특수 오라 발동 중...');
+      if (st && (st.cash || 0) < price) {
+        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+      }
+
+      API.showLoading('특수 오라 구매 중...');
       const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '오라', prop: aType });
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
         if (buyRes.student) {
           GameState.student = buyRes.student;
-          const cashEl = document.getElementById('hud-cash-val');
-          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        } else if (st) {
+          st.cash = Math.max(0, (st.cash || 0) - price);
         }
-        if (!GameState.characterStyle) GameState.characterStyle = {};
-        GameState.characterStyle.aura = aType;
-        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
-        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
+        const cashEl = document.getElementById('hud-cash-val');
+        if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
-        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
-          window.MainGameScene.reloadPlayerTexture();
-        }
         SoundEngine.fanfare();
-        alert(`✨ ${name} 발동 완료! 화려한 오라가 몸을 감쌉니다.`);
+        alert(`🎁 [${name}] 구매 완료!\n오라가 내 인벤토리(🎒)에 보관되었습니다.\n인벤토리에서 언제든 발동할 수 있습니다.`);
       } else {
         alert(buyRes?.msg || '구매 실패');
       }
     },
 
-    // 🚀 탈 것 구매 & 이동속도 버프
+    // 🚀 탈 것 구매 (인벤토리 보관 후 인벤토리에서 탑승)
     buyMount: async (id, price, name, speedMult) => {
-      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하여 탑승하시겠습니까?\n(이동속도 ${speedMult}배 즉각 적용)`)) return;
+      if (!confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(이동속도 ${speedMult}배 / 구매 후 인벤토리에서 탑승 가능)`)) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const mType = id.replace('mount_', '');
 
-      API.showLoading('탈 것 탑승 준비 중...');
+      if (st && (st.cash || 0) < price) {
+        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+      }
+
+      API.showLoading('탈 것 구매 중...');
       const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '탈것', prop: mType });
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
         if (buyRes.student) {
           GameState.student = buyRes.student;
-          const cashEl = document.getElementById('hud-cash-val');
-          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        } else if (st) {
+          st.cash = Math.max(0, (st.cash || 0) - price);
         }
-        if (!GameState.characterStyle) GameState.characterStyle = {};
-        GameState.characterStyle.mount = mType;
-        GameState.characterStyle.speedMult = speedMult;
-        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
-        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
+        const cashEl = document.getElementById('hud-cash-val');
+        if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
-        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
-          window.MainGameScene.reloadPlayerTexture();
-        }
         SoundEngine.fanfare();
-        alert(`🚀 ${name} 탑승 완료! 이동속도가 ${speedMult}배로 빨라졌습니다.`);
+        alert(`🎁 [${name}] 구매 완료!\n탈 것이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 언제든 탑승/해제할 수 있습니다.`);
       } else {
         alert(buyRes?.msg || '구매 실패');
       }
     },
 
-    // 🌺 퍼퓸 & 크기 물약
+    // 🌺 퍼퓸 & 크기 물약 구매
     buyPerfume: async (id, price, name) => {
-      if (!confirm(`[${name}] 효과를 ${price.toLocaleString()}원에 구매하여 적용하시겠습니까?`)) return;
+      if (!confirm(`[${name}] 효과를 ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 효과 적용 가능)`)) return;
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
       const pType = id.replace('perfume_', '').replace('potion_', '');
 
-      API.showLoading('물약/향수 효과 적용 중...');
+      if (st && (st.cash || 0) < price) {
+        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+      }
+
+      API.showLoading('물약/향수 구매 중...');
       const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '퍼퓸', prop: pType });
       API.hideLoading();
 
       if (buyRes && buyRes.success) {
         if (buyRes.student) {
           GameState.student = buyRes.student;
-          const cashEl = document.getElementById('hud-cash-val');
-          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        } else if (st) {
+          st.cash = Math.max(0, (st.cash || 0) - price);
         }
-        if (!GameState.characterStyle) GameState.characterStyle = {};
-        GameState.characterStyle.perfume = pType;
-        localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
-        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
+        const cashEl = document.getElementById('hud-cash-val');
+        if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
-        if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
-          window.MainGameScene.reloadPlayerTexture();
-        }
         SoundEngine.fanfare();
-        alert(`🌺 ${name} 적용 완료! 특별한 효과가 부여되었습니다.`);
+        alert(`🎁 [${name}] 구매 완료!\n아이템이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 언제든 효과를 적용/해제할 수 있습니다.`);
       } else {
         alert(buyRes?.msg || '구매 실패');
       }
@@ -1812,22 +1805,28 @@ const ModalManager = (() => {
       if (isCurrentlyEquipped) {
         // 장착 해제
         API.showLoading('아이템 장착 해제 중...');
-        await API.call('unequipItem', { name: myName, studentName: myName, itemName: itemName });
+        await API.call('unequipItem', { name: myName, studentName: myName, itemName: itemName, category: category });
         API.hideLoading();
 
         if (category === '오라') GameState.characterStyle.aura = null;
         else if (category === '의상') GameState.characterStyle.costume = null;
         else if (category === '모자') GameState.characterStyle.hat = null;
         else if (category === '헤어') GameState.characterStyle.hairColor = null;
+        else if (category === '탈것') {
+          GameState.characterStyle.mount = null;
+          GameState.characterStyle.speedMult = 1.0;
+        }
+        else if (category === '퍼퓸') GameState.characterStyle.perfume = null;
 
         localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
+        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
         if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
           window.MainGameScene.reloadPlayerTexture();
         }
         SoundEngine.click();
         alert(`[${itemName}] 장착을 해제했습니다.`);
       } else {
-        // 장착하기
+        // 장착하기 (동일 카테고리 기존 장착템 자동 해제 및 1개만 장착)
         API.showLoading('아이템 장착 중...');
         await API.call('equipItem', { name: myName, studentName: myName, itemName: itemName, category: category });
         API.hideLoading();
@@ -1844,23 +1843,48 @@ const ModalManager = (() => {
           else if (itemName.includes('정장')) cKey = 'suit';
           else if (itemName.includes('마법사')) cKey = 'wizard';
           else if (itemName.includes('교복')) cKey = 'school';
+          else if (itemName.includes('잠옷')) cKey = 'pajama';
+          else if (itemName.includes('사이버')) cKey = 'cyber';
+          else if (itemName.includes('드레스')) cKey = 'dress';
           GameState.characterStyle.costume = cKey;
         } else if (category === '모자') {
           let hKey = prop || 'crown';
-          if (itemName.includes('왕관')) hKey = 'crown';
+          if (itemName.includes('고양이')) hKey = 'cat_ears';
+          else if (itemName.includes('왕관')) hKey = 'crown';
+          else if (itemName.includes('천사')) hKey = 'halo';
+          else if (itemName.includes('마법사')) hKey = 'magic_hat';
           else if (itemName.includes('베레모')) hKey = 'beret';
           else if (itemName.includes('캡모자')) hKey = 'cap';
           GameState.characterStyle.hat = hKey;
         } else if (category === '헤어') {
           GameState.characterStyle.hairColor = prop || '#f59e0b';
+        } else if (category === '탈것') {
+          let mKey = prop || 'kickboard';
+          let speed = 1.5;
+          if (itemName.includes('킥보드') || prop === 'kickboard') { mKey = 'kickboard'; speed = 1.5; }
+          else if (itemName.includes('스케이트보드') || prop === 'skateboard') { mKey = 'skateboard'; speed = 1.7; }
+          else if (itemName.includes('자전거') || prop === 'bicycle') { mKey = 'bicycle'; speed = 1.8; }
+          else if (itemName.includes('카트') || prop === 'cart') { mKey = 'cart'; speed = 2.0; }
+          else if (itemName.includes('구름') || prop === 'cloud') { mKey = 'cloud'; speed = 2.2; }
+          GameState.characterStyle.mount = mKey;
+          GameState.characterStyle.speedMult = speed;
+        } else if (category === '퍼퓸') {
+          let pKey = prop || 'sparkle';
+          if (itemName.includes('로즈')) pKey = 'rose';
+          else if (itemName.includes('스타더스트')) pKey = 'sparkle';
+          else if (itemName.includes('방울')) pKey = 'bubble';
+          else if (itemName.includes('거인')) pKey = 'giant';
+          else if (itemName.includes('축소')) pKey = 'tiny';
+          GameState.characterStyle.perfume = pKey;
         }
 
         localStorage.setItem(`char_style_${myName}`, JSON.stringify(GameState.characterStyle));
+        API.call('updateCharacterStyle', { name: myName, studentName: myName, style: GameState.characterStyle }, true);
         if (window.MainGameScene && window.MainGameScene.reloadPlayerTexture) {
           window.MainGameScene.reloadPlayerTexture();
         }
         SoundEngine.fanfare();
-        alert(`✨ [${itemName}] 장착 완료!`);
+        alert(`✨ [${itemName}] 장착 완료!\n(기존 같은 계열 장착 아이템은 자동으로 해제되었습니다)`);
       }
 
       // 인벤토리 모달 새로고침
@@ -2442,9 +2466,25 @@ const ModalManager = (() => {
     loadAdminItems: async () => {
       const tbody = document.getElementById('admin-items-editor-tbody');
       if (!tbody) return;
+
+      let furnHtml = '';
+      if (typeof CONFIG !== 'undefined' && CONFIG.FURNITURE_CATALOG) {
+        furnHtml = CONFIG.FURNITURE_CATALOG.map(f => `
+          <tr style="background:#fdf2f8;">
+            <td><span class="badge" style="background:#ec4899; color:white;">미니룸소품</span></td>
+            <td><strong>${f.image ? `<img src="${f.image}" style="width:20px;height:20px;vertical-align:middle;margin-right:4px;">` : (f.emoji || '🛋️')} ${f.name}</strong></td>
+            <td style="color:#b45309; font-weight:bold;">${(f.price || 0).toLocaleString()}원</td>
+            <td>무제한</td>
+            <td>
+              <button class="pixel-btn-sm" style="background:#ec4899; color:white;" onclick="ModalManager.editFurnitureCatalogPrice('${f.id}', ${f.price || 0}, '${f.name}')">가격 수정</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+
       const res = await API.call('getAdminItemsList', {}, true);
       const items = res?.items || [];
-      tbody.innerHTML = items.map(it => `
+      const itemsHtml = items.map(it => `
         <tr>
           <td><span class="badge badge-primary">${it.카테고리 || '아이템'}</span></td>
           <td><strong>${it.아이템명 || it.이름 || '-'}</strong></td>
@@ -2455,6 +2495,35 @@ const ModalManager = (() => {
           </td>
         </tr>
       `).join('');
+
+      tbody.innerHTML = furnHtml + itemsHtml;
+    },
+
+    editFurnitureCatalogPrice: async (id, curPrice, name) => {
+      const newPriceStr = prompt(`[${name}] 미니룸 소품의 새 판매 가격(원)을 입력하세요:`, curPrice);
+      if (newPriceStr === null) return;
+      const newPrice = Number(newPriceStr);
+      if (isNaN(newPrice) || newPrice < 0) return alert('올바른 가격을 입력해주세요.');
+
+      // 1. CONFIG.FURNITURE_CATALOG 즉시 반영
+      if (typeof CONFIG !== 'undefined' && CONFIG.FURNITURE_CATALOG) {
+        const itemDef = CONFIG.FURNITURE_CATALOG.find(f => f.id === id);
+        if (itemDef) itemDef.price = newPrice;
+      }
+
+      // 2. localStorage 저장
+      try {
+        const customPrices = JSON.parse(localStorage.getItem('classbank_custom_furn_prices') || '{}');
+        customPrices[id] = newPrice;
+        localStorage.setItem('classbank_custom_furn_prices', JSON.stringify(customPrices));
+      } catch (_) {}
+
+      // 3. 서버 설정 저장 (비동기)
+      API.call('updateSetting', { key: `FURN_PRICE_${id}`, value: newPrice }, true);
+
+      SoundEngine.coin();
+      alert(`[${name}] 가격이 ${newPrice.toLocaleString()}원으로 변경되었습니다! ✨`);
+      ModalManager.loadAdminItems();
     },
 
     editItemPriceAndStock: async (itemName, curPrice, curStock) => {
