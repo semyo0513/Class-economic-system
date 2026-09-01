@@ -279,7 +279,7 @@ function fetchNaverStockPrice(code) {
   };
   const defaultName = stockNames[code] || code;
 
-  // 0. 초고속 캐시 조회 (60초 메모리 캐싱으로 0.001초 응답 보장)
+  // 0. 초고속 캐시 조회 (600초 메모리 캐싱으로 0.001초 응답 보장)
   const cacheKey = 'stock_live_v2_' + code;
   try {
     const cache = CacheService.getScriptCache();

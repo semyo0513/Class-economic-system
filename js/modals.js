@@ -50,12 +50,27 @@ const ModalManager = (() => {
     } else if (id === 'dormitory') {
       titleEl.innerHTML = '🏠 학생 기숙사';
       renderBuildingContent('dormitory', bodyEl, extraData);
+    } else if (id === 'npc_modal') {
+      const npcName = extraData?.name || '마을 주민';
+      let npcEmoji = '🐻';
+      if (extraData?.type === 'rabbit') npcEmoji = '🐰';
+      else if (extraData?.type === 'cat') npcEmoji = '🐱';
+      else if (extraData?.type === 'panda') npcEmoji = '🐼';
+      else if (extraData?.type === 'fox') npcEmoji = '🦊';
+      titleEl.innerHTML = `${npcEmoji} ${npcName}`;
+      renderBuildingContent('npc_modal', bodyEl, extraData);
+    } else if (id === 'ride_modal') {
+      titleEl.innerHTML = `${extraData?.emoji || '🎡'} ${extraData?.name || '어트랙션 시설'}`;
+      renderBuildingContent('ride_modal', bodyEl, extraData);
     } else if (id === 'structure_modal') {
-      titleEl.innerText = (extraData && extraData.name) || '시설 상세 정보';
+      titleEl.innerHTML = `${extraData?.emoji || '⛲'} ${extraData?.name || '마을 시설 & 명소'}`;
       renderBuildingContent('structure_modal', bodyEl, extraData);
-    } else {
-      titleEl.innerText = id === 'quick_board' ? '📋 학생 간편모드 (시설 바로가기)' : (id === 'inventory' ? '🎒 내 인벤토리' : (id === 'mailbox' ? '📬 우편함' : '상세 정보'));
+    } else if (id === 'quick_board' || id === 'inventory' || id === 'mailbox') {
+      titleEl.innerText = id === 'quick_board' ? '📋 학생 간편모드 (시설 바로가기)' : (id === 'inventory' ? '🎒 내 인벤토리' : '📬 우편함');
       renderSpecialContent(id, bodyEl, extraData);
+    } else {
+      titleEl.innerText = (extraData && extraData.name) || '상세 정보';
+      renderBuildingContent(id, bodyEl, extraData);
     }
   }
 
@@ -76,6 +91,7 @@ const ModalManager = (() => {
     const myPerm = st ? (st.permission || st.권한 || '일반') : '일반';
     const isTeacher = GameState.isAdmin || me === '선생님' || myPerm.includes('전체');
     const schoolName = getSchoolName();
+    const data = extraData || {};
 
     try {
       switch (id) {
@@ -190,14 +206,26 @@ const ModalManager = (() => {
       // 3. 다종목 실시간 증권시장
       case 'stock': {
         const shortSchool = schoolName.replace('초등학교', '초').replace('학교', '');
-        const stockList = [
-          { code: '005930', name: '삼성전자', icon: '📱', price: 0, changeRate: '...' },
-          { code: '035720', name: '카카오', icon: '🟡', price: 0, changeRate: '...' },
-          { code: '035420', name: 'NAVER', icon: '🟢', price: 0, changeRate: '...' },
-          { code: '086520', name: '에코프로', icon: '🔋', price: 0, changeRate: '...' },
-          { code: '005380', name: '현대차', icon: '🚗', price: 0, changeRate: '...' },
-          { code: 'CLASS', name: `${shortSchool} 협동조합`, icon: '🏫', price: 0, changeRate: '...' }
+        let stockList = [
+          { code: '005930', name: '삼성전자', icon: '📱', price: 74500, changeRate: '+1.20%', changePrice: '+900' },
+          { code: '035720', name: '카카오', icon: '🟡', price: 42300, changeRate: '-0.80%', changePrice: '-350' },
+          { code: '035420', name: 'NAVER', icon: '🟢', price: 192500, changeRate: '+2.10%', changePrice: '+4000' },
+          { code: '086520', name: '에코프로', icon: '🔋', price: 88500, changeRate: '+3.40%', changePrice: '+2900' },
+          { code: '005380', name: '현대차', icon: '🚗', price: 236000, changeRate: '+0.50%', changePrice: '+1200' },
+          { code: 'CLASS', name: `${shortSchool} 협동조합`, icon: '🏫', price: 1200, changeRate: '+2.50%', changePrice: '+30' }
         ];
+
+        try {
+          const cached = localStorage.getItem('classbank_stock_prices_cache');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) stockList = parsed;
+          }
+        } catch (_) {}
+
+        if (ModalManager.multiStockCache && ModalManager.multiStockCache.length > 0) {
+          stockList = ModalManager.multiStockCache;
+        }
 
         container.innerHTML = `
           <div class="stock-panel" style="display:flex; flex-direction:column; gap:8px; max-width:100%; overflow:hidden;">
@@ -228,8 +256,8 @@ const ModalManager = (() => {
                   <div>
                     <div style="font-size:12px; color:#64748b; font-weight:bold;" id="stock-active-name">📱 삼성전자 (005930)</div>
                     <div style="display:flex; align-items:baseline; gap:6px; margin-top:2px;">
-                      <div style="font-size:20px; font-weight:900; color:#ef4444;" id="stock-active-price">시세 조회 중...</div>
-                      <div style="font-size:12px; font-weight:bold; color:#ef4444;" id="stock-active-rate">...</div>
+                      <div style="font-size:20px; font-weight:900; color:#ef4444;" id="stock-active-price">74,500원</div>
+                      <div style="font-size:12px; font-weight:bold; color:#ef4444;" id="stock-active-rate">+1.20%</div>
                     </div>
                   </div>
                   <div style="text-align:right; font-size:11px; color:#475569;">
@@ -276,7 +304,7 @@ const ModalManager = (() => {
 
         ModalManager.activeMultiStockCode = '005930';
         ModalManager.multiStockCache = stockList;
-        ModalManager.fetchLiveStockClient('005930');
+        ModalManager.updateMultiStockUI();
 
         API.call('getMultiStockData', { name: me }, true).then(data => {
           if (data && data.success && data.stocks) {
@@ -286,8 +314,9 @@ const ModalManager = (() => {
             ModalManager.multiStockProfitLosses = data.profitLosses || {};
             ModalManager.multiStockProfitRates = data.profitRates || {};
             
-            // 로컬스토리지에 평단가 캐싱
+            // 로컬스토리지에 캐싱
             try {
+              localStorage.setItem('classbank_stock_prices_cache', JSON.stringify(data.stocks));
               localStorage.setItem(`classbank_stock_avg_${me}`, JSON.stringify(ModalManager.multiStockAvgPrices));
             } catch (_) {}
 
@@ -883,6 +912,70 @@ const ModalManager = (() => {
                 </button>
                 <button class="pixel-btn-secondary" style="width:auto; padding:10px 20px; font-size:13px;" onclick="ModalManager.close()">일어나기</button>
               </div>
+            </div>
+          `;
+        } else if (prop.type === 'water_slide') {
+          contentHtml = `
+            <div style="text-align:center; padding:16px;">
+              <div style="font-size:56px; margin-bottom:8px; animation:bounce 1s infinite;">🏄‍♂️</div>
+              <h3 style="font-size:18px; color:#0284c7; margin-bottom:6px;">익스트림 워터슬라이드</h3>
+              <p style="font-size:12px; color:#64748b; margin-bottom:16px;">시원한 물살을 가르며 짜릿하게 미끄러져 내려오세요!</p>
+              <button class="pixel-btn-primary" style="background:#0284c7; width:auto; padding:10px 24px; font-size:13px;" onclick="ModalManager.enjoyRide('익스트림 워터슬라이드')">
+                💦 시원하게 슬라이드 타기!
+              </button>
+            </div>
+          `;
+        } else if (prop.type === 'duck_boat') {
+          contentHtml = `
+            <div style="text-align:center; padding:16px;">
+              <div style="font-size:56px; margin-bottom:8px;">🦆</div>
+              <h3 style="font-size:18px; color:#eab308; margin-bottom:6px;">호숫가 오리배</h3>
+              <p style="font-size:12px; color:#64748b; margin-bottom:16px;">호수 위를 둥둥 떠다니며 평화로운 물결을 감상해보세요.</p>
+              <button class="pixel-btn-primary" style="background:#eab308; width:auto; padding:10px 24px; font-size:13px;" onclick="ModalManager.enjoyRide('호숫가 오리배')">
+                🦆 오리배 탑승하고 페달 밟기!
+              </button>
+            </div>
+          `;
+        } else if (prop.type === 'beach_umbrella') {
+          contentHtml = `
+            <div style="text-align:center; padding:16px;">
+              <div style="font-size:56px; margin-bottom:8px;">⛱️</div>
+              <h3 style="font-size:18px; color:#06b6d4; margin-bottom:6px;">힐링 비치 파라솔 & 선베드</h3>
+              <p style="font-size:12px; color:#64748b; margin-bottom:16px;">선선한 호숫가 바람을 맞으며 선베드에 누워 힐링을 즐겨보세요.</p>
+              <button class="pixel-btn-primary" style="background:#06b6d4; width:auto; padding:10px 24px; font-size:13px;" onclick="ModalManager.restOnBench()">
+                🌴 선베드에 누워 휴식하기
+              </button>
+            </div>
+          `;
+        } else if (prop.type === 'popcorn_cart') {
+          contentHtml = `
+            <div style="text-align:center; padding:16px;">
+              <div style="font-size:56px; margin-bottom:8px;">🍿</div>
+              <h3 style="font-size:18px; color:#f59e0b; margin-bottom:6px;">달콤 버터 팝콘 카트</h3>
+              <p style="font-size:12px; color:#64748b; margin-bottom:16px;">고소하고 달콤한 카라멜 팝콘 냄새가 솔솔 풍깁니다!</p>
+              <button class="pixel-btn-primary" style="background:#f59e0b; width:auto; padding:10px 24px; font-size:13px;" onclick="ModalManager.enjoyPopcorn()">
+                🍿 팝콘 한 봉지 맛보기! (무료 간식)
+              </button>
+            </div>
+          `;
+        } else if (prop.type === 'circus_tent') {
+          contentHtml = `
+            <div style="text-align:center; padding:16px;">
+              <div style="font-size:56px; margin-bottom:8px; animation:bounce 1s infinite;">🎪</div>
+              <h3 style="font-size:18px; color:#7c3aed; margin-bottom:6px;">매직 서커스 공연장</h3>
+              <p style="font-size:12px; color:#64748b; margin-bottom:16px;">환상적인 마술과 공중 곡예 서커스 쇼를 관람해보세요!</p>
+              <button class="pixel-btn-primary" style="background:#7c3aed; width:auto; padding:10px 24px; font-size:13px;" onclick="ModalManager.enjoyRide('매직 서커스 쇼')">
+                🎩 서커스 마술쇼 관람하기!
+              </button>
+            </div>
+          `;
+        } else {
+          contentHtml = `
+            <div style="text-align:center; padding:16px;">
+              <div style="font-size:56px; margin-bottom:8px;">${prop.emoji || '✨'}</div>
+              <h3 style="font-size:18px; color:#1e293b; margin-bottom:6px;">${prop.name || '마을 명소'}</h3>
+              <p style="font-size:12px; color:#64748b; margin-bottom:16px;">클래스타운의 아름다운 명소입니다.</p>
+              <button class="pixel-btn-primary" style="width:auto; padding:10px 24px; font-size:13px;" onclick="ModalManager.close()">확인</button>
             </div>
           `;
         }
@@ -3072,6 +3165,37 @@ const ModalManager = (() => {
       SoundEngine.fanfare();
       alert('🍡 모닥불에 마시멜로를 노릇노릇 맛있게 구웠습니다! 달콤하고 행복한 기분~!');
       ModalManager.close();
+    },
+
+    enjoyPopcorn: () => {
+      SoundEngine.fanfare();
+      alert('🍿 바삭하고 달콤한 버터 카라멜 팝콘을 맛있게 먹었습니다! 기분이 최고조에 달합니다! ✨');
+      ModalManager.close();
+    },
+
+    prefetchStockPrices: async () => {
+      const st = GameState.student;
+      const me = st ? (st.name || st.이름) : '';
+      try {
+        const cached = localStorage.getItem('classbank_stock_prices_cache');
+        if (cached) {
+          ModalManager.multiStockCache = JSON.parse(cached);
+        }
+      } catch (_) {}
+
+      // 백그라운드에서 실시간 시세 및 보유현황 미리 로드
+      API.call('getMultiStockData', { name: me }, true, 5000).then(data => {
+        if (data && data.success && data.stocks) {
+          ModalManager.multiStockCache = data.stocks;
+          ModalManager.multiStockHoldings = data.holdings || {};
+          ModalManager.multiStockAvgPrices = data.avgPrices || {};
+          ModalManager.multiStockProfitLosses = data.profitLosses || {};
+          ModalManager.multiStockProfitRates = data.profitRates || {};
+          try {
+            localStorage.setItem('classbank_stock_prices_cache', JSON.stringify(data.stocks));
+          } catch (_) {}
+        }
+      });
     }
   };
 })();
