@@ -2304,14 +2304,181 @@ const ModalManager = (() => {
     },
 
     openPaySalariesModal: () => {
-      if (!confirm('모든 학생에게 월급을 일괄 배부하시겠습니까?')) return;
-      API.showLoading('월급을 배부하는 중...');
-      API.call('payAllSalaries', {}).then(res => {
-        API.hideLoading();
-        SoundEngine.fanfare();
-        alert(res?.msg || '월급 배부 완료');
-        open('principal');
+      const students = (GameState.rankingList || []).filter(s => s.name !== '선생님');
+      if (students.length === 0) return alert('등록된 학생 목록이 없습니다.');
+
+      const html = `
+        <div style="padding:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="margin:0; font-size:16px; color:#1e293b;">💰 학생 월급 일괄/선택 배부</h3>
+            <button class="pixel-btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="ModalManager.open('principal')">⬅️ 관리자 화면</button>
+          </div>
+
+          <div style="background:#f0fdf4; border:2px solid #86efac; border-radius:8px; padding:12px; margin-bottom:12px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+              <div>
+                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">기본 일괄 배부 금액 (원)</label>
+                <input type="number" id="batch-salary-default-amt" value="50000" placeholder="예: 50000" oninput="ModalManager.applyDefaultSalaryToAll(this.value)" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-weight:bold;">
+              </div>
+              <div>
+                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">지급 사유</label>
+                <input type="text" id="batch-salary-reason" value="정기 1인 1직업 월급 지급" placeholder="지급 사유 입력" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label style="font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                <input type="checkbox" id="chk-salary-select-all" checked onchange="ModalManager.toggleSelectAllSalaries(this.checked)">
+                <span>전체 학생 선택 (<span id="salary-selected-count">${students.length}</span>/${students.length}명)</span>
+              </label>
+              <span style="font-size:11px; color:#16a34a; font-weight:bold;">💡 개별 지급 금액을 직접 수정할 수도 있습니다.</span>
+            </div>
+          </div>
+
+          <div class="table-wrap" style="max-height:240px; overflow-y:auto; margin-bottom:14px;">
+            <table class="pixel-table">
+              <thead><tr><th style="width:40px;">선택</th><th>이름</th><th>직업</th><th>현재 잔액</th><th>지급 금액(원)</th></tr></thead>
+              <tbody>
+                ${students.map((s, idx) => `
+                  <tr>
+                    <td style="text-align:center;">
+                      <input type="checkbox" class="salary-student-chk" data-name="${s.name}" checked onchange="ModalManager.updateSalaryCount()">
+                    </td>
+                    <td><strong>${s.name}</strong></td>
+                    <td>${s.job || '학생'}</td>
+                    <td>${(s.cash || 0).toLocaleString()}원</td>
+                    <td>
+                      <input type="number" class="salary-student-amount" data-name="${s.name}" value="50000" style="width:100px; padding:4px 6px; border:1px solid #94a3b8; border-radius:4px; font-size:11px; font-weight:bold; text-align:right;"> 원
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <button class="pixel-btn-primary" style="background:#16a34a; font-size:14px; padding:10px;" onclick="ModalManager.executePayBatchSalaries()">
+            💸 선택한 학생들에게 월급 배부 집행
+          </button>
+        </div>
+      `;
+      bodyEl.innerHTML = html;
+    },
+
+    toggleSelectAllSalaries: (checked) => {
+      document.querySelectorAll('.salary-student-chk').forEach(c => c.checked = checked);
+      ModalManager.updateSalaryCount();
+    },
+
+    applyDefaultSalaryToAll: (val) => {
+      const num = Number(val) || 0;
+      document.querySelectorAll('.salary-student-amount').forEach(inp => inp.value = num);
+    },
+
+    updateSalaryCount: () => {
+      const checkedCount = document.querySelectorAll('.salary-student-chk:checked').length;
+      const countEl = document.getElementById('salary-selected-count');
+      if (countEl) countEl.textContent = checkedCount;
+    },
+
+    executePayBatchSalaries: async () => {
+      const chks = document.querySelectorAll('.salary-student-chk:checked');
+      if (chks.length === 0) return alert('월급을 지급할 학생을 최소 1명 이상 선택해주세요.');
+
+      const reason = document.getElementById('batch-salary-reason')?.value || '정기 월급 지급';
+      const targets = [];
+      let totalAmount = 0;
+
+      chks.forEach(c => {
+        const name = c.dataset.name;
+        const amtInput = document.querySelector(`.salary-student-amount[data-name="${name}"]`);
+        const amt = Number(amtInput?.value) || 0;
+        if (name && amt > 0) {
+          targets.push({ name, amount: amt });
+          totalAmount += amt;
+        }
       });
+
+      if (targets.length === 0) return alert('지급할 금액이 0원 이상이어야 합니다.');
+      if (!confirm(`선택한 ${targets.length}명의 학생에게 총 ${totalAmount.toLocaleString()}원의 월급을 배부하시겠습니까?`)) return;
+
+      API.showLoading('월급을 배부하는 중...');
+      const res = await API.call('payBatchSalaries', { targets, reason });
+      API.hideLoading();
+
+      if (res && res.success) {
+        SoundEngine.fanfare();
+        alert(res.msg || `${targets.length}명에게 월급 배부가 완료되었습니다!`);
+        open('principal');
+      } else {
+        alert(res?.msg || '월급 배부 실패');
+      }
+    },
+
+    adminAdjustCash: (targetStudent) => {
+      const student = (GameState.rankingList || []).find(s => s.name === targetStudent) || { name: targetStudent, cash: 0, job: '학생' };
+
+      const html = `
+        <div style="padding:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="margin:0; font-size:16px; color:#1e293b;">💰 [${targetStudent}] 학생 금액 조정 / 입금</h3>
+            <button class="pixel-btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="ModalManager.open('principal')">⬅️ 관리자 화면</button>
+          </div>
+
+          <div style="background:#eff6ff; border:2px solid #93c5fd; border-radius:8px; padding:12px; margin-bottom:14px;">
+            <div style="font-size:13px; font-weight:bold; color:#1e40af; margin-bottom:4px;">👤 대상 학생: ${targetStudent} (${student.job || '학생'})</div>
+            <div style="font-size:12px; color:#3b82f6;">💵 현재 보유 잔액: <strong>${(student.cash || 0).toLocaleString()}원</strong></div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">작업 구분</label>
+            <div style="display:flex; gap:12px; font-size:12px;">
+              <label><input type="radio" name="adjust-type-radio" value="입금" checked> 💰 입금 (상여금/보조금 지급)</label>
+              <label><input type="radio" name="adjust-type-radio" value="출금"> 💸 출금 (환수/차감)</label>
+              <label><input type="radio" name="adjust-type-radio" value="설정"> ✏️ 잔액 직접 설정</label>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">금액 (원)</label>
+            <input type="number" id="adjust-amount-input" placeholder="예: 10000" value="10000" style="width:100%; padding:10px; border:2px solid #94a3b8; border-radius:6px; font-weight:bold; font-size:14px;">
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px;">
+            <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:4px;">조정 / 입금 사유</label>
+            <input type="text" id="adjust-reason-input" placeholder="예: 청소 우수 상여금, 프로젝트 장학금 등" value="활동 우수 상여금 지급" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
+          </div>
+
+          <button class="pixel-btn-primary" style="background:#2563eb; font-size:14px; padding:10px;" onclick="ModalManager.executeAdminAdjustCash('${targetStudent}')">
+            💸 금액 조정 / 입금 실행
+          </button>
+        </div>
+      `;
+      bodyEl.innerHTML = html;
+    },
+
+    executeAdminAdjustCash: async (targetStudent) => {
+      const type = document.querySelector('input[name="adjust-type-radio"]:checked')?.value || '입금';
+      const amt = Number(document.getElementById('adjust-amount-input')?.value);
+      const reason = document.getElementById('adjust-reason-input')?.value || '관리자 금액 조정';
+
+      if (isNaN(amt) || amt < 0) return alert('올바른 금액을 입력하세요.');
+
+      API.showLoading(`[${targetStudent}] 금액 ${type} 처리 중...`);
+      const res = await API.call('adjustStudentCash', { targetStudent, type, amount: amt, reason });
+      API.hideLoading();
+
+      if (res && res.success) {
+        if (GameState.student && (GameState.student.name === targetStudent || GameState.student.이름 === targetStudent)) {
+          if (res.student) GameState.student = res.student;
+          const cashEl = document.getElementById('hud-cash-val');
+          if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
+        }
+        SoundEngine.fanfare();
+        alert(res.msg || '금액 처리가 완료되었습니다!');
+        open('principal');
+      } else {
+        alert(res?.msg || '처리 실패');
+      }
     },
 
     openFineModal: () => {
@@ -2455,7 +2622,7 @@ const ModalManager = (() => {
             <td><span class="badge badge-primary">${s.permission || '일반'}</span></td>
             ${isTeacher ? `
               <td>
-                <button class="pixel-btn-sm" onclick="ModalManager.adminAdjustCash('${s.name}')">금액조정</button>
+                <button class="pixel-btn-sm" style="background:#0284c7; color:white;" onclick="ModalManager.adminAdjustCash('${s.name}')">💰 입금/조정</button>
               </td>
             ` : ''}
           </tr>

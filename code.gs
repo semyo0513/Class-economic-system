@@ -1576,15 +1576,75 @@ function handleRequest(payload, callback) {
         break;
       }
 
+      case 'payBatchSalaries':
       case 'payAllSalaries': {
-        const students = getStudentsWithAssets().filter(s => s.name !== '선생님');
+        const defaultSalary = Number(payload.amount || payload.salary || 50000);
+        const reason = payload.reason || '정기 월급 지급';
+        const targetList = payload.targets || payload.students || [];
         let totalPaid = 0;
-        students.forEach(s => {
-          const salary = 50000;
-          updateCash(s.name, salary, '학급 직무 기본 월급 지급', '월급');
-          totalPaid += salary;
-        });
-        result = { success: true, count: students.length, totalPaid: totalPaid, msg: `${students.length}명의 학생에게 월급(총 ${totalPaid.toLocaleString()}원) 배부 완료!` };
+        let count = 0;
+
+        if (Array.isArray(targetList) && targetList.length > 0) {
+          targetList.forEach(t => {
+            const sName = typeof t === 'string' ? t : (t.name || t.studentName);
+            const sAmount = (typeof t === 'object' && t.amount !== undefined && !isNaN(t.amount)) ? Number(t.amount) : defaultSalary;
+            if (sName && sName !== '선생님' && sAmount > 0) {
+              updateCash(sName, sAmount, `[월급배부] ${reason}`, '월급');
+              logTreasury('출금', '월급지급', sAmount, sName, `[월급] ${reason}`);
+              totalPaid += sAmount;
+              count++;
+            }
+          });
+        } else {
+          const students = getStudentsWithAssets().filter(s => s.name !== '선생님');
+          students.forEach(s => {
+            updateCash(s.name, defaultSalary, `[월급배부] ${reason}`, '월급');
+            logTreasury('출금', '월급지급', defaultSalary, s.name, `[월급] ${reason}`);
+            totalPaid += defaultSalary;
+            count++;
+          });
+        }
+        result = { success: true, count: count, totalPaid: totalPaid, msg: `${count}명의 학생에게 월급(총 ${totalPaid.toLocaleString()}원) 배부 완료!` };
+        break;
+      }
+
+      case 'adjustStudentCash': {
+        const target = String(payload.targetStudent || payload.name || '').trim();
+        const type = payload.type || '입금';
+        const amount = Number(payload.amount) || 0;
+        const reason = payload.reason || '관리자 금액 조정';
+
+        if (!target) {
+          result = { success: false, msg: '대상 학생을 지정하세요.' };
+          break;
+        }
+
+        if (type === '설정') {
+          const sh = getOrCreateSheet(SH.USERS);
+          const data = sh.getDataRange().getValues();
+          const headers = data[0].map(h => String(h).trim());
+          const nameCol = headers.findIndex(h => h === '이름' || h === '학생명' || h === '성명');
+          const cashCol = headers.findIndex(h => h === '현금' || h === '잔액' || h === '보유현금');
+          const cIdx = cashCol >= 0 ? cashCol : 6;
+          const nIdx = nameCol >= 0 ? nameCol : 1;
+          for (let i = 1; i < data.length; i++) {
+            if (String(data[i][nIdx]).trim() === target) {
+              sh.getRange(i + 1, cIdx + 1).setValue(amount);
+              break;
+            }
+          }
+          logTreasury('입금', '관리자설정', amount, target, reason);
+          logTransaction(target, '관리자', '설정', amount, 1, '', reason, '완료');
+        } else if (type === '출금') {
+          updateCash(target, -amount, `[출금] ${reason}`, '관리자');
+          logTreasury('입금', '관리자회수', amount, target, reason);
+        } else {
+          updateCash(target, amount, `[입금] ${reason}`, '관리자');
+          logTreasury('출금', '관리자지급', amount, target, reason);
+        }
+
+        const freshSt = syncStudentAssets(target);
+        result = { success: true, msg: `[${target}] 학생의 현금이 성공적으로 처리되었습니다!`, student: freshSt };
         break;
       }
 
