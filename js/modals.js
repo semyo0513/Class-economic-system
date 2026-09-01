@@ -43,10 +43,16 @@ const ModalManager = (() => {
     overlay.style.display = 'flex';
     bodyEl.innerHTML = '';
 
-    const building = TownMapData.BUILDINGS.find(b => b.id === id);
+    const building = (typeof TownMapData !== 'undefined' && TownMapData.BUILDINGS && TownMapData.BUILDINGS.find(b => b.id === id)) || null;
     if (building) {
-      titleEl.innerHTML = `${building.signEmoji || '🏠'} ${building.name}`;
-      renderBuildingContent(id, bodyEl);
+      titleEl.innerHTML = `${building.signEmoji || '🏠'} ${building.name || building.signTitle}`;
+      renderBuildingContent(id, bodyEl, extraData);
+    } else if (id === 'dormitory') {
+      titleEl.innerHTML = '🏠 학생 기숙사';
+      renderBuildingContent('dormitory', bodyEl, extraData);
+    } else if (id === 'structure_modal') {
+      titleEl.innerText = (extraData && extraData.name) || '시설 상세 정보';
+      renderBuildingContent('structure_modal', bodyEl, extraData);
     } else {
       titleEl.innerText = id === 'quick_board' ? '📋 학생 간편모드 (시설 바로가기)' : (id === 'inventory' ? '🎒 내 인벤토리' : (id === 'mailbox' ? '📬 우편함' : '상세 정보'));
       renderSpecialContent(id, bodyEl, extraData);
@@ -62,7 +68,7 @@ const ModalManager = (() => {
     }
   }
 
-  function renderBuildingContent(id, container) {
+  function renderBuildingContent(id, container, extraData) {
     const st = GameState.student;
     const me = st ? (st.name || st.이름 || '나') : '나';
     const myCash = st ? (st.cash ?? st.현금 ?? 0) : 0;
@@ -71,12 +77,13 @@ const ModalManager = (() => {
     const isTeacher = GameState.isAdmin || me === '선생님' || myPerm.includes('전체');
     const schoolName = getSchoolName();
 
-    switch (id) {
-      // 1. 기숙사
-      case 'dormitory': {
-        MiniroomSystem.renderDormitoryList(container);
-        break;
-      }
+    try {
+      switch (id) {
+        // 1. 기숙사
+        case 'dormitory': {
+          MiniroomSystem.renderDormitoryList(container);
+          break;
+        }
 
       // 2. 은행 & 국고 관리
       case 'bank': {
@@ -1203,7 +1210,17 @@ const ModalManager = (() => {
       default:
         container.innerHTML = `<div style="padding:20px;">${id} 시설에 오신 것을 환영합니다!</div>`;
     }
+  } catch (err) {
+    console.error(`[renderBuildingContent Error: ${id}]`, err);
+    container.innerHTML = `
+      <div style="padding:20px; text-align:center;">
+        <h3>⚠️ 시설 로딩 오류</h3>
+        <p style="color:#64748b; font-size:12px; margin:10px 0;">화면을 불러오는 중 문제가 발생했습니다: ${err.message || err}</p>
+        <button class="pixel-btn-secondary" onclick="ModalManager.close()">닫기</button>
+      </div>
+    `;
   }
+}
 
   // 특수 팝업 (간편모드, 인벤토리, 우편함)
   function renderSpecialContent(id, container, extraData) {

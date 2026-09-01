@@ -35,7 +35,10 @@ const MiniroomSystem = (() => {
     study: { emoji: '📖', text: '열공모드' },
     rest:  { emoji: '☕', text: '힐링휴식' },
     rich:  { emoji: '💰', text: '부자되는중' },
-    love:  { emoji: '💖', text: '두근두근' }
+    love:  { emoji: '💖', text: '두근두근' },
+    '🟢 좋음': { emoji: '🥰', text: '행복만땅' },
+    '🟡 보통': { emoji: '☕', text: '힐링휴식' },
+    '🔴 힘듦': { emoji: '💚', text: '마음치유' }
   };
 
   function getRoomData(studentName) {
@@ -53,9 +56,9 @@ const MiniroomSystem = (() => {
     if (!room.inventory) room.inventory = { ...DEFAULT_ROOM.inventory };
     if (!room.items) room.items = [...DEFAULT_ROOM.items];
     if (!room.guestbook) room.guestbook = [...DEFAULT_ROOM.guestbook];
-    if (room.likes === undefined) room.likes = 12;
-    if (room.todayCount === undefined) room.todayCount = 3;
-    if (room.totalCount === undefined) room.totalCount = 28;
+    if (room.likes === undefined) room.likes = 0;
+    if (room.todayCount === undefined) room.todayCount = 1;
+    if (room.totalCount === undefined) room.totalCount = 1;
     if (!room.feeling) room.feeling = 'happy';
     if (!room.bgm) room.bgm = 'bgm_retro_cyworld';
 
@@ -83,116 +86,134 @@ const MiniroomSystem = (() => {
 
   // 1. 학생 기숙사 타운 허브 뷰
   function renderDormitoryList(container) {
-    const me = GameState.student ? (GameState.student.name || GameState.student.이름 || '나') : '나';
-    let students = (GameState.rankingList && GameState.rankingList.length > 0)
-      ? [...GameState.rankingList]
-      : [
-          { name: me, job: '학생' },
-          { name: '김현주', job: '문화체육부 장관' },
-          { name: '이하진', job: '대통령(반장)' },
-          { name: '정수빈', job: '은행원' },
-          { name: '서언', job: '국세청장' },
-          { name: '고설아', job: '환경부 장관' },
-          { name: '강민준', job: '증권사 대표' },
-          { name: '윤지우', job: '방송국 PD' }
-        ];
+    if (!container) return;
+    try {
+      const me = GameState.student ? (GameState.student.name || GameState.student.이름 || '나') : '나';
+      let students = (GameState.rankingList && GameState.rankingList.length > 0)
+        ? [...GameState.rankingList]
+        : [
+            { name: me, job: '학생' },
+            { name: '김현주', job: '문화체육부 장관' },
+            { name: '이하진', job: '대통령(반장)' },
+            { name: '정수빈', job: '은행원' },
+            { name: '서언', job: '국세청장' },
+            { name: '고설아', job: '환경부 장관' },
+            { name: '강민준', job: '증권사 대표' },
+            { name: '윤지우', job: '방송국 PD' }
+          ];
 
-    // 중복 제거
-    const seen = new Set();
-    students = students.filter(s => {
-      if (!s.name || seen.has(s.name)) return false;
-      seen.add(s.name);
-      return true;
-    });
-
-    // 필터링 및 검색 적용
-    let filtered = students;
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      filtered = filtered.filter(s => (s.name || '').toLowerCase().includes(q) || (s.job || '').toLowerCase().includes(q));
-    }
-    if (currentFilter === 'top') {
-      filtered = [...filtered].sort((a, b) => {
-        const rA = getRoomData(a.name);
-        const rB = getRoomData(b.name);
-        return (rB.likes || 0) - (rA.likes || 0);
+      // 중복 제거 및 이름 정제
+      const seen = new Set();
+      students = students.map(s => typeof s === 'string' ? { name: s, job: '학생' } : s).filter(s => {
+        const sName = s.name || s.이름;
+        if (!sName || seen.has(sName)) return false;
+        seen.add(sName);
+        return true;
       });
-    }
 
-    const myRoom = getRoomData(me);
+      // 필터링 및 검색 적용
+      let filtered = students;
+      if (searchQuery && searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        filtered = filtered.filter(s => (s.name || s.이름 || '').toLowerCase().includes(q) || (s.job || s.직업명 || '').toLowerCase().includes(q));
+      }
+      if (currentFilter === 'top') {
+        filtered = [...filtered].sort((a, b) => {
+          const aName = a.name || a.이름;
+          const bName = b.name || b.이름;
+          const rA = getRoomData(aName);
+          const rB = getRoomData(bName);
+          return (rB.likes || 0) - (rA.likes || 0);
+        });
+      }
 
-    let html = `
-      <div class="dorm-hub-wrap" style="display:flex; flex-direction:column; gap:10px;">
-        <!-- 상단 헤더 배너 -->
-        <div class="dorm-header" style="background:linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #fbcfe8 100%); border:3px solid #f472b6; padding:12px 16px; border-radius:12px; box-shadow:0 4px 12px rgba(244,114,182,0.25); text-align:center; position:relative; overflow:hidden;">
-          <div style="position:absolute; top:-10px; right:-10px; font-size:48px; opacity:0.25;">🌸</div>
-          <div class="dorm-title" style="font-size:18px; font-weight:900; color:#9d174d; display:flex; align-items:center; justify-content:center; gap:8px;">
-            <span>🏡</span> 싸이월드 감성 학생 기숙사 미니룸 타운 <span>✨</span>
+      const myRoom = getRoomData(me);
+
+      let html = `
+        <div class="dorm-hub-wrap" style="display:flex; flex-direction:column; gap:10px;">
+          <!-- 상단 헤더 배너 -->
+          <div class="dorm-header" style="background:linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #fbcfe8 100%); border:3px solid #f472b6; padding:12px 16px; border-radius:12px; box-shadow:0 4px 12px rgba(244,114,182,0.25); text-align:center; position:relative; overflow:hidden;">
+            <div style="position:absolute; top:-10px; right:-10px; font-size:48px; opacity:0.25;">🌸</div>
+            <div class="dorm-title" style="font-size:18px; font-weight:900; color:#9d174d; display:flex; align-items:center; justify-content:center; gap:8px;">
+              <span>🏡</span> 싸이월드 감성 학생 기숙사 미니룸 타운 <span>✨</span>
+            </div>
+            <div class="dorm-subtitle" style="font-size:11px; color:#be185d; margin-top:3px;">
+              친구들의 2.5D 미니룸을 구경하고, 파도타기(랜덤 방문) & 일촌평(방명록) & 좋아요(❤️)를 남겨보세요!
+            </div>
           </div>
-          <div class="dorm-subtitle" style="font-size:11px; color:#be185d; margin-top:3px;">
-            친구들의 2.5D 미니룸을 구경하고, 파도타기(랜덤 방문) & 일촌평(방명록) & 좋아요(❤️)를 남겨보세요!
+
+          <!-- 빠른 작업 바 (내 방 바로가기 + 파도타기 버튼) -->
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+            <button class="pixel-btn-primary" style="background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-color:#1d4ed8; padding:10px 14px; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="MiniroomSystem.openRoom('${me}')">
+              <span>🛋️</span> <strong>내 미니룸 꾸미기</strong>
+              <span style="background:rgba(255,255,255,0.25); font-size:10px; padding:2px 6px; border-radius:10px;">❤️ ${myRoom.likes || 0}</span>
+            </button>
+
+            <button class="pixel-btn-primary" style="background:linear-gradient(135deg, #ec4899 0%, #db2777 100%); border-color:#9d174d; padding:10px 14px; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px; animation:pulse 2s infinite;" onclick="MiniroomSystem.surfRandomRoom()">
+              <span>🏄‍♂️</span> <strong>파도타기 (랜덤 방문)</strong>
+            </button>
           </div>
-        </div>
 
-        <!-- 빠른 작업 바 (내 방 바로가기 + 파도타기 버튼) -->
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-          <button class="pixel-btn-primary" style="background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-color:#1d4ed8; padding:10px 14px; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="MiniroomSystem.openRoom('${me}')">
-            <span>🛋️</span> <strong>내 미니룸 꾸미기</strong>
-            <span style="background:rgba(255,255,255,0.25); font-size:10px; padding:2px 6px; border-radius:10px;">❤️ ${myRoom.likes || 0}</span>
-          </button>
-
-          <button class="pixel-btn-primary" style="background:linear-gradient(135deg, #ec4899 0%, #db2777 100%); border-color:#9d174d; padding:10px 14px; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px; animation:pulse 2s infinite;" onclick="MiniroomSystem.surfRandomRoom()">
-            <span>🏄‍♂️</span> <strong>파도타기 (랜덤 방문)</strong>
-          </button>
-        </div>
-
-        <!-- 검색 및 탭 필터 -->
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; background:#f8fafc; border:1px solid #cbd5e1; padding:8px 12px; border-radius:8px;">
-          <div style="display:flex; gap:4px;">
-            <button class="tab-btn ${currentFilter === 'all' ? 'active' : ''}" style="padding:4px 10px; font-size:11px;" onclick="MiniroomSystem.setFilter('all')">전체 기숙사</button>
-            <button class="tab-btn ${currentFilter === 'top' ? 'active' : ''}" style="padding:4px 10px; font-size:11px;" onclick="MiniroomSystem.setFilter('top')">🏆 인기 랭킹순</button>
+          <!-- 검색 및 탭 필터 -->
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; background:#f8fafc; border:1px solid #cbd5e1; padding:8px 12px; border-radius:8px;">
+            <div style="display:flex; gap:4px;">
+              <button class="tab-btn ${currentFilter === 'all' ? 'active' : ''}" style="padding:4px 10px; font-size:11px;" onclick="MiniroomSystem.setFilter('all')">전체 기숙사</button>
+              <button class="tab-btn ${currentFilter === 'top' ? 'active' : ''}" style="padding:4px 10px; font-size:11px;" onclick="MiniroomSystem.setFilter('top')">🏆 인기 랭킹순</button>
+            </div>
+            <div style="display:flex; gap:4px; flex:1; max-width:200px;">
+              <input type="text" id="dorm-search-input" placeholder="친구 이름 검색..." value="${searchQuery}" oninput="MiniroomSystem.handleSearch(this.value)" style="width:100%; padding:4px 8px; font-size:11px; border:1px solid #94a3b8; border-radius:6px; background:#ffffff;">
+            </div>
           </div>
-          <div style="display:flex; gap:4px; flex:1; max-width:200px;">
-            <input type="text" id="dorm-search-input" placeholder="친구 이름 검색..." value="${searchQuery}" oninput="MiniroomSystem.handleSearch(this.value)" style="width:100%; padding:4px 8px; font-size:11px; border:1px solid #94a3b8; border-radius:6px; background:#ffffff;">
-          </div>
-        </div>
 
-        <!-- 기숙사 카드 그리드 -->
-        <div class="dorm-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; max-height:260px; overflow-y:auto; padding-right:2px;">
-          ${filtered.length === 0 ? '<div style="grid-column:1/3; text-align:center; padding:20px; color:#94a3b8; font-size:12px;">검색된 학생 기숙사 미니룸이 없습니다.</div>' : ''}
-          ${filtered.map((s, idx) => {
-            const room = getRoomData(s.name);
-            const isMy = s.name === me;
-            const feel = FEELING_MAP[room.feeling || 'happy'] || FEELING_MAP.happy;
-            return `
-              <div class="dorm-card" style="background:#ffffff; border:2px solid ${isMy ? '#3b82f6' : '#e2e8f0'}; border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:all 0.15s ease; box-shadow:0 2px 4px rgba(0,0,0,0.04);" onclick="MiniroomSystem.openRoom('${s.name}')" onmouseover="this.style.borderColor='#f472b6'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='${isMy ? '#3b82f6' : '#e2e8f0'}'; this.style.transform='translateY(0)'">
-                <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
-                  <div style="font-size:26px; min-width:32px; text-align:center;">${isMy ? '👑' : feel.emoji}</div>
-                  <div style="overflow:hidden;">
-                    <div style="font-weight:bold; font-size:12px; color:#1e293b; display:flex; align-items:center; gap:4px; white-space:nowrap;">
-                      <span style="overflow:hidden; text-overflow:ellipsis;">${s.name}</span>
-                      ${isMy ? '<span class="badge badge-primary" style="font-size:9px; padding:1px 4px;">내 방</span>' : ''}
-                      ${currentFilter === 'top' && idx < 3 ? `<span style="font-size:10px;">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</span>` : ''}
-                    </div>
-                    <div style="font-size:10px; color:#64748b; margin-top:2px;">
-                      ${s.job || '학생'} · <span style="color:#ef4444; font-weight:bold;">❤️ ${room.likes || 0}</span> · <span style="color:#3b82f6;">💬 ${(room.guestbook || []).length}</span>
-                    </div>
-                    <div style="font-size:9px; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; margin-top:1px;">
-                      "${room.statusMsg || '행복한 하루 되세요!'}"
+          <!-- 기숙사 카드 그리드 -->
+          <div class="dorm-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; max-height:260px; overflow-y:auto; padding-right:2px;">
+            ${filtered.length === 0 ? '<div style="grid-column:1/3; text-align:center; padding:20px; color:#94a3b8; font-size:12px;">검색된 학생 기숙사 미니룸이 없습니다.</div>' : ''}
+            ${filtered.map((s, idx) => {
+              const sName = s.name || s.이름 || '학생';
+              const sJob = s.job || s.직업명 || '학생';
+              const room = getRoomData(sName);
+              const isMy = sName === me;
+              const feelObj = FEELING_MAP[room.feeling] || FEELING_MAP.happy;
+              const feelEmoji = (feelObj && feelObj.emoji) || '🥰';
+              return `
+                <div class="dorm-card" style="background:#ffffff; border:2px solid ${isMy ? '#3b82f6' : '#e2e8f0'}; border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:all 0.15s ease; box-shadow:0 2px 4px rgba(0,0,0,0.04);" onclick="MiniroomSystem.openRoom('${sName}')" onmouseover="this.style.borderColor='#f472b6'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='${isMy ? '#3b82f6' : '#e2e8f0'}'; this.style.transform='translateY(0)'">
+                  <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+                    <div style="font-size:26px; min-width:32px; text-align:center;">${isMy ? '👑' : feelEmoji}</div>
+                    <div style="overflow:hidden;">
+                      <div style="font-weight:bold; font-size:12px; color:#1e293b; display:flex; align-items:center; gap:4px; white-space:nowrap;">
+                        <span style="overflow:hidden; text-overflow:ellipsis;">${sName}</span>
+                        ${isMy ? '<span class="badge badge-primary" style="font-size:9px; padding:1px 4px;">내 방</span>' : ''}
+                        ${currentFilter === 'top' && idx < 3 ? `<span style="font-size:10px;">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</span>` : ''}
+                      </div>
+                      <div style="font-size:10px; color:#64748b; margin-top:2px;">
+                        ${sJob} · <span style="color:#ef4444; font-weight:bold;">❤️ ${room.likes || 0}</span> · <span style="color:#3b82f6;">💬 ${(room.guestbook || []).length}</span>
+                      </div>
+                      <div style="font-size:9px; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; margin-top:1px;">
+                        "${room.statusMsg || '행복한 하루 되세요!'}"
+                      </div>
                     </div>
                   </div>
+                  <button class="pixel-btn-sm" style="width:auto; padding:4px 8px; font-size:10px; ${isMy ? 'background:#3b82f6;' : 'background:#f472b6;'} white-space:nowrap;">
+                    방문 🚪
+                  </button>
                 </div>
-                <button class="pixel-btn-sm" style="width:auto; padding:4px 8px; font-size:10px; ${isMy ? 'background:#3b82f6;' : 'background:#f472b6;'} white-space:nowrap;">
-                  방문 🚪
-                </button>
-              </div>
-            `;
-          }).join('')}
+              `;
+            }).join('')}
+          </div>
         </div>
-      </div>
-    `;
+      `;
 
-    container.innerHTML = html;
+      container.innerHTML = html;
+    } catch (err) {
+      console.error('[renderDormitoryList error]', err);
+      container.innerHTML = `
+        <div style="padding:20px; text-align:center;">
+          <h3>🏡 학생 기숙사</h3>
+          <p style="color:#64748b; font-size:12px;">기숙사 목록을 불러오는 중 오류가 발생했습니다.</p>
+          <button class="pixel-btn-primary" onclick="MiniroomSystem.openRoom('${GameState.student?.name || '나'}')">내 미니룸 바로가기</button>
+        </div>
+      `;
+    }
   }
 
   // 2. 싸이월드 미니룸 스테이지 렌더링
