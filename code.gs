@@ -567,7 +567,7 @@ function syncStudentAssets(studentName) {
 
   const curStockPrice = getCurrentStockPrice();
 
-  // 1. 다종목 주식 보유 현황 계산 (SH.ASSETS)
+  // 1. 다종목 주식 보유 현황 계산 (SH.ASSETS - 초고속 계산)
   let multiStockQty = 0;
   let multiStockVal = 0;
   try {
@@ -576,12 +576,7 @@ function syncStudentAssets(studentName) {
     for (let j = 1; j < astData.length; j++) {
       if (astData[j][2] === '다종목주식' && String(astData[j][1]).trim() === nameTrim && astData[j][7] === '보유') {
         const q = Number(astData[j][5]) || 1;
-        const code = String(astData[j][6] || '').trim();
-        let p = Number(astData[j][4]) || 0;
-        if (code) {
-          const live = fetchNaverStockPrice(code);
-          if (live && live.price > 0) p = live.price;
-        }
+        const p = Number(astData[j][4]) || curStockPrice;
         multiStockQty += q;
         multiStockVal += (p * q);
       }

@@ -320,15 +320,15 @@ const MiniroomSystem = (() => {
               ${renderPlacedObjects(room.items || [])}
             </div>
 
-            <!-- 3. 주인 아바타 미니미 (싸이월드 스타일) -->
-            <div class="miniroom-avatar" id="miniroom-avatar" style="position:absolute; left: 235px; top: 185px; pointer-events:none; text-align:center; z-index:215; filter:drop-shadow(0 6px 8px rgba(0,0,0,0.35)); transition:transform 0.2s;">
+            <!-- 3. 주인 아바타 미니미 (싸이월드 스타일 커스텀 캐릭터) -->
+            <div class="miniroom-avatar" id="miniroom-avatar" style="position:absolute; left: 225px; top: 155px; pointer-events:none; text-align:center; z-index:215; filter:drop-shadow(0 6px 10px rgba(0,0,0,0.35)); transition:transform 0.2s;">
               <!-- 칭호 및 이름 뱃지 -->
-              <div style="font-size:9px; font-weight:bold; background:rgba(15, 23, 42, 0.85); color:#fef08a; padding:1px 8px; border-radius:10px; border:1px solid #fbbf24; margin-bottom:2px; white-space:nowrap; display:inline-block;">
+              <div style="font-size:10px; font-weight:bold; background:rgba(15, 23, 42, 0.88); color:#fef08a; padding:2px 10px; border-radius:12px; border:1px solid #fbbf24; margin-bottom:4px; white-space:nowrap; display:inline-block; box-shadow:0 2px 4px rgba(0,0,0,0.3);">
                 ${ownerName}
               </div>
-              <!-- 아바타 캐릭터 비주얼 -->
-              <div style="font-size:36px; line-height:1;">
-                ${getAvatarEmoji(ownerName)}
+              <!-- 아바타 캐릭터 비주얼 (풀 커스터마이징 픽셀 아바타) -->
+              <div>
+                ${getAvatarElement(ownerName)}
               </div>
             </div>
 
@@ -381,6 +381,25 @@ const MiniroomSystem = (() => {
     modalBody.innerHTML = html;
   }
 
+  function getAvatarElement(ownerName) {
+    const st = GameState.student;
+    const isMe = st && (st.name === ownerName || st.이름 === ownerName);
+    let style = isMe ? (GameState.characterStyle || {}) : {};
+    if (!style || Object.keys(style).length === 0) {
+      try {
+        const saved = localStorage.getItem(`char_style_${ownerName}`);
+        if (saved) style = JSON.parse(saved);
+      } catch (_) {}
+    }
+
+    if (typeof AssetGenerator !== 'undefined' && AssetGenerator.generateSingleAvatarDataUrl) {
+      const dataUrl = AssetGenerator.generateSingleAvatarDataUrl(style);
+      return `<img src="${dataUrl}" style="width:64px; height:96px; image-rendering:pixelated; pointer-events:none; filter:drop-shadow(0 6px 10px rgba(0,0,0,0.35)); animation: miniroomAvatarFloat 2.4s ease-in-out infinite;">`;
+    }
+
+    return `<div style="font-size:42px;">${getAvatarEmoji(ownerName)}</div>`;
+  }
+
   function getAvatarEmoji(name) {
     const st = GameState.student;
     const isMe = st && (st.name === name || st.이름 === name);
@@ -396,9 +415,7 @@ const MiniroomSystem = (() => {
 
   // 3. 배치된 오브젝트 렌더링 (실사 PNG 에셋 & 자유 크기 조절 Scale 지원)
   function renderPlacedObjects(items) {
-    const st = GameState.student;
-    const isMe = st && (st.name === currentRoomOwner || st.이름 === currentRoomOwner);
-    const canDrag = isMe || isEditing;
+    const canDrag = isEditing;
 
     return items.map((it, idx) => {
       const def = CONFIG.FURNITURE_CATALOG.find(f => f.id === it.id);
@@ -414,8 +431,7 @@ const MiniroomSystem = (() => {
         <div class="placed-furniture ${canDrag ? 'editable-furniture' : ''}"
              id="furn_${idx}"
              style="position:absolute; left: ${left}px; top: ${top}px; width:${baseW}px; height:${baseH}px; cursor:${canDrag ? 'grab' : 'default'}; user-select:none; z-index:${Math.floor(top + 30)}; filter:drop-shadow(0 6px 8px rgba(0,0,0,0.3)); display:flex; align-items:center; justify-content:center; touch-action:none;"
-             onmousedown="MiniroomSystem.startDrag(event, ${idx})"
-             ontouchstart="MiniroomSystem.startTouchDrag(event, ${idx})"
+             ${canDrag ? `onmousedown="MiniroomSystem.startDrag(event, ${idx})" ontouchstart="MiniroomSystem.startTouchDrag(event, ${idx})"` : ''}
              title="${def.name}">
           ${def.image ? `
             <img src="${def.image}" draggable="false" style="width:100%; height:100%; object-fit:contain; transform: scaleX(${flipScale}) scaleY(${scale}); pointer-events:none; image-rendering:pixelated; -webkit-user-drag:none;">
@@ -423,11 +439,11 @@ const MiniroomSystem = (() => {
             <div style="font-size:${def.type === 'prop' ? '30px' : '42px'}; transform: scaleX(${flipScale}) scaleY(${scale}); pointer-events:none;">${def.emoji}</div>
           `}
           ${canDrag ? `
-            <div class="furn-control-btns" style="position:absolute; top:-14px; right:-14px; display:flex; gap:2px; z-index:9999; background:rgba(15,23,42,0.9); padding:2px 4px; border-radius:10px; border:1px solid #94a3b8; box-shadow:0 2px 6px rgba(0,0,0,0.4);">
-              <span class="furn-ctrl-btn" style="color:#38bdf8; font-size:10px; font-weight:bold; cursor:pointer; padding:0 2px;" onclick="event.stopPropagation(); MiniroomSystem.scaleFurniture(${idx}, 0.15)" title="크기 확대">🔍+</span>
-              <span class="furn-ctrl-btn" style="color:#fbbf24; font-size:10px; font-weight:bold; cursor:pointer; padding:0 2px;" onclick="event.stopPropagation(); MiniroomSystem.scaleFurniture(${idx}, -0.15)" title="크기 축소">🔍-</span>
-              <span class="furn-ctrl-btn" style="color:#a855f7; font-size:10px; cursor:pointer; padding:0 2px;" onclick="event.stopPropagation(); MiniroomSystem.flipFurniture(${idx})" title="좌우 반전">🔄</span>
-              <span class="furn-ctrl-btn" style="color:#f87171; font-size:10px; cursor:pointer; padding:0 2px;" onclick="event.stopPropagation(); MiniroomSystem.removeFurniture(${idx})" title="회수">✕</span>
+            <div class="furn-control-btns" style="position:absolute; top:-16px; right:-16px; display:flex; gap:3px; z-index:9999; background:rgba(15,23,42,0.92); padding:3px 6px; border-radius:12px; border:1px solid #94a3b8; box-shadow:0 4px 8px rgba(0,0,0,0.45);">
+              <span class="furn-ctrl-btn" style="color:#38bdf8; font-size:11px; font-weight:bold; cursor:pointer; padding:0 3px;" onclick="event.stopPropagation(); MiniroomSystem.scaleFurniture(${idx}, 0.25)" title="크기 대폭 확대 (최대 5배)">🔍+</span>
+              <span class="furn-ctrl-btn" style="color:#fbbf24; font-size:11px; font-weight:bold; cursor:pointer; padding:0 3px;" onclick="event.stopPropagation(); MiniroomSystem.scaleFurniture(${idx}, -0.25)" title="크기 축소">🔍-</span>
+              <span class="furn-ctrl-btn" style="color:#a855f7; font-size:11px; cursor:pointer; padding:0 3px;" onclick="event.stopPropagation(); MiniroomSystem.flipFurniture(${idx})" title="좌우 반전">🔄</span>
+              <span class="furn-ctrl-btn" style="color:#f87171; font-size:11px; font-weight:bold; cursor:pointer; padding:0 3px;" onclick="event.stopPropagation(); MiniroomSystem.removeFurniture(${idx})" title="회수 (보관함으로)">✕</span>
             </div>
           ` : ''}
         </div>
@@ -466,11 +482,9 @@ const MiniroomSystem = (() => {
     }).join('');
   }
 
-  // 5. 드래그 앤 드롭 시스템
+  // 5. 드래그 앤 드롭 시스템 (방꾸미기 편집 모드 활성화 시에만 동작)
   function startDrag(e, idx) {
-    const st = GameState.student;
-    const isMe = st && (st.name === currentRoomOwner || st.이름 === currentRoomOwner);
-    if (!isEditing && !isMe) return;
+    if (!isEditing) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -492,9 +506,7 @@ const MiniroomSystem = (() => {
   }
 
   function startTouchDrag(e, idx) {
-    const st = GameState.student;
-    const isMe = st && (st.name === currentRoomOwner || st.이름 === currentRoomOwner);
-    if (!isEditing && !isMe) return;
+    if (!isEditing) return;
 
     if (e.touches && e.touches[0]) {
       e.preventDefault();
@@ -710,7 +722,7 @@ const MiniroomSystem = (() => {
       const room = getRoomData(currentRoomOwner);
       if (room.items && room.items[idx]) {
         const cur = (room.items[idx].scale !== undefined && room.items[idx].scale > 0) ? room.items[idx].scale : 1.0;
-        const next = Math.max(0.4, Math.min(2.2, parseFloat((cur + delta).toFixed(2))));
+        const next = Math.max(0.3, Math.min(5.0, parseFloat((cur + delta).toFixed(2))));
         room.items[idx].scale = next;
         saveRoomData(currentRoomOwner, room);
         openRoom(currentRoomOwner, true);

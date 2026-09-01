@@ -80,6 +80,7 @@ const API = (() => {
     };
 
     switch (action) {
+      case 'login':
       case 'studentLogin':
         return {
           success: true,

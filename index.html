@@ -159,16 +159,24 @@
     }
 
     /* 상단 HUD */
-    #top-hud {
-      position: absolute;
+    /* 상단 통합 HUD & 전광판 래퍼 */
+    #top-bar-area {
+      position: fixed;
       top: 8px;
       left: 8px;
       right: 8px;
       display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    #top-hud {
+      width: 100%;
+      display: flex;
       justify-content: space-between;
       align-items: center;
       pointer-events: none;
-      z-index: 1000;
       flex-wrap: wrap;
       gap: 6px;
     }
@@ -215,12 +223,11 @@
 
     /* 상단 실시간 흘러가는 공지사항 전광판 (Marquee Ticker) */
     #notice-ticker-bar {
-      position: absolute;
-      top: 50px;
-      left: 8px;
-      right: 150px;
+      pointer-events: auto;
+      width: 100%;
+      max-width: 820px;
       height: 28px;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.9);
       backdrop-filter: blur(6px);
       border: 2px solid #38bdf8;
       border-radius: 14px;
@@ -228,7 +235,6 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      z-index: 1000;
       box-shadow: 0 3px 6px rgba(0,0,0,0.25);
       cursor: pointer;
       overflow: hidden;
@@ -275,15 +281,15 @@
 
     /* 실시간 미니맵 레이더 HUD */
     #minimap-hud-wrap {
-      position: absolute;
-      top: 50px;
+      position: fixed;
+      top: 100px;
       right: 8px;
       background: rgba(255, 253, 247, 0.95);
       border: 3px solid #334155;
       border-radius: 10px;
       box-shadow: 0 4px 0 #334155;
       padding: 4px;
-      z-index: 1000;
+      z-index: 999;
       text-align: center;
     }
     .minimap-title {
@@ -299,6 +305,30 @@
       border: 1px solid #94a3b8;
       border-radius: 6px;
       display: block;
+    }
+
+    @media (max-width: 768px) {
+      #top-bar-area {
+        top: 4px;
+        left: 4px;
+        right: 4px;
+        gap: 4px;
+      }
+      .hud-card {
+        padding: 3px 6px;
+        font-size: 10px;
+      }
+      .hud-btn {
+        padding: 4px 6px;
+        font-size: 10px;
+      }
+      #notice-ticker-bar {
+        height: 24px;
+        font-size: 10px;
+      }
+      #minimap-hud-wrap {
+        display: none;
+      }
     }
 
     /* 토글형 플로팅 실시간 채팅창 */
@@ -769,56 +799,59 @@
   <div id="game-container">
     <div id="game-canvas-wrap"></div>
 
-    <!-- 상단 HUD -->
-    <div id="top-hud">
-      <div class="hud-card">
-        <span id="hud-school-name">🏫 행복초</span>
-        <span>|</span>
-        <span id="hud-player-name">👤 <strong>학생</strong></span>
-        <span>|</span>
-        <span id="hud-job-badge" class="badge badge-primary">학생</span>
-      </div>
+    <!-- 상단 통합 영역 (HUD + 실시간 공지 전광판) -->
+    <div id="top-bar-area">
+      <!-- 1. 상단 HUD -->
+      <div id="top-hud">
+        <div class="hud-card">
+          <span id="hud-school-name">🏫 행복초</span>
+          <span>|</span>
+          <span id="hud-player-name">👤 <strong>학생</strong></span>
+          <span>|</span>
+          <span id="hud-job-badge" class="badge badge-primary">학생</span>
+        </div>
 
-      <div class="hud-card">
-        <span>💰 현금: <strong id="hud-cash-val" style="color:#15803d;">0원</strong></span>
-        <span>📈 주식: <strong id="hud-stock-val" style="color:#0284c7;">0원</strong></span>
-      </div>
+        <div class="hud-card">
+          <span>💰 현금: <strong id="hud-cash-val" style="color:#15803d;">0원</strong></span>
+          <span>📈 주식: <strong id="hud-stock-val" style="color:#0284c7;">0원</strong></span>
+        </div>
 
-      <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <!-- 상단 간편모드 (게시판 모드) 버튼 -->
-        <button class="hud-btn" style="background:#fef3c7; color:#b45309; border-color:#d97706; font-weight:bold;" onclick="ModalManager.open('quick_board')">
-          📋 간편모드
-        </button>
-        <!-- 상단 우편함 버튼 -->
-        <button class="hud-btn" style="background:#fdf2f8; color:#be185d; border-color:#db2777; font-weight:bold;" onclick="ModalManager.open('mailbox')">
-          📬 우편함
-        </button>
-        <!-- 상단 인벤토리 (가방/장착) 버튼 -->
-        <button class="hud-btn" style="background:#e0f2fe; color:#0369a1; border-color:#0284c7; font-weight:bold;" onclick="ModalManager.open('inventory')">
-          🎒 인벤토리
-        </button>
-        <!-- 상단 채팅 토글 버튼 -->
-        <button class="hud-btn" style="background:#e0e7ff; color:#3730a3; border-color:#6366f1; font-weight:bold;" onclick="toggleChatWindow()">
-          💬 채팅
-        </button>
-        <!-- 상단 교장실 (관리자 설정) 퀵 버튼 -->
-        <button class="hud-btn hud-admin-btn" id="hud-admin-btn" style="display:none;" onclick="ModalManager.open('principal')">
-          👑 교장실
-        </button>
-        <button class="hud-btn" onclick="SoundEngine.toggleBGM()">🎵 BGM</button>
-        <button class="hud-btn" onclick="openSettingsModal()">⚙️ 설정</button>
-      </div>
-    </div>
-
-    <!-- 상단 실시간 흘러가는 공지사항 전광판 (Marquee Ticker) -->
-    <div id="notice-ticker-bar" onclick="ModalManager.open('school')">
-      <div class="ticker-badge">📢 공지</div>
-      <div class="ticker-content-box">
-        <div id="notice-ticker-text" class="marquee-text">
-          🌳 행복초 2D 클래스타운에 오신 것을 환영합니다! 기숙사 미니룸을 예쁘게 꾸미고 다양한 활동에 참여해보세요 ✨
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <!-- 상단 간편모드 (게시판 모드) 버튼 -->
+          <button class="hud-btn" style="background:#fef3c7; color:#b45309; border-color:#d97706; font-weight:bold;" onclick="ModalManager.open('quick_board')">
+            📋 간편모드
+          </button>
+          <!-- 상단 우편함 버튼 -->
+          <button class="hud-btn" style="background:#fdf2f8; color:#be185d; border-color:#db2777; font-weight:bold;" onclick="ModalManager.open('mailbox')">
+            📬 우편함
+          </button>
+          <!-- 상단 인벤토리 (가방/장착) 버튼 -->
+          <button class="hud-btn" style="background:#e0f2fe; color:#0369a1; border-color:#0284c7; font-weight:bold;" onclick="ModalManager.open('inventory')">
+            🎒 인벤토리
+          </button>
+          <!-- 상단 채팅 토글 버튼 -->
+          <button class="hud-btn" style="background:#e0e7ff; color:#3730a3; border-color:#6366f1; font-weight:bold;" onclick="toggleChatWindow()">
+            💬 채팅
+          </button>
+          <!-- 상단 교장실 (관리자 설정) 퀵 버튼 -->
+          <button class="hud-btn hud-admin-btn" id="hud-admin-btn" style="display:none;" onclick="ModalManager.open('principal')">
+            👑 교장실
+          </button>
+          <button class="hud-btn" onclick="SoundEngine.toggleBGM()">🎵 BGM</button>
+          <button class="hud-btn" onclick="openSettingsModal()">⚙️ 설정</button>
         </div>
       </div>
-      <div style="font-size:10px; color:#38bdf8; white-space:nowrap; font-weight:bold;">열기 ➡️</div>
+
+      <!-- 2. 상단 실시간 흘러가는 공지사항 전광판 (Marquee Ticker) -->
+      <div id="notice-ticker-bar" onclick="ModalManager.open('school')">
+        <div class="ticker-badge">📢 공지</div>
+        <div class="ticker-content-box">
+          <div id="notice-ticker-text" class="marquee-text">
+            🌳 행복초 2D 클래스타운에 오신 것을 환영합니다! 기숙사 미니룸을 예쁘게 꾸미고 다양한 활동에 참여해보세요 ✨
+          </div>
+        </div>
+        <div style="font-size:10px; color:#38bdf8; white-space:nowrap; font-weight:bold;">열기 ➡️</div>
+      </div>
     </div>
 
     <!-- 실시간 미니맵 레이더 HUD -->
@@ -1076,11 +1109,20 @@
       try {
         const loginRes = await API.call('login', { name: name, password: pw }, false, 6000);
 
-        if (loginRes && loginRes.success && loginRes.student) {
-          GameState.student = loginRes.student;
-          GameState.isAdmin = loginRes.isAdmin || loginRes.student.permission === '전체' || name === '선생님';
+        if (loginRes && loginRes.success) {
+          const stObj = loginRes.student || {
+            name: name,
+            job: '학생',
+            permission: '일반',
+            cash: 50000,
+            stock: 0,
+            stockQty: 0,
+            totalAsset: 50000
+          };
+          GameState.student = stObj;
+          GameState.isAdmin = loginRes.isAdmin || (stObj.permission === '전체') || name === '선생님';
           try {
-            localStorage.setItem(`classbank_user_${name}`, JSON.stringify(loginRes.student));
+            localStorage.setItem(`classbank_user_${name}`, JSON.stringify(stObj));
             localStorage.setItem('classbank_last_user', name);
           } catch (_) {}
           API.hideLoading();

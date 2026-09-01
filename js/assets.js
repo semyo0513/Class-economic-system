@@ -611,9 +611,23 @@ const AssetGenerator = (() => {
     return cvs;
   }
 
+  // 11. 미니룸 전용 고해상도 단일 커스텀 아바타 DataURL 생성기
+  function generateSingleAvatarDataUrl(style = {}) {
+    const sheet = generateCharacterSpritesheet(style);
+    const cvs = document.createElement('canvas');
+    cvs.width = 64;
+    cvs.height = 96;
+    const ctx = cvs.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    // Down 방향 Frame 0 (x: 0, y: 0, w: 32, h: 48 -> 2배 확대 64x96)
+    ctx.drawImage(sheet, 0, 0, 32, 48, 0, 0, 64, 96);
+    return cvs.toDataURL();
+  }
+
   return {
     generateTileset,
     generateCharacterSpritesheet,
+    generateSingleAvatarDataUrl,
     generateBuildingSprite,
     generateTreeSprite,
     generateFountainSprite,
@@ -625,3 +639,4 @@ const AssetGenerator = (() => {
     generateEquipOverlay
   };
 })();
+
