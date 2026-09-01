@@ -16,7 +16,8 @@ const SH = {
   TX_LOG: '거래LOG',        // 모든 입출금, 세금, 주식, 상점 거래 내역
   TREASURY: '국고관리',      // 학급 국고 입출금 및 잔액 장부
   STOCK: '주식시장',        // 일자별 주가 시세 및 경제 뉴스
-  ASSETS: '자산현황',        // 상점아이템, 캐릭터장착템, 마트물품, 주식보유내역
+  ASSETS: '자산현황',        // 학생 개인별 보유 아이템 및 자산 장부 (사용자 보유만 기록)
+  SHOP: '잡화점',           // 마트 및 잡화점 판매 물품 카탈로그 (마트/소품/아이템 관리)
   DEPOSITS: '예금',         // 학생별 정기예금 계좌 원금, 이율, 상태 장부
   SEATS: '부동산좌석',       // 교실 좌석 소유권, 매물 등록 및 구매 제안/협상 장부
   LEARNING: '학습관리',      // 공지사항, 과제, 급식, 시간표
@@ -34,7 +35,8 @@ const SCHEMA = {
   [SH.TX_LOG]: ['일시', '이름', '카테고리', '유형', '금액', '수량', '상대방', '사유', '상태', '거래ID'],
   [SH.TREASURY]: ['일시', '구분', '유형', '금액', '국고잔액', '담당자', '사유', '거래ID'],
   [SH.STOCK]: ['일시', '카테고리', '값1', '값2', '값3'],
-  [SH.ASSETS]: ['일시', '이름', '카테고리', '아이템명', '금액', '수량', '속성', '상태', '구매자', '메타'],
+  [SH.ASSETS]: ['일시', '소유자', '카테고리', '아이템명', '금액', '수량', '속성', '상태', '구매자', '메타'],
+  [SH.SHOP]: ['아이템명', '카테고리', '가격', '재고', '상태', '설명', '속성', '아이콘'],
   [SH.DEPOSITS]: ['가입일시', '이름', '예금원금', '이율', '상태', '해지일시', '수령이자'],
   [SH.SEATS]: ['좌석번호', '행', '열', '소유자', '매물등록', '희망가격', '제안자', '제안금액', '상태', '최종거래일'],
   [SH.LEARNING]: ['일시', '카테고리', 'ID', '제목', '내용', '대상', '마감일', '작성자', '상태', '중요도'],
@@ -104,7 +106,8 @@ function getOrCreateSheet(sheetName) {
     '거래LOG': ['거래LOG', '거래기록', '거래내역', '입출금내역', '로그'],
     '국고관리': ['국고관리', '국고', '학급국고', '국고장부'],
     '주식시장': ['주식시장', '주식', '증권', '주가'],
-    '자산현황': ['자산현황', '상점', '아이템', '상점아이템', '자산'],
+    '자산현황': ['자산현황', '자산', '보유아이템', '인벤토리'],
+    '잡화점': ['잡화점', '마트', '상점', '상점물품', '마트물품', '물품목록'],
     '학습관리': ['학습관리', '공지사항', '공지', '게시판'],
     '학급활동': ['학급활동', '활동기록', '활동', '상벌점'],
     '과제': ['과제', '숙제', '과제제출'],
@@ -178,14 +181,31 @@ function initSystemSheets() {
     lotSh.appendRow(['꽝', '0', '0.23', '😢 아쉽네요! 다음 기회에!']);
   }
 
-  // 5. 기본 상점 & 뷰티 살롱 아이템 등록
-  const assetSh = getOrCreateSheet(SH.ASSETS);
-  if (assetSh.getLastRow() <= 1) {
+  // 5. 잡화점 & 마트 & 살롱 카탈로그 시트 (SH.SHOP)
+  const shopSh = getOrCreateSheet(SH.SHOP);
+  if (shopSh.getLastRow() <= 1) {
+    // 5-1. 기본 마트 물품
+    const defaultMartItems = [
+      ['🍪 맛있는 과자 세트', '마트물품', 1500, 30, '판매중', '바삭하고 달콤한 간식 세트', '', '🍪'],
+      ['🧃 시원한 과일 음료', '마트물품', 1200, 30, '판매중', '상큼하고 시원한 과즙 음료수', '', '🧃'],
+      ['📒 캐릭터 종합 공책', '마트물품', 2000, 20, '판매중', '학습 필기용 줄공책', '', '📒'],
+      ['✏️ 고급 지우개 & 연필', '마트물품', 800, 25, '판매중', '깨끗하게 잘 지워지는 필기구', '', '✏️'],
+      ['🎟️ 자리 바꾸기 우선권', '마트물품', 10000, 5, '판매중', '원하는 자리로 우선 배정받는 특별 쿠폰', '', '🎟️'],
+      ['📜 숙제 1회 면제권', '마트물품', 15000, 3, '판매중', '일일 과제를 1회 면제받는 골드 쿠폰', '', '📜'],
+      ['🍱 급식 1등 우선 배식권', '마트물품', 8000, 5, '판매중', '점심시간 가장 먼저 배식받는 쿠폰', '', '🍱'],
+      ['🧹 신나는 청소 면제권', '마트물품', 12000, 3, '판매중', '당일 구역 청소를 면제받는 쿠폰', '', '🧹']
+    ];
+    defaultMartItems.forEach(row => shopSh.appendRow(row));
+
+    // 5-2. 기본 패션 & 탈 것 & 뷰티 살롱 아이템
     Object.keys(DEFAULT_FASHION_CATALOG).forEach(name => {
       const it = DEFAULT_FASHION_CATALOG[name];
-      assetSh.appendRow([nowStr(), '선생님', it.cat, name, it.price, 99, it.prop, '판매중', '', '']);
+      shopSh.appendRow([name, it.cat, it.price, 999, '판매중', '', it.prop || '', '🛍️']);
     });
   }
+
+  // 5-3. 자산현황 시트 (SH.ASSETS - 오직 학생 개인별 실제 보유/장착 아이템만 기록)
+  const assetSh = getOrCreateSheet(SH.ASSETS);
 
   // 6. 교실 20개 좌석 부동산 기본 세팅 (SH.SEATS)
   const seatSh = getOrCreateSheet(SH.SEATS);
@@ -197,7 +217,7 @@ function initSystemSheets() {
     }
   }
 
-  return { success: true, msg: '14개 시스템 시트가 완벽하게 구성되었습니다.' };
+  return { success: true, msg: '15개 시스템 시트(잡화점 카탈로그 & 사용자 자산현황 분리)가 완벽하게 구성되었습니다.' };
 }
 
 function nowStr() {
@@ -1357,7 +1377,7 @@ function handleRequest(payload, callback) {
         break;
       }
 
-      // 4. 패션 & 아이템 구매 (품절 에러 원천 방지 & 국고 귀속)
+      // 4. 패션 & 아이템 구매 (중복 구매 방지 & 국고 귀속 & 자산현황 기록)
       case 'buyItem':
       case 'buyFashionItem': {
         const itemName = String(payload.itemName || '').trim();
@@ -1388,9 +1408,26 @@ function handleRequest(payload, callback) {
           break;
         }
 
+        // 🌟 중복 구매 방지: 가구/소품 외의 의상, 탈것, 헤어, 모자, 오라, 퍼퓸 등은 1회만 구매 가능
+        if (cat !== '가구' && cat !== '소품') {
+          const invSh = getOrCreateSheet(SH.ASSETS);
+          const invRows = sheetToObj(invSh);
+          const alreadyOwned = invRows.some(r => {
+            const owner = String(r['소유자'] || r['이름'] || r['학생명'] || '').trim();
+            const itName = String(r['아이템명'] || r['이름'] || '').trim();
+            const status = String(r['상태'] || '보유').trim();
+            return owner === buyer && itName === itemName && status !== '삭제';
+          });
+          if (alreadyOwned) {
+            result = { success: false, msg: `[${itemName}]은(는) 이미 보유하고 있는 상품입니다. (중복 구매 불가)` };
+            break;
+          }
+        }
+
         updateCash(buyer, -price, `[상점구매] ${itemName}`, '상점');
         logTreasury('입금', '아이템판매수익', price, buyer, `[상점판매] ${itemName}`);
 
+        // 자산현황 시트에 사용자 보유 아이템으로만 정확히 기록
         const sh = getOrCreateSheet(SH.ASSETS);
         sh.appendRow([nowStr(), buyer, cat, itemName, price, 1, prop, '보유', '', '']);
 
@@ -1406,7 +1443,7 @@ function handleRequest(payload, callback) {
         const myItems = rows.filter(r => {
           const owner = String(r['소유자'] || r['이름'] || r['학생명'] || '').trim();
           const status = String(r['상태'] || '보유').trim();
-          return (owner === targetName || (targetName === '선생님' && owner === '선생님')) && (status === '보유' || status === '장착' || status === '판매중' || status === '');
+          return (owner === targetName || (targetName === '선생님' && owner === '선생님')) && (status === '보유' || status === '장착' || status === '');
         });
         result = { success: true, inventory: myItems };
         break;
@@ -1450,9 +1487,24 @@ function handleRequest(payload, callback) {
         break;
       }
 
+      case 'getMartItems':
+      case 'getShopItems':
       case 'getAdminItemsList': {
-        const sh = getOrCreateSheet(SH.ASSETS);
-        const allItems = sheetToObj(sh).filter(r => ['아이템', '캐릭터아이템', '가구', '마트물품', '의상', '헤어', '모자', '오라'].includes(r['카테고리']));
+        const sh = getOrCreateSheet(SH.SHOP);
+        const rows = sheetToObj(sh);
+        const allItems = rows.map(r => ({
+          아이템명: r['아이템명'] || r['이름'] || '',
+          itemName: r['아이템명'] || r['이름'] || '',
+          금액: Number(r['가격'] || r['금액'] || 0),
+          price: Number(r['가격'] || r['금액'] || 0),
+          수량: Number(r['재고'] || r['수량'] || 0),
+          stock: Number(r['재고'] || r['수량'] || 0),
+          상태: r['상태'] || '판매중',
+          카테고리: r['카테고리'] || '마트물품',
+          설명: r['설명'] || '',
+          속성: r['속성'] || '',
+          아이콘: r['아이콘'] || '🛒'
+        }));
         result = { success: true, items: allItems };
         break;
       }
@@ -1464,26 +1516,26 @@ function handleRequest(payload, callback) {
         const newPrice = Number(payload.price !== undefined ? payload.price : payload.금액);
         const newStock = Number(payload.stock !== undefined ? payload.stock : payload.수량);
         const category = payload.category || payload.카테고리 || (payload.action === 'updateMartItem' ? '마트물품' : '아이템');
-        const sh = getOrCreateSheet(SH.ASSETS);
+        const sh = getOrCreateSheet(SH.SHOP);
         const data = sh.getDataRange().getValues();
         let found = false;
 
         for (let i = 1; i < data.length; i++) {
-          if (String(data[i][3]).trim() === oldItemName || String(data[i][3]).trim() === newItemName) {
-            if (newItemName) sh.getRange(i + 1, 4).setValue(newItemName);
-            if (!isNaN(newPrice)) sh.getRange(i + 1, 5).setValue(newPrice);
-            if (!isNaN(newStock)) sh.getRange(i + 1, 6).setValue(newStock);
-            if (category) sh.getRange(i + 1, 3).setValue(category);
+          if (String(data[i][0]).trim() === oldItemName || String(data[i][0]).trim() === newItemName) {
+            if (newItemName) sh.getRange(i + 1, 1).setValue(newItemName);
+            if (category) sh.getRange(i + 1, 2).setValue(category);
+            if (!isNaN(newPrice)) sh.getRange(i + 1, 3).setValue(newPrice);
+            if (!isNaN(newStock)) sh.getRange(i + 1, 4).setValue(newStock);
             found = true;
             break;
           }
         }
         if (!found && (newItemName || oldItemName)) {
           const finalName = newItemName || oldItemName;
-          sh.appendRow([nowStr(), '선생님', category, finalName, isNaN(newPrice) ? 1000 : newPrice, isNaN(newStock) ? 20 : newStock, '', '판매중', '', '']);
+          sh.appendRow([finalName, category, isNaN(newPrice) ? 1000 : newPrice, isNaN(newStock) ? 20 : newStock, '판매중', '', '', '🛒']);
           found = true;
         }
-        result = { success: true, msg: `[${newItemName || oldItemName}] 물품 정보(이름/가격/재고)가 저장되었습니다.` };
+        result = { success: true, msg: `[${newItemName || oldItemName}] 물품 정보가 잡화점 시트에 저장되었습니다.` };
         break;
       }
 

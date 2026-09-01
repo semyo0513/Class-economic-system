@@ -86,7 +86,7 @@ const AssetGenerator = (() => {
     return cvs;
   }
 
-  // 2. 캐릭터 커스터마이징 스프라이트시트 (헤어염색, 코스튬, 모자, 오라 지원)
+  // 2. 캐릭터 커스터마이징 스프라이트시트 (헤어염색, 코스튬, 모자, 오라, 탈 것 지원)
   function generateCharacterSpritesheet(style = {}) {
     const cvs = document.createElement('canvas');
     cvs.width = 128; cvs.height = 192; // 4 cols x 4 rows (32x48 each)
@@ -96,6 +96,7 @@ const AssetGenerator = (() => {
     const costume = style.costume || 'default';
     const hat = style.hat || 'none';
     const aura = style.aura || 'none';
+    const mount = style.mount || 'none';
 
     const dirs = ['down', 'left', 'right', 'up'];
     dirs.forEach((dir, row) => {
@@ -110,19 +111,68 @@ const AssetGenerator = (() => {
         ctx.ellipse(x + 16, y + 44, 11, 4.5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2) 오라 효과
-        if (aura === 'gold' || aura === 'aura_gold') {
-          ctx.fillStyle = 'rgba(250, 204, 21, 0.35)';
-          ctx.beginPath(); ctx.arc(x + 16, y + 26, 18, 0, Math.PI * 2); ctx.fill();
-        } else if (aura === 'cherry') {
-          ctx.fillStyle = 'rgba(244, 114, 182, 0.35)';
-          ctx.beginPath(); ctx.arc(x + 16, y + 26, 18, 0, Math.PI * 2); ctx.fill();
-        } else if (aura === 'rainbow') {
-          ctx.fillStyle = 'rgba(168, 85, 247, 0.35)';
-          ctx.beginPath(); ctx.arc(x + 16, y + 26, 18, 0, Math.PI * 2); ctx.fill();
+        // 2) 탈 것 (Mount) - 캐릭터 발 밑 렌더링
+        if (mount === 'kickboard') {
+          ctx.fillStyle = '#06b6d4';
+          ctx.fillRect(x + 5, y + 40, 22, 3);
+          ctx.fillStyle = '#334155';
+          ctx.fillRect(x + 6, y + 43, 4, 4);
+          ctx.fillRect(x + 22, y + 43, 4, 4);
+          if (dir === 'down' || dir === 'up') {
+            ctx.fillStyle = '#06b6d4'; ctx.fillRect(x + 15, y + 25, 2, 15);
+            ctx.fillRect(x + 11, y + 25, 10, 2);
+          } else if (dir === 'left') {
+            ctx.fillStyle = '#06b6d4'; ctx.fillRect(x + 8, y + 25, 2, 15);
+            ctx.fillRect(x + 6, y + 25, 6, 2);
+          } else if (dir === 'right') {
+            ctx.fillStyle = '#06b6d4'; ctx.fillRect(x + 22, y + 25, 2, 15);
+            ctx.fillRect(x + 20, y + 25, 6, 2);
+          }
+        } else if (mount === 'skateboard') {
+          ctx.fillStyle = '#f97316';
+          ctx.beginPath();
+          ctx.roundRect ? ctx.roundRect(x + 5, y + 41, 22, 4, 2) : ctx.fillRect(x + 5, y + 41, 22, 4);
+          ctx.fill();
+          ctx.fillStyle = '#fbbf24'; ctx.fillRect(x + 7, y + 42, 18, 2);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(x + 7, y + 44, 3, 3); ctx.fillRect(x + 22, y + 44, 3, 3);
+        } else if (mount === 'bicycle') {
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(x + 8, y + 36, 16, 2);
+          ctx.fillRect(x + 15, y + 28, 2, 10);
+          ctx.fillStyle = '#475569';
+          ctx.beginPath(); ctx.arc(x + 7, y + 42, 5, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x + 25, y + 42, 5, 0, Math.PI * 2); ctx.stroke();
+        } else if (mount === 'cart') {
+          ctx.fillStyle = '#dc2626';
+          ctx.fillRect(x + 4, y + 36, 24, 7);
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(x + 8, y + 38, 16, 2);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(x + 4, y + 42, 5, 5); ctx.fillRect(x + 23, y + 42, 5, 5);
+        } else if (mount === 'cloud') {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+          ctx.beginPath();
+          ctx.arc(x + 10, y + 42, 6, 0, Math.PI * 2);
+          ctx.arc(x + 16, y + 40, 8, 0, Math.PI * 2);
+          ctx.arc(x + 22, y + 42, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillRect(x + 15, y + 43, 2, 2);
         }
 
-        // 3) 신발
+        // 3) 오라 효과
+        if (aura === 'gold' || aura === 'aura_gold') {
+          ctx.fillStyle = 'rgba(250, 204, 21, 0.4)';
+          ctx.beginPath(); ctx.arc(x + 16, y + 24, 19, 0, Math.PI * 2); ctx.fill();
+        } else if (aura === 'cherry' || aura === 'aura_cherry') {
+          ctx.fillStyle = 'rgba(244, 114, 182, 0.4)';
+          ctx.beginPath(); ctx.arc(x + 16, y + 24, 19, 0, Math.PI * 2); ctx.fill();
+        } else if (aura === 'rainbow' || aura === 'aura_rainbow') {
+          ctx.fillStyle = 'rgba(168, 85, 247, 0.4)';
+          ctx.beginPath(); ctx.arc(x + 16, y + 24, 19, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // 4) 신발
         let shoeColor = '#334155';
         if (costume === 'school') shoeColor = '#0f172a';
         else if (costume === 'pajama') shoeColor = '#fbcfe8';
@@ -132,7 +182,7 @@ const AssetGenerator = (() => {
         ctx.fillRect(x + 10 + step, y + 38, 5, 6);
         ctx.fillRect(x + 17 - step, y + 38, 5, 6);
 
-        // 4) 코스튬 의상
+        // 5) 코스튬 의상
         if (costume === 'school') {
           ctx.fillStyle = '#1e3a8a';
           ctx.fillRect(x + 9, y + 24, 14, 15);
@@ -145,7 +195,7 @@ const AssetGenerator = (() => {
           ctx.fillRect(x + 8, y + 23, 16, 16);
           ctx.fillStyle = '#fdf2f8';
           ctx.fillRect(x + 12, y + 27, 8, 8);
-        } else if (costume === 'magic') {
+        } else if (costume === 'magic' || costume === 'wizard') {
           ctx.fillStyle = '#6b21a8';
           ctx.fillRect(x + 8, y + 23, 16, 16);
           ctx.fillStyle = '#facc15';
@@ -162,6 +212,20 @@ const AssetGenerator = (() => {
           ctx.beginPath();
           ctx.moveTo(x + 7, y + 32); ctx.lineTo(x + 25, y + 32); ctx.lineTo(x + 27, y + 40); ctx.lineTo(x + 5, y + 40); ctx.closePath();
           ctx.fill();
+        } else if (costume === 'hanbok') {
+          ctx.fillStyle = '#f59e0b';
+          ctx.fillRect(x + 9, y + 23, 14, 8);
+          ctx.fillStyle = '#dc2626';
+          ctx.fillRect(x + 7, y + 31, 18, 9);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(x + 13, y + 23, 6, 2);
+        } else if (costume === 'suit') {
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(x + 9, y + 24, 14, 15);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(x + 13, y + 24, 6, 5);
+          ctx.fillStyle = '#e11d48';
+          ctx.fillRect(x + 15, y + 25, 2, 4);
         } else {
           ctx.fillStyle = '#3b82f6';
           ctx.fillRect(x + 9, y + 24, 14, 15);
@@ -180,13 +244,13 @@ const AssetGenerator = (() => {
           ctx.fillRect(x + 23, y + 24, 3, 8);
         }
 
-        // 5) 머리 & 얼굴
+        // 6) 머리 & 얼굴
         ctx.fillStyle = '#fed7aa';
         ctx.beginPath();
         ctx.arc(x + 16, y + 15, 9, 0, Math.PI * 2);
         ctx.fill();
 
-        // 6) 헤어
+        // 7) 헤어
         ctx.fillStyle = hairColor;
         ctx.beginPath();
         ctx.arc(x + 16, y + 12, 9.5, Math.PI, Math.PI * 2);
@@ -195,7 +259,7 @@ const AssetGenerator = (() => {
         ctx.fillRect(x + 7, y + 11, 4, 7);
         ctx.fillRect(x + 21, y + 11, 4, 7);
 
-        // 7) 표정
+        // 8) 표정
         if (dir === 'down') {
           ctx.fillStyle = '#0f172a';
           ctx.fillRect(x + 12, y + 14, 2, 3);
@@ -220,7 +284,7 @@ const AssetGenerator = (() => {
           ctx.fillRect(x + 20, y + 17, 2, 2);
         }
 
-        // 8) 모자
+        // 9) 모자 & 액세서리
         if (hat === 'cat_ears') {
           ctx.fillStyle = hairColor;
           ctx.beginPath(); ctx.moveTo(x + 9, y + 8); ctx.lineTo(x + 12, y + 2); ctx.lineTo(x + 14, y + 8); ctx.closePath(); ctx.fill();
@@ -242,6 +306,14 @@ const AssetGenerator = (() => {
           ctx.fillStyle = '#4c1d95';
           ctx.beginPath(); ctx.moveTo(x + 7, y + 7); ctx.lineTo(x + 16, y - 4); ctx.lineTo(x + 25, y + 7); ctx.closePath(); ctx.fill();
           ctx.fillStyle = '#facc15'; ctx.fillRect(x + 9, y + 5, 14, 2);
+        } else if (hat === 'beret') {
+          ctx.fillStyle = '#991b1b';
+          ctx.beginPath(); ctx.ellipse(x + 16, y + 6, 9, 4, -0.2, 0, Math.PI * 2); ctx.fill();
+          ctx.fillRect(x + 15, y + 1, 2, 2);
+        } else if (hat === 'cap') {
+          ctx.fillStyle = '#0284c7';
+          ctx.beginPath(); ctx.ellipse(x + 16, y + 6, 8, 4, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillRect(x + 10, y + 6, 12, 2);
         }
       }
     });

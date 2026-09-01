@@ -338,6 +338,9 @@ class TownScene extends Phaser.Scene {
       padding: { x: 8, y: 4 }
     }).setOrigin(0.5).setDepth(10001).setVisible(false);
 
+    // 저장된 학생 맞춤 캐릭터 텍스처 즉시 로드
+    this.reloadPlayerTexture();
+
     // 8. 카메라 & 입력 키
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.cameras.main.setBounds(0, 0, worldW, worldH);
@@ -399,10 +402,12 @@ class TownScene extends Phaser.Scene {
 
     // ─── 캐릭터 장착 아이템 효과 실시간 반영 ───
     const equips = GameState.equippedItems || {};
-    let speedMult = 1.0;
+    const style = GameState.characterStyle || {};
+    let speedMult = style.speedMult || 1.0;
 
-    if (equips.speed_shoes) speedMult = 1.8;
-    if (equips.giant_grow) this.player.setScale(1.5);
+    if (equips.speed_shoes) speedMult = Math.max(speedMult, 1.8);
+    if (equips.giant_grow || style.perfume === 'giant') this.player.setScale(1.35);
+    else if (style.perfume === 'tiny') this.player.setScale(0.72);
     else this.player.setScale(1.0);
 
     if (this.wingsSprite) {
@@ -694,7 +699,14 @@ class TownScene extends Phaser.Scene {
 
   reloadPlayerTexture() {
     try {
-      const style = GameState.characterStyle || {};
+      const myName = GameState.student ? (GameState.student.name || GameState.student.이름 || '') : '';
+      let style = GameState.characterStyle || {};
+      try {
+        const localStyle = JSON.parse(localStorage.getItem(`char_style_${myName}`) || '{}');
+        if (localStyle) style = { ...style, ...localStyle };
+      } catch (_) {}
+      GameState.characterStyle = style;
+
       const newCharCvs = AssetGenerator.generateCharacterSpritesheet(style);
       const newTexKey = 'character_' + Date.now();
 
@@ -708,8 +720,41 @@ class TownScene extends Phaser.Scene {
         }
       }
 
+      // 걷기 / 대기 애니메이션을 새 텍스처 키로 즉시 재생성
+      const dirs = ['down', 'left', 'right', 'up'];
+      dirs.forEach((dir, row) => {
+        if (this.anims.exists(`walk_${dir}`)) this.anims.remove(`walk_${dir}`);
+        if (this.anims.exists(`idle_${dir}`)) this.anims.remove(`idle_${dir}`);
+        this.anims.create({
+          key: `walk_${dir}`,
+          frames: [
+            { key: newTexKey, frame: row * 4 },
+            { key: newTexKey, frame: row * 4 + 1 },
+            { key: newTexKey, frame: row * 4 + 2 },
+            { key: newTexKey, frame: row * 4 + 3 }
+          ],
+          frameRate: 8,
+          repeat: -1
+        });
+        this.anims.create({
+          key: `idle_${dir}`,
+          frames: [{ key: newTexKey, frame: row * 4 }],
+          frameRate: 1
+        });
+      });
+
       if (this.player) {
         this.player.setTexture(newTexKey, 0);
+        this.player.anims.play(`idle_${this.currentDirection || 'down'}`, true);
+
+        // 물약 크기 배율 적용
+        if (style.perfume === 'giant') {
+          this.player.setScale(1.35);
+        } else if (style.perfume === 'tiny') {
+          this.player.setScale(0.72);
+        } else {
+          this.player.setScale(1.0);
+        }
       }
     } catch (e) {
       console.warn('reloadPlayerTexture safe update error:', e);

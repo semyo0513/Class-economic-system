@@ -385,9 +385,12 @@ const ModalManager = (() => {
           { id: 'potion_tiny', name: '🧪 요정 축소 물약', price: 8000, desc: '캐릭터 0.7배 미니멀 효과', emoji: '🧪' }
         ];
 
+        const userInv = GameState.userInventory || [];
+        const isOwned = (itName) => userInv.some(i => (i['아이템명'] || i.itemName || i.name) === itName && (i['상태'] || i.status) !== '삭제');
+
         container.innerHTML = `
           <div class="shop-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
-            <button class="tab-btn active" onclick="ModalManager.switchShopTab('furn')">🛋️ 미니룸 가구</button>
+            <button class="tab-btn active" onclick="ModalManager.switchShopTab('furn')">🛋️ 미니룸 가구 (중복구매 가능)</button>
             <button class="tab-btn" onclick="ModalManager.switchShopTab('mount')">🚀 탈 것 (속도증가)</button>
             <button class="tab-btn" onclick="ModalManager.switchShopTab('perfume')">🌺 퍼퓸 & 물약</button>
             <button class="tab-btn" onclick="ModalManager.switchShopTab('hair')">💇‍♀️ 헤어 염색</button>
@@ -396,7 +399,7 @@ const ModalManager = (() => {
             <button class="tab-btn" onclick="ModalManager.switchShopTab('aura')">✨ 특수 오라</button>
           </div>
 
-          <!-- 1. 미니룸 가구 & 소품 탭 -->
+          <!-- 1. 미니룸 가구 & 소품 탭 (중복 구매 가능) -->
           <div id="shop-tab-furn" class="shop-grid">
             ${furns.map(f => `
               <div class="shop-item-card" style="display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:8px;">
@@ -411,84 +414,116 @@ const ModalManager = (() => {
             `).join('')}
           </div>
 
-          <!-- 1-1. 🚀 탈 것 (속도 버프) 탭 -->
+          <!-- 1-1. 🚀 탈 것 (속도 버프) 탭 (단일 구매 원칙) -->
           <div id="shop-tab-mount" class="shop-grid" style="display:none;">
-            ${mounts.map(m => `
-              <div class="shop-item-card" style="border-color:#38bdf8;">
+            ${mounts.map(m => {
+              const owned = isOwned(m.name);
+              return `
+              <div class="shop-item-card" style="border-color:${owned ? '#94a3b8' : '#38bdf8'}; opacity:${owned ? '0.75' : '1'};">
                 <div style="font-size:36px; margin-bottom:4px;">${m.emoji}</div>
                 <div class="item-name">${m.name}</div>
                 <div class="item-desc" style="color:#0369a1; font-weight:bold;">${m.desc}</div>
                 <div class="item-price">💰 ${m.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" style="background:#0284c7;" onclick="ModalManager.buyMount('${m.id}', ${m.price}, '${m.name}', ${m.speed})">구매하기</button>
+                <button class="pixel-btn-primary" style="${owned ? 'background:#64748b; cursor:not-allowed;' : 'background:#0284c7;'}" onclick="${owned ? `AppDialog.alert('[${m.name}]은(는) 이미 보유하고 있습니다. 인벤토리(🎒)에서 탑승하세요.', '🛍️ 보유 안내')` : `ModalManager.buyMount('${m.id}', ${m.price}, '${m.name}', ${m.speed})`}" ${owned ? 'disabled' : ''}>
+                  ${owned ? '✔️ 보유중 (구매완료)' : '구매하기'}
+                </button>
               </div>
-            `).join('')}
+            `}).join('')}
           </div>
 
           <!-- 1-2. 🌺 퍼퓸 & 크기 물약 탭 -->
           <div id="shop-tab-perfume" class="shop-grid" style="display:none;">
-            ${perfumes.map(p => `
-              <div class="shop-item-card" style="border-color:#f472b6;">
+            ${perfumes.map(p => {
+              const owned = isOwned(p.name);
+              return `
+              <div class="shop-item-card" style="border-color:${owned ? '#94a3b8' : '#f472b6'}; opacity:${owned ? '0.75' : '1'};">
                 <div style="font-size:36px; margin-bottom:4px;">${p.emoji}</div>
                 <div class="item-name">${p.name}</div>
                 <div class="item-desc" style="color:#be185d;">${p.desc}</div>
                 <div class="item-price">💰 ${p.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" style="background:#db2777;" onclick="ModalManager.buyPerfume('${p.id}', ${p.price}, '${p.name}')">구매하기</button>
+                <button class="pixel-btn-primary" style="${owned ? 'background:#64748b; cursor:not-allowed;' : 'background:#db2777;'}" onclick="${owned ? `AppDialog.alert('[${p.name}]은(는) 이미 보유하고 있습니다. 인벤토리(🎒)에서 적용하세요.', '🛍️ 보유 안내')` : `ModalManager.buyPerfume('${p.id}', ${p.price}, '${p.name}')`}" ${owned ? 'disabled' : ''}>
+                  ${owned ? '✔️ 보유중 (구매완료)' : '구매하기'}
+                </button>
               </div>
-            `).join('')}
+            `}).join('')}
           </div>
 
           <!-- 2. 헤어 염색 살롱 탭 -->
           <div id="shop-tab-hair" class="shop-grid" style="display:none;">
-            ${hairDyes.map(h => `
-              <div class="shop-item-card" style="border-color:${h.color};">
+            ${hairDyes.map(h => {
+              const owned = isOwned(h.name);
+              return `
+              <div class="shop-item-card" style="border-color:${owned ? '#94a3b8' : h.color}; opacity:${owned ? '0.75' : '1'};">
                 <div style="width:36px; height:36px; border-radius:50%; background:${h.color}; margin:0 auto 6px; border:2px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.2);"></div>
                 <div class="item-name">${h.name}</div>
                 <div class="item-desc">${h.desc}</div>
                 <div class="item-price">💰 ${h.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" style="background:${h.color}; color:#fff;" onclick="ModalManager.buyHairDye('${h.id}', '${h.color}', ${h.price}, '${h.name}')">구매하기</button>
+                <button class="pixel-btn-primary" style="${owned ? 'background:#64748b; cursor:not-allowed;' : `background:${h.color}; color:#fff;`}" onclick="${owned ? `AppDialog.alert('[${h.name}]은(는) 이미 보유하고 있습니다. 인벤토리(🎒)에서 언제든 염색하세요.', '🛍️ 보유 안내')` : `ModalManager.buyHairDye('${h.id}', '${h.color}', ${h.price}, '${h.name}')`}" ${owned ? 'disabled' : ''}>
+                  ${owned ? '✔️ 보유중 (구매완료)' : '구매하기'}
+                </button>
               </div>
-            `).join('')}
+            `}).join('')}
           </div>
 
           <!-- 3. 패션 코스튬 탭 -->
           <div id="shop-tab-costume" class="shop-grid" style="display:none;">
-            ${costumes.map(c => `
-              <div class="shop-item-card">
+            ${costumes.map(c => {
+              const owned = isOwned(c.name);
+              return `
+              <div class="shop-item-card" style="opacity:${owned ? '0.75' : '1'};">
                 <div style="font-size:32px; margin-bottom:4px;">👗</div>
                 <div class="item-name">${c.name}</div>
                 <div class="item-desc">${c.desc}</div>
                 <div class="item-price">💰 ${c.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.buyCostume('${c.id}', ${c.price}, '${c.name}')">구매하기</button>
+                <button class="pixel-btn-primary" style="${owned ? 'background:#64748b; cursor:not-allowed;' : ''}" onclick="${owned ? `AppDialog.alert('[${c.name}]은(는) 이미 보유하고 있습니다. 인벤토리(🎒)에서 착용하세요.', '🛍️ 보유 안내')` : `ModalManager.buyCostume('${c.id}', ${c.price}, '${c.name}')`}" ${owned ? 'disabled' : ''}>
+                  ${owned ? '✔️ 보유중 (구매완료)' : '구매하기'}
+                </button>
               </div>
-            `).join('')}
+            `}).join('')}
           </div>
 
           <!-- 4. 모자/머리띠 탭 -->
           <div id="shop-tab-hat" class="shop-grid" style="display:none;">
-            ${hats.map(h => `
-              <div class="shop-item-card">
+            ${hats.map(h => {
+              const owned = isOwned(h.name);
+              return `
+              <div class="shop-item-card" style="opacity:${owned ? '0.75' : '1'};">
                 <div style="font-size:32px; margin-bottom:4px;">👑</div>
                 <div class="item-name">${h.name}</div>
                 <div class="item-desc">${h.desc}</div>
                 <div class="item-price">💰 ${h.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.buyHat('${h.id}', ${h.price}, '${h.name}')">구매하기</button>
+                <button class="pixel-btn-primary" style="${owned ? 'background:#64748b; cursor:not-allowed;' : ''}" onclick="${owned ? `AppDialog.alert('[${h.name}]은(는) 이미 보유하고 있습니다. 인벤토리(🎒)에서 착용하세요.', '🛍️ 보유 안내')` : `ModalManager.buyHat('${h.id}', ${h.price}, '${h.name}')`}" ${owned ? 'disabled' : ''}>
+                  ${owned ? '✔️ 보유중 (구매완료)' : '구매하기'}
+                </button>
               </div>
-            `).join('')}
+            `}).join('')}
           </div>
 
           <!-- 5. 특수 오라 탭 -->
           <div id="shop-tab-aura" class="shop-grid" style="display:none;">
-            ${auras.map(a => `
-              <div class="shop-item-card">
+            ${auras.map(a => {
+              const owned = isOwned(a.name);
+              return `
+              <div class="shop-item-card" style="opacity:${owned ? '0.75' : '1'};">
                 <div style="font-size:32px; margin-bottom:4px;">✨</div>
                 <div class="item-name">${a.name}</div>
                 <div class="item-desc">${a.desc}</div>
                 <div class="item-price">💰 ${a.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.buyAura('${a.id}', ${a.price}, '${a.name}')">구매하기</button>
+                <button class="pixel-btn-primary" style="${owned ? 'background:#64748b; cursor:not-allowed;' : ''}" onclick="${owned ? `AppDialog.alert('[${a.name}]은(는) 이미 보유하고 있습니다. 인벤토리(🎒)에서 발동하세요.', '🛍️ 보유 안내')` : `ModalManager.buyAura('${a.id}', ${a.price}, '${a.name}')`}" ${owned ? 'disabled' : ''}>
+                  ${owned ? '✔️ 보유중 (구매완료)' : '구매하기'}
+                </button>
               </div>
-            `).join('')}
+            `}).join('')}
           </div>
         `;
+
+        // 최신 인벤토리 비동기 갱신
+        const myName = GameState.student ? (GameState.student.name || GameState.student.이름 || '선생님') : '선생님';
+        API.call('getUserInventory', { name: myName }, true).then(res => {
+          if (res && res.inventory) {
+            GameState.userInventory = res.inventory;
+          }
+        });
         break;
       }
 
@@ -1404,6 +1439,7 @@ const ModalManager = (() => {
 
       API.call('getUserInventory', { name: me }, true).then(res => {
         const inv = res.inventory || [];
+        GameState.userInventory = inv;
         const equips = inv.filter(it => ['캐릭터아이템', '의상', '모자', '오라', '헤어', '탈것', '퍼퓸'].includes(it.카테고리));
         const coupons = inv.filter(it => it.카테고리 === '아이템');
         const furns = inv.filter(it => it.카테고리 === '가구');
@@ -1583,6 +1619,11 @@ const ModalManager = (() => {
 
     // ─── 패션 살롱 & 아이템 구매 (인벤토리 보관 후 장착 원칙) ───
     buyHairDye: async (id, color, price, name) => {
+      const userInv = GameState.userInventory || [];
+      if (userInv.some(i => (i['아이템명'] || i.itemName || i.name) === name)) {
+        return AppDialog.alert(`[${name}]은(는) 이미 보유하고 있는 상품입니다!\n인벤토리(🎒)에서 확인하세요.`, '🛍️ 보유 안내');
+      }
+
       const ok = await AppDialog.confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 염색/장착 가능)`, '🛍️ 아이템 구매');
       if (!ok) return;
       const st = GameState.student;
@@ -1605,14 +1646,23 @@ const ModalManager = (() => {
         const cashEl = document.getElementById('hud-cash-val');
         if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
+        if (!GameState.userInventory) GameState.userInventory = [];
+        GameState.userInventory.push({ '아이템명': name, '카테고리': '헤어', '상태': '보유', '속성': color });
+
         SoundEngine.fanfare();
         await AppDialog.alert(`🎁 [${name}] 구매 완료!\n아이템이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 언제든 장착할 수 있습니다.`, '🎉 구매 완료');
+        open('shop');
       } else {
         await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
     },
 
     buyCostume: async (id, price, name) => {
+      const userInv = GameState.userInventory || [];
+      if (userInv.some(i => (i['아이템명'] || i.itemName || i.name) === name)) {
+        return AppDialog.alert(`[${name}]은(는) 이미 보유하고 있는 상품입니다!\n인벤토리(🎒)에서 확인하세요.`, '🛍️ 보유 안내');
+      }
+
       const ok = await AppDialog.confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 착용 가능)`, '🛍️ 의상 구매');
       if (!ok) return;
       const st = GameState.student;
@@ -1636,14 +1686,23 @@ const ModalManager = (() => {
         const cashEl = document.getElementById('hud-cash-val');
         if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
+        if (!GameState.userInventory) GameState.userInventory = [];
+        GameState.userInventory.push({ '아이템명': name, '카테고리': '의상', '상태': '보유', '속성': cType });
+
         SoundEngine.fanfare();
         await AppDialog.alert(`🎁 [${name}] 구매 완료!\n의상이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 착용할 수 있습니다.`, '🎉 구매 완료');
+        open('shop');
       } else {
         await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
     },
 
     buyHat: async (id, price, name) => {
+      const userInv = GameState.userInventory || [];
+      if (userInv.some(i => (i['아이템명'] || i.itemName || i.name) === name)) {
+        return AppDialog.alert(`[${name}]은(는) 이미 보유하고 있는 상품입니다!\n인벤토리(🎒)에서 확인하세요.`, '🛍️ 보유 안내');
+      }
+
       const ok = await AppDialog.confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 장착 가능)`, '🛍️ 모자/액세서리 구매');
       if (!ok) return;
       const st = GameState.student;
@@ -1667,14 +1726,23 @@ const ModalManager = (() => {
         const cashEl = document.getElementById('hud-cash-val');
         if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
+        if (!GameState.userInventory) GameState.userInventory = [];
+        GameState.userInventory.push({ '아이템명': name, '카테고리': '모자', '상태': '보유', '속성': hType });
+
         SoundEngine.fanfare();
         await AppDialog.alert(`🎁 [${name}] 구매 완료!\n아이템이 내 인벤토리(🎒)에 보관되었습니다.\n인벤토리에서 언제든 장착할 수 있습니다.`, '🎉 구매 완료');
+        open('shop');
       } else {
         await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
     },
 
     buyAura: async (id, price, name) => {
+      const userInv = GameState.userInventory || [];
+      if (userInv.some(i => (i['아이템명'] || i.itemName || i.name) === name)) {
+        return AppDialog.alert(`[${name}]은(는) 이미 보유하고 있는 상품입니다!\n인벤토리(🎒)에서 확인하세요.`, '🛍️ 보유 안내');
+      }
+
       const ok = await AppDialog.confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 언제든 오라 발동 가능)`, '✨ 오라 구매');
       if (!ok) return;
       const st = GameState.student;
@@ -1698,8 +1766,12 @@ const ModalManager = (() => {
         const cashEl = document.getElementById('hud-cash-val');
         if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
+        if (!GameState.userInventory) GameState.userInventory = [];
+        GameState.userInventory.push({ '아이템명': name, '카테고리': '오라', '상태': '보유', '속성': aType });
+
         SoundEngine.fanfare();
         await AppDialog.alert(`🎁 [${name}] 구매 완료!\n오라가 내 인벤토리(🎒)에 보관되었습니다.\n인벤토리에서 언제든 발동할 수 있습니다.`, '🎉 구매 완료');
+        open('shop');
       } else {
         await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
@@ -1707,6 +1779,11 @@ const ModalManager = (() => {
 
     // 🚀 탈 것 구매 (인벤토리 보관 후 인벤토리에서 탑승)
     buyMount: async (id, price, name, speedMult) => {
+      const userInv = GameState.userInventory || [];
+      if (userInv.some(i => (i['아이템명'] || i.itemName || i.name) === name)) {
+        return AppDialog.alert(`[${name}]은(는) 이미 보유하고 있는 상품입니다!\n인벤토리(🎒)에서 확인하세요.`, '🛍️ 보유 안내');
+      }
+
       const ok = await AppDialog.confirm(`[${name}]을(를) ${price.toLocaleString()}원에 구매하시겠습니까?\n(이동속도 ${speedMult}배 / 구매 후 인벤토리에서 탑승 가능)`, '🛴 탈 것 구매');
       if (!ok) return;
       const st = GameState.student;
@@ -1730,8 +1807,12 @@ const ModalManager = (() => {
         const cashEl = document.getElementById('hud-cash-val');
         if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
+        if (!GameState.userInventory) GameState.userInventory = [];
+        GameState.userInventory.push({ '아이템명': name, '카테고리': '탈것', '상태': '보유', '속성': mType });
+
         SoundEngine.fanfare();
         await AppDialog.alert(`🎁 [${name}] 구매 완료!\n탈 것이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 언제든 탑승/해제할 수 있습니다.`, '🎉 구매 완료');
+        open('shop');
       } else {
         await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
@@ -1739,6 +1820,11 @@ const ModalManager = (() => {
 
     // 🌺 퍼퓸 & 크기 물약 구매
     buyPerfume: async (id, price, name) => {
+      const userInv = GameState.userInventory || [];
+      if (userInv.some(i => (i['아이템명'] || i.itemName || i.name) === name)) {
+        return AppDialog.alert(`[${name}]은(는) 이미 보유하고 있는 상품입니다!\n인벤토리(🎒)에서 확인하세요.`, '🛍️ 보유 안내');
+      }
+
       const ok = await AppDialog.confirm(`[${name}] 효과를 ${price.toLocaleString()}원에 구매하시겠습니까?\n(구매 후 인벤토리에서 효과 적용 가능)`, '🌺 퍼퓸/물약 구매');
       if (!ok) return;
       const st = GameState.student;
@@ -1762,10 +1848,14 @@ const ModalManager = (() => {
         const cashEl = document.getElementById('hud-cash-val');
         if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
+        if (!GameState.userInventory) GameState.userInventory = [];
+        GameState.userInventory.push({ '아이템명': name, '카테고리': '퍼퓸', '상태': '보유', '속성': pType });
+
         SoundEngine.fanfare();
-        alert(`🎁 [${name}] 구매 완료!\n아이템이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 언제든 효과를 적용/해제할 수 있습니다.`);
+        await AppDialog.alert(`🎁 [${name}] 구매 완료!\n아이템이 내 인벤토리(🎒)에 안전하게 보관되었습니다.\n인벤토리에서 언제든 효과를 적용/해제할 수 있습니다.`, '🎉 구매 완료');
+        open('shop');
       } else {
-        alert(buyRes?.msg || '구매 실패');
+        await AppDialog.alert(buyRes?.msg || '구매 실패', '⚠️ 구매 실패');
       }
     },
 
