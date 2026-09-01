@@ -27,7 +27,7 @@ const API = (() => {
     if (el) el.style.display = 'none';
   }
 
-  async function call(action, payload = {}, silent = false) {
+  async function call(action, payload = {}, silent = false, customTimeoutMs = null) {
     if (!silent) showLoading();
 
     try {
@@ -40,8 +40,9 @@ const API = (() => {
       const dataStr = encodeURIComponent(JSON.stringify(payload));
       const getUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action) + '&data=' + dataStr + '&t=' + Date.now();
 
+      const timeoutDuration = customTimeoutMs || (action === 'login' ? 2500 : (action === 'initData' ? 3000 : 5000));
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
       const response = await fetch(getUrl, {
         method: 'GET',
@@ -56,7 +57,7 @@ const API = (() => {
 
       return getMockResponse(action, payload);
     } catch (err) {
-      console.warn(`[API Call Info] Action: ${action}`, err);
+      console.warn(`[API Call Fast Fallback] Action: ${action}`, err);
       return getMockResponse(action, payload);
     } finally {
       if (!silent) hideLoading();

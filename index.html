@@ -926,14 +926,21 @@
         requestAnimationFrame(renderTitleBg);
       }
       renderTitleBg();
+
+      // 이전 로그인 사용자명 자동 채우기
+      try {
+        const lastUser = localStorage.getItem('classbank_last_user');
+        if (lastUser) {
+          const nameInput = document.getElementById('login-name-input');
+          if (nameInput) nameInput.value = lastUser;
+        }
+      } catch (_) {}
     })();
 
     async function handleLogin() {
       SoundEngine.click();
       const nameInput = document.getElementById('login-name-input');
       const pwInput = document.getElementById('login-pw-input');
-      const isAdminCheck = document.getElementById('admin-login-checkbox').checked;
-
       const name = nameInput.value.trim();
       const pw = pwInput.value.trim();
 
@@ -946,13 +953,34 @@
         return;
       }
 
-      API.showLoading('구글 시트에서 사용자 인증 및 자산 동기화 중...');
+      API.showLoading('클래스타운 입장 중...');
+
+      // 1. 로컬 캐시 프로필 빠른 조회
+      let cachedStudent = null;
+      try {
+        const localUser = localStorage.getItem(`classbank_user_${name}`);
+        if (localUser) cachedStudent = JSON.parse(localUser);
+      } catch (_) {}
 
       try {
-        const loginRes = await API.call('login', { name: name, password: pw });
+        const loginRes = await API.call('login', { name: name, password: pw }, false, 2500);
+
         if (loginRes && loginRes.success && loginRes.student) {
           GameState.student = loginRes.student;
           GameState.isAdmin = loginRes.isAdmin || loginRes.student.permission === '전체' || name === '선생님';
+          try {
+            localStorage.setItem(`classbank_user_${name}`, JSON.stringify(loginRes.student));
+            localStorage.setItem('classbank_last_user', name);
+          } catch (_) {}
+          API.hideLoading();
+          startGameAfterLogin();
+        } else if (cachedStudent) {
+          GameState.student = cachedStudent;
+          GameState.isAdmin = (cachedStudent.permission === '전체') || name === '선생님';
+          API.hideLoading();
+          startGameAfterLogin();
+        } else if (loginRes && loginRes.success) {
+          GameState.student = loginRes.student || { name, job: '학생', cash: 50000, stock: 0 };
           API.hideLoading();
           startGameAfterLogin();
         } else {
@@ -961,7 +989,7 @@
           return;
         }
 
-        // 초기 시스템 설정 동기화
+        // 초기 시스템 설정 및 랭킹 백그라운드 동기화 (화면 차단 없음)
         API.call('initData', {}, true).then(res => {
           if (res && res.settings) {
             GameState.settings = res.settings;
@@ -978,15 +1006,20 @@
         });
       } catch (err) {
         API.hideLoading();
-        console.warn('[Login sync error]', err);
-        alert('서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.');
+        if (cachedStudent) {
+          GameState.student = cachedStudent;
+          startGameAfterLogin();
+        } else {
+          alert('서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.');
+        }
       }
     }
 
     function startGameAfterLogin() {
       API.hideLoading();
       SoundEngine.enter();
-      document.getElementById('login-screen').style.display = 'none';
+      const loginScreen = document.getElementById('login-screen');
+      if (loginScreen) loginScreen.style.display = 'none';
 
       const st = GameState.student || {};
       const name = st.name || st.이름 || '학생';
@@ -994,10 +1027,14 @@
       const cash = st.cash ?? st.현금 ?? 0;
       const stock = st.stock ?? st.주식 ?? 0;
 
-      document.getElementById('hud-player-name').innerHTML = `👤 <strong>${name}</strong>`;
-      document.getElementById('hud-job-badge').textContent = `${job}`;
-      document.getElementById('hud-cash-val').textContent = `${cash.toLocaleString()}원`;
-      document.getElementById('hud-stock-val').textContent = `${stock.toLocaleString()}원`;
+      const pNameEl = document.getElementById('hud-player-name');
+      const jBadgeEl = document.getElementById('hud-job-badge');
+      const cashValEl = document.getElementById('hud-cash-val');
+      const stockValEl = document.getElementById('hud-stock-val');
+      if (pNameEl) pNameEl.innerHTML = `👤 <strong>${name}</strong>`;
+      if (jBadgeEl) jBadgeEl.textContent = `${job}`;
+      if (cashValEl) cashValEl.textContent = `${cash.toLocaleString()}원`;
+      if (stockValEl) stockValEl.textContent = `${stock.toLocaleString()}원`;
 
       const adminBtn = document.getElementById('hud-admin-btn');
       if (adminBtn) {
@@ -1010,6 +1047,11 @@
       }
 
       initPhaserGame();
+      setTimeout(() => {
+        if (window.GameApp && window.GameApp.scale) {
+          window.GameApp.scale.resize(window.innerWidth, window.innerHeight);
+        }
+      }, 50);
     }
 
     function toggleChatWindow() {

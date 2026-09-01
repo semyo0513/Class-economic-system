@@ -291,17 +291,17 @@ const TownMapData = (() => {
 
   // 환경 장식 (가로등, 벤치, 우체통, 대형 분수대)
   const PROPS = [
-    { type: 'fountain', x: 50 * TILE_SIZE, y: 40 * TILE_SIZE },
-    { type: 'lamp', x: 46 * TILE_SIZE, y: 38 * TILE_SIZE },
-    { type: 'lamp', x: 54 * TILE_SIZE, y: 38 * TILE_SIZE },
-    { type: 'bench', x: 45 * TILE_SIZE, y: 43 * TILE_SIZE },
-    { type: 'bench', x: 55 * TILE_SIZE, y: 43 * TILE_SIZE },
-    { type: 'lamp', x: 26 * TILE_SIZE, y: 22 * TILE_SIZE },
-    { type: 'lamp', x: 74 * TILE_SIZE, y: 22 * TILE_SIZE },
-    { type: 'lamp', x: 26 * TILE_SIZE, y: 50 * TILE_SIZE },
-    { type: 'lamp', x: 74 * TILE_SIZE, y: 50 * TILE_SIZE },
-    { type: 'mailbox', x: 79 * TILE_SIZE, y: 71 * TILE_SIZE },
-    { type: 'mailbox', x: 15 * TILE_SIZE, y: 21 * TILE_SIZE }
+    { type: 'fountain', name: '중앙 소원 분수대', emoji: '⛲', x: 50 * TILE_SIZE, y: 40 * TILE_SIZE, radius: 55 },
+    { type: 'lamp',     name: '클래스 가로등',     emoji: '💡', x: 46 * TILE_SIZE, y: 38 * TILE_SIZE, radius: 45 },
+    { type: 'lamp',     name: '클래스 가로등',     emoji: '💡', x: 54 * TILE_SIZE, y: 38 * TILE_SIZE, radius: 45 },
+    { type: 'bench',    name: '공원 힐링 벤치',   emoji: '🪑', x: 45 * TILE_SIZE, y: 43 * TILE_SIZE, radius: 45 },
+    { type: 'bench',    name: '공원 힐링 벤치',   emoji: '🪑', x: 55 * TILE_SIZE, y: 43 * TILE_SIZE, radius: 45 },
+    { type: 'lamp',     name: '가로등',           emoji: '💡', x: 26 * TILE_SIZE, y: 22 * TILE_SIZE, radius: 45 },
+    { type: 'lamp',     name: '가로등',           emoji: '💡', x: 74 * TILE_SIZE, y: 22 * TILE_SIZE, radius: 45 },
+    { type: 'lamp',     name: '가로등',           emoji: '💡', x: 26 * TILE_SIZE, y: 50 * TILE_SIZE, radius: 45 },
+    { type: 'lamp',     name: '가로등',           emoji: '💡', x: 74 * TILE_SIZE, y: 50 * TILE_SIZE, radius: 45 },
+    { type: 'mailbox',  name: '클래스 우체통',     emoji: '📮', x: 79 * TILE_SIZE, y: 71 * TILE_SIZE, radius: 45 },
+    { type: 'mailbox',  name: '클래스 우체통',     emoji: '📮', x: 15 * TILE_SIZE, y: 21 * TILE_SIZE, radius: 45 }
   ];
 
   // 벚꽃 나무 & 녹음 나무

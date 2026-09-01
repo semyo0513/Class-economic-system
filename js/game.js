@@ -150,7 +150,9 @@ class TownScene extends Phaser.Scene {
     const worldH = TownMapData.HEIGHT * TILE_SIZE;
     this.physics.world.setBounds(0, 0, worldW, worldH);
 
-    // 2. 환경 소품
+    this.interactTargets = [];
+
+    // 2. 환경 소품 (인터랙티브 클릭 & 접근 지원)
     TownMapData.PROPS.forEach(p => {
       let key = 'fountain';
       if (p.type === 'lamp') key = 'prop_lamp';
@@ -158,6 +160,18 @@ class TownScene extends Phaser.Scene {
       if (p.type === 'mailbox') key = 'prop_mailbox';
       const spr = this.physics.add.staticSprite(p.x, p.y, key);
       spr.setDepth(p.y);
+      spr.setInteractive({ cursor: 'pointer' });
+      spr.on('pointerdown', () => this.executeInteraction({ type: 'prop', data: p, name: p.name || p.type, emoji: p.emoji || '✨' }));
+
+      this.interactTargets.push({
+        type: 'prop',
+        data: p,
+        name: p.name || p.type,
+        emoji: p.emoji || '✨',
+        x: p.x,
+        y: p.y + 10,
+        radius: p.radius || 50
+      });
     });
 
     TownMapData.TREES.forEach(t => {
@@ -168,9 +182,8 @@ class TownScene extends Phaser.Scene {
       tree.setDepth(t.y + 40);
     });
 
-    // 3. 14개 건물
+    // 3. 14개 건물 (클릭 & 접근 인터랙션)
     this.buildingGroup = this.physics.add.staticGroup();
-    this.interactTargets = [];
 
     TownMapData.BUILDINGS.forEach(b => {
       const bx = b.tileX * TILE_SIZE;
@@ -179,6 +192,8 @@ class TownScene extends Phaser.Scene {
       bSpr.setDepth(by + b.h);
       bSpr.body.setSize(b.w - 20, 60);
       bSpr.body.setOffset(10, b.h - 60);
+      bSpr.setInteractive({ cursor: 'pointer' });
+      bSpr.on('pointerdown', () => this.executeInteraction({ type: 'building', id: b.id, name: b.name, emoji: b.signEmoji }));
 
       this.interactTargets.push({
         type: 'building',
@@ -191,10 +206,13 @@ class TownScene extends Phaser.Scene {
       });
     });
 
-    // 4. 놀이동산 어트랙션 (화려한 캔버스 연출 모달 연동)
+    // 4. 놀이동산 어트랙션 (클릭 & 접근 인터랙션)
     TownMapData.AMUSEMENTS.forEach(a => {
       const aSpr = this.physics.add.staticSprite(a.x, a.y, `amuse_${a.type}`);
       aSpr.setDepth(a.y + 20);
+      aSpr.setInteractive({ cursor: 'pointer' });
+      aSpr.on('pointerdown', () => this.executeInteraction({ type: 'ride', data: a, name: a.name, emoji: a.emoji }));
+
       this.interactTargets.push({
         type: 'ride',
         data: a,
@@ -206,10 +224,18 @@ class TownScene extends Phaser.Scene {
       });
     });
 
-    // 5. 워터파크 & 캠핑장
+    // 5. 워터파크 & 캠핑장 (클릭 & 접근 인터랙션)
     TownMapData.WATERPARK.forEach(w => {
       const wSpr = this.physics.add.staticSprite(w.x, w.y, `wp_${w.type}`);
       wSpr.setDepth(w.y + 20);
+      wSpr.setInteractive({ cursor: 'pointer' });
+      wSpr.on('pointerdown', () => this.executeInteraction({
+        type: 'ride',
+        data: { name: w.name, emoji: w.emoji, rideTitle: w.name, rideColor: '#0284c7' },
+        name: w.name,
+        emoji: w.emoji
+      }));
+
       this.interactTargets.push({
         type: 'ride',
         data: { name: w.name, emoji: w.emoji, rideTitle: w.name, rideColor: '#0284c7' },
@@ -224,9 +250,17 @@ class TownScene extends Phaser.Scene {
     TownMapData.CAMPING.forEach(c => {
       const cSpr = this.physics.add.staticSprite(c.x, c.y, c.type);
       cSpr.setDepth(c.y + 20);
+      cSpr.setInteractive({ cursor: 'pointer' });
+      cSpr.on('pointerdown', () => this.executeInteraction({
+        type: 'prop',
+        data: { type: c.type, name: c.name },
+        name: c.name,
+        emoji: c.emoji
+      }));
+
       this.interactTargets.push({
-        type: 'ride',
-        data: { name: c.name, emoji: c.emoji, rideTitle: c.name, rideColor: '#10b981' },
+        type: 'prop',
+        data: { type: c.type, name: c.name },
         name: c.name,
         emoji: c.emoji,
         x: c.x,
@@ -235,10 +269,13 @@ class TownScene extends Phaser.Scene {
       });
     });
 
-    // 6. 동물 NPC (대화 모달 연동)
+    // 6. 동물 NPC (클릭 & 접근 대화 모달 연동)
     TownMapData.NPCS.forEach(n => {
       const npcSpr = this.physics.add.staticSprite(n.x, n.y, `npc_${n.type}`);
       npcSpr.setDepth(n.y + 15);
+      npcSpr.setInteractive({ cursor: 'pointer' });
+      npcSpr.on('pointerdown', () => this.executeInteraction({ type: 'npc', data: n, name: n.name, emoji: '💬' }));
+
       this.add.text(n.x, n.y - 30, n.name, {
         fontSize: '10px',
         fill: '#fef08a',
@@ -502,6 +539,7 @@ class TownScene extends Phaser.Scene {
       let actionText = `${found.emoji} [E] ${found.name} 입장`;
       if (found.type === 'ride') actionText = `${found.emoji} [E] ${found.name} 탑승하기`;
       if (found.type === 'npc') actionText = `${found.emoji} [E] ${found.name} 대화하기`;
+      if (found.type === 'prop') actionText = `${found.emoji} [E] ${found.name} 살펴보기`;
 
       this.interactPrompt.setText(actionText);
       this.interactPrompt.setPosition(px, py - 45);
@@ -523,6 +561,8 @@ class TownScene extends Phaser.Scene {
       ModalManager.open('ride_modal', target.data);
     } else if (target.type === 'npc') {
       ModalManager.open('npc_modal', target.data);
+    } else if (target.type === 'prop') {
+      ModalManager.open('structure_modal', target.data);
     }
   }
 

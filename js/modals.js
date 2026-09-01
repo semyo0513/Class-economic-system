@@ -275,6 +275,15 @@ const ModalManager = (() => {
           if (data && data.success && data.stocks) {
             ModalManager.multiStockCache = data.stocks;
             ModalManager.multiStockHoldings = data.holdings || {};
+            ModalManager.multiStockAvgPrices = data.avgPrices || {};
+            ModalManager.multiStockProfitLosses = data.profitLosses || {};
+            ModalManager.multiStockProfitRates = data.profitRates || {};
+            
+            // 로컬스토리지에 평단가 캐싱
+            try {
+              localStorage.setItem(`classbank_stock_avg_${me}`, JSON.stringify(ModalManager.multiStockAvgPrices));
+            } catch (_) {}
+
             const wrap = document.getElementById('stock-tab-buttons-wrap');
             if (wrap) {
               wrap.innerHTML = data.stocks.map((s, i) => `
@@ -351,14 +360,17 @@ const ModalManager = (() => {
             <button class="tab-btn" onclick="ModalManager.switchShopTab('aura')">✨ 특수 오라</button>
           </div>
 
-          <!-- 1. 미니룸 가구 탭 -->
+          <!-- 1. 미니룸 가구 & 소품 탭 -->
           <div id="shop-tab-furn" class="shop-grid">
             ${furns.map(f => `
-              <div class="shop-item-card">
-                <div class="item-emoji">${f.emoji}</div>
-                <div class="item-name">${f.name}</div>
-                <div class="item-price">💰 ${f.price.toLocaleString()}원</div>
-                <button class="pixel-btn-primary" onclick="ModalManager.buyFurniture('${f.id}', ${f.price}, '${f.name}')">구매하기</button>
+              <div class="shop-item-card" style="display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:8px;">
+                <div class="item-emoji" style="height:48px; display:flex; align-items:center; justify-content:center;">
+                  ${f.image ? `<img src="${f.image}" style="max-height:46px; max-width:46px; object-fit:contain;">` : `<span style="font-size:32px;">${f.emoji}</span>`}
+                </div>
+                <div class="item-name" style="font-size:11px; font-weight:bold; margin-top:4px; text-align:center; width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f.name}</div>
+                <div style="font-size:9px; color:#64748b; margin-bottom:4px; text-align:center;">${f.desc || ''}</div>
+                <div class="item-price" style="font-size:11px; font-weight:bold; color:#b45309; margin-bottom:6px;">💰 ${f.price.toLocaleString()}원</div>
+                <button class="pixel-btn-primary" style="padding:4px 8px; font-size:11px;" onclick="ModalManager.buyFurniture('${f.id}', ${f.price}, '${f.name}')">구매하기</button>
               </div>
             `).join('')}
           </div>
@@ -745,19 +757,130 @@ const ModalManager = (() => {
         break;
       }
 
-      // 10-2. NPC 대화 모달
+      // 10-2. NPC 인터랙티브 대화 모달
       case 'npc_modal': {
-        const npc = data || { name: '주민', dialog: '반가워요!' };
+        const npc = data || { name: '주민', dialogs: ['반가워요!'] };
+        const dialogList = npc.dialogs || [npc.dialog || '오늘도 활기찬 클래스타운에서 행복한 하루 보내세요!'];
+        const currentLine = dialogList[Math.floor(Math.random() * dialogList.length)];
+        
+        let npcEmoji = '🐻';
+        if (npc.type === 'rabbit') npcEmoji = '🐰';
+        if (npc.type === 'cat') npcEmoji = '🐱';
+        if (npc.type === 'panda') npcEmoji = '🐼';
+        if (npc.type === 'fox') npcEmoji = '🦊';
+
         container.innerHTML = `
           <div style="padding:16px; text-align:center;">
-            <div style="font-size:48px; margin-bottom:8px;">💬</div>
-            <h3 style="font-size:16px; color:#1e293b; margin-bottom:6px;">${npc.name || '마을 주민'}</h3>
-            <div style="background:#f8fafc; border:2px solid #cbd5e1; border-radius:10px; padding:14px; font-size:13px; color:#334155; line-height:1.6; margin-bottom:16px;">
-              "${npc.dialog || '오늘도 활기찬 클래스타운에서 행복한 하루 보내세요!'}"
+            <div style="font-size:52px; margin-bottom:6px; animation:bounce 1.5s infinite alternate;">${npcEmoji}</div>
+            <h3 style="font-size:17px; font-weight:bold; color:#1e293b; margin-bottom:4px;">${npc.name || '마을 주민'}</h3>
+            <div style="font-size:11px; color:#64748b; margin-bottom:12px;">클래스타운 친절한 이웃 주민</div>
+
+            <!-- 대화 말풍선 -->
+            <div id="npc-dialog-box" style="background:#fffbeb; border:3px solid #fcd34d; border-radius:12px; padding:16px; font-size:14px; color:#1e293b; line-height:1.7; margin-bottom:16px; min-height:75px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.05); font-weight:500;">
+              "${currentLine}"
             </div>
-            <button class="pixel-btn-secondary" style="width:auto; padding:8px 24px;" onclick="ModalManager.close()">대화 마치기</button>
+
+            <!-- 인터랙티브 행동 버튼들 -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
+              <button class="pixel-btn-primary" style="background:#3b82f6; font-size:12px; padding:8px 10px;" onclick="ModalManager.talkNextNpc('${npc.id}')">
+                💬 다른 이야기 듣기
+              </button>
+              <button class="pixel-btn-primary" style="background:#10b981; font-size:12px; padding:8px 10px;" onclick="ModalManager.startNpcQuiz('${npc.type}')">
+                💡 경제 상식 퀴즈 (장학금 1,000원)
+              </button>
+              <button class="pixel-btn-primary" style="background:#8b5cf6; font-size:12px; padding:8px 10px;" onclick="ModalManager.getNpcFortune('${npc.name}')">
+                🍀 오늘의 행운 조언
+              </button>
+              <button class="pixel-btn-secondary" style="font-size:12px; padding:8px 10px;" onclick="ModalManager.close()">
+                👋 인사하고 떠나기
+              </button>
+            </div>
           </div>
         `;
+        break;
+      }
+
+      // 10-3. 환경 구조물 상호작용 모달 (분수대, 벤치, 가로등, 우체통, 모닥불, 텐트 등)
+      case 'structure_modal': {
+        const prop = data || { type: 'fountain', name: '구조물' };
+        let contentHtml = '';
+
+        if (prop.type === 'fountain') {
+          contentHtml = `
+            <div style="text-align:center; padding:16px;">
+              <div style="font-size:56px; margin-bottom:8px; animation:bounce 1.5s infinite;">⛲</div>
+              <h3 style="font-size:18px; color:#0284c7; margin-bottom:6px;">중앙 광장 대형 분수대</h3>
+              <p style="font-size:12px; color:#64748b; margin-bottom:16px;">시원한 물줄기가 솟구치는 소원 분수대입니다. 동전을 던지고 소원을 빌어보세요!</p>
+              <div style="background:#f0f9ff; border:2px solid #bae6fd; border-radius:10px; padding:12px; margin-bottom:16px; font-size:13px; color:#0369a1;">
+                🪙 100원을 던져 행운의 소원을 빌면 좋은 일이 생길지도 몰라요!
+              </div>
+              <div style="display:flex; justify-content:center; gap:8px;">
+                <button class="pixel-btn-primary" style="background:#0284c7; width:auto; padding:10px 20px; font-size:13px;" onclick="ModalManager.tossFountainCoin()">
+                  🪙 소원 동전 던지기 (100원)
+                </button>
+                <button class="pixel-btn-secondary" style="width:auto; padding:10px 20px; font-size:13px;" onclick="ModalManager.close()">닫기</button>
+              </div>
+            </div>
+          `;
+        } else if (prop.type === 'bench') {
+          contentHtml = `
+            <div style="text-align:center; padding:16px;">
+              <div style="font-size:56px; margin-bottom:8px;">🪑</div>
+              <h3 style="font-size:18px; color:#b45309; margin-bottom:6px;">공원 휴식 벤치</h3>
+              <p style="font-size:12px; color:#64748b; margin-bottom:16px;">푸른 나무 그늘 아래 놓인 안락한 벤치입니다.</p>
+              <div style="background:#fffbeb; border:2px solid #fde68a; border-radius:10px; padding:14px; margin-bottom:16px; font-size:13px; color:#78350f; line-height:1.6;">
+                "잠깐 쉬어가도 괜찮아. 오늘도 최선을 다한 너를 응원해 ☕"
+              </div>
+              <div style="display:flex; justify-content:center; gap:8px;">
+                <button class="pixel-btn-primary" style="background:#d97706; width:auto; padding:10px 20px; font-size:13px;" onclick="ModalManager.restOnBench()">
+                  🧘‍♂️ 5초간 힐링 휴식하기 (+기분 회복)
+                </button>
+                <button class="pixel-btn-secondary" style="width:auto; padding:10px 20px; font-size:13px;" onclick="ModalManager.close()">일어나기</button>
+              </div>
+            </div>
+          `;
+        } else if (prop.type === 'lamp') {
+          contentHtml = `
+            <div style="text-align:center; padding:16px;">
+              <div style="font-size:56px; margin-bottom:8px;">💡</div>
+              <h3 style="font-size:18px; color:#eab308; margin-bottom:6px;">클래스타운 감성 가로등</h3>
+              <p style="font-size:12px; color:#64748b; margin-bottom:16px;">밤길을 따스하게 비춰주는 빈티지 조명입니다.</p>
+              <button class="pixel-btn-primary" style="background:#eab308; width:auto; padding:10px 24px; font-size:13px;" onclick="ModalManager.toggleStreetLamp()">
+                ✨ 가로등 스위치 켜기/끄기
+              </button>
+            </div>
+          `;
+        } else if (prop.type === 'mailbox') {
+          contentHtml = `
+            <div style="text-align:center; padding:16px;">
+              <div style="font-size:56px; margin-bottom:8px;">📮</div>
+              <h3 style="font-size:18px; color:#dc2626; margin-bottom:6px;">빨간 우체통</h3>
+              <p style="font-size:12px; color:#64748b; margin-bottom:16px;">소중한 친구에게 따뜻한 칭찬 편지와 용돈을 부쳐보세요.</p>
+              <div style="display:flex; justify-content:center; gap:8px;">
+                <button class="pixel-btn-primary" style="background:#dc2626; width:auto; padding:10px 20px; font-size:13px;" onclick="ModalManager.open('postoffice')">
+                  💌 우체국 열기 & 편지 쓰기
+                </button>
+                <button class="pixel-btn-secondary" style="width:auto; padding:10px 20px; font-size:13px;" onclick="ModalManager.close()">닫기</button>
+              </div>
+            </div>
+          `;
+        } else if (prop.type === 'campfire' || prop.type === 'camp_tent') {
+          contentHtml = `
+            <div style="text-align:center; padding:16px;">
+              <div style="font-size:56px; margin-bottom:8px; animation:bounce 1s infinite;">🔥</div>
+              <h3 style="font-size:18px; color:#ea580c; margin-bottom:6px;">숲속 캠프파이어 & 텐트</h3>
+              <p style="font-size:12px; color:#64748b; margin-bottom:16px;">타닥타닥 타오르는 모닥불 앞에서 마시멜로를 구워보세요!</p>
+              <div style="display:flex; justify-content:center; gap:8px;">
+                <button class="pixel-btn-primary" style="background:#ea580c; width:auto; padding:10px 20px; font-size:13px;" onclick="ModalManager.roastMarshmallow()">
+                  🍡 마시멜로 노릇노릇 굽기
+                </button>
+                <button class="pixel-btn-secondary" style="width:auto; padding:10px 20px; font-size:13px;" onclick="ModalManager.close()">일어나기</button>
+              </div>
+            </div>
+          `;
+        }
+
+        container.innerHTML = contentHtml;
         break;
       }
 
@@ -1654,6 +1777,10 @@ const ModalManager = (() => {
       const st = GameState.student;
       const myName = (st && (st.name || st.이름)) ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
 
+      if (st && (st.cash || 0) < price) {
+        return alert(`잔액이 부족합니다! (보유: ${(st.cash || 0).toLocaleString()}원, 필요: ${price.toLocaleString()}원)`);
+      }
+
       API.showLoading('가구 구매 중...');
       const buyRes = await API.call('buyFashionItem', { name: myName, studentName: myName, itemName: name, price: price, category: '가구', prop: id });
       API.hideLoading();
@@ -1661,12 +1788,15 @@ const ModalManager = (() => {
       if (buyRes && buyRes.success) {
         if (buyRes.student) {
           GameState.student = buyRes.student;
-          const cashEl = document.getElementById('hud-cash-val');
-          if (cashEl) cashEl.textContent = `${(buyRes.student.cash || 0).toLocaleString()}원`;
+        } else if (st) {
+          st.cash = Math.max(0, (st.cash || 0) - price);
         }
+        const cashEl = document.getElementById('hud-cash-val');
+        if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
+
         MiniroomSystem.addFurnitureToInventory(myName, id);
         SoundEngine.fanfare();
-        alert(`🛋️ ${name} 구매 완료! 미니룸 인벤토리에 보관되었습니다.`);
+        alert(`🛋️ [${name}] 구매 완료! 미니룸 인벤토리에 보관되었습니다.`);
       } else {
         alert(buyRes?.msg || '구매 실패');
       }
@@ -1814,13 +1944,27 @@ const ModalManager = (() => {
       const curStock = stocks.find(s => s.code === code) || stocks[0] || { name: '삼성전자', code: '005930', price: 0, changeRate: '...' };
       const holdings = ModalManager.multiStockHoldings || {};
       const avgPrices = ModalManager.multiStockAvgPrices || {};
-      const profitLosses = ModalManager.multiStockProfitLosses || {};
-      const profitRates = ModalManager.multiStockProfitRates || {};
+      const me = GameState.student ? (GameState.student.name || GameState.student.이름 || '나') : '나';
 
       const myQty = holdings[code] || holdings[curStock.name] || 0;
-      const myAvg = avgPrices[code] || (myQty > 0 ? curStock.price : 0);
-      const myProfitLoss = profitLosses[code] || (myQty * (curStock.price - myAvg));
-      const myProfitRate = profitRates[code] || (myAvg > 0 ? `${(((curStock.price - myAvg) / myAvg) * 100).toFixed(2)}%` : '0.00%');
+      let myAvg = (avgPrices[code] !== undefined && avgPrices[code] > 0) ? avgPrices[code] : (avgPrices[curStock.name] || 0);
+
+      // 로컬스토리지 평단가 백업 조회
+      if (myAvg === 0 && myQty > 0) {
+        try {
+          const cachedAvg = JSON.parse(localStorage.getItem(`classbank_stock_avg_${me}`) || '{}');
+          if (cachedAvg[code]) myAvg = cachedAvg[code];
+        } catch (_) {}
+      }
+
+      // 실시간 시세 기준 평가손익 및 수익률 동적 계산
+      let myProfitLoss = 0;
+      let myProfitRate = '0.00%';
+      if (myQty > 0 && myAvg > 0 && curStock.price > 0) {
+        myProfitLoss = myQty * (curStock.price - myAvg);
+        const rateVal = (((curStock.price - myAvg) / myAvg) * 100).toFixed(2);
+        myProfitRate = (curStock.price >= myAvg ? '+' : '') + rateVal + '%';
+      }
 
       const nameEl = document.getElementById('stock-active-name');
       const priceEl = document.getElementById('stock-active-price');
@@ -1844,10 +1988,10 @@ const ModalManager = (() => {
         rateEl.textContent = curStock.changeRate || '0.00%';
         rateEl.style.color = isUp ? '#ef4444' : '#3b82f6';
       }
-      if (holdEl) holdEl.innerHTML = `${myQty.toLocaleString()}주 <span style="font-size:10px; color:#64748b;">(평단가: ${myAvg.toLocaleString()}원)</span>`;
+      if (holdEl) holdEl.innerHTML = `${myQty.toLocaleString()}주 <span style="font-size:10px; color:#64748b;">(평단가: ${myAvg > 0 ? myAvg.toLocaleString() + '원' : '-'})</span>`;
       if (evalEl) {
         const isProfit = myProfitLoss >= 0;
-        evalEl.innerHTML = `${(myQty * (curStock.price || 0)).toLocaleString()}원 <span style="font-size:10px; color:${isProfit ? '#ef4444' : '#3b82f6'}; font-weight:bold;">(${isProfit ? '+' : ''}${myProfitRate})</span>`;
+        evalEl.innerHTML = `${(myQty * (curStock.price || 0)).toLocaleString()}원 <span style="font-size:10px; color:${isProfit ? '#ef4444' : '#3b82f6'}; font-weight:bold;">(${myProfitRate})</span>`;
       }
 
       const cvs = document.getElementById('stock-chart-canvas');
@@ -1873,16 +2017,28 @@ const ModalManager = (() => {
       if (pTbody) {
         pTbody.innerHTML = stocks.map(s => {
           const q = holdings[s.code] || holdings[s.name] || 0;
-          const avg = avgPrices[s.code] || 0;
-          const pr = profitRates[s.code] || '0.00%';
-          const isProf = !pr.includes('-');
+          let avg = (avgPrices[s.code] !== undefined && avgPrices[s.code] > 0) ? avgPrices[s.code] : (avgPrices[s.name] || 0);
+          if (avg === 0 && q > 0) {
+            try {
+              const cachedAvg = JSON.parse(localStorage.getItem(`classbank_stock_avg_${me}`) || '{}');
+              if (cachedAvg[s.code]) avg = cachedAvg[s.code];
+            } catch (_) {}
+          }
+          let pr = '0.00%';
+          let isProf = true;
+          if (q > 0 && avg > 0 && s.price > 0) {
+            const diff = s.price - avg;
+            const rVal = ((diff / avg) * 100).toFixed(2);
+            isProf = diff >= 0;
+            pr = (isProf ? '+' : '') + rVal + '%';
+          }
           return `
             <tr style="${s.code === code ? 'background:#f0fdf4;' : ''}">
               <td><strong>${s.icon || '📈'} ${s.name}</strong></td>
               <td>${(s.price || 0).toLocaleString()}원</td>
               <td><strong>${q.toLocaleString()}주</strong></td>
               <td>${avg > 0 ? avg.toLocaleString() + '원' : '-'}</td>
-              <td style="color:${isProf ? '#ef4444' : '#3b82f6'}; font-weight:bold;">${q > 0 ? (isProf ? '+' : '') + pr : '-'}</td>
+              <td style="color:${isProf ? '#ef4444' : '#3b82f6'}; font-weight:bold;">${q > 0 && avg > 0 ? pr : '-'}</td>
               <td>${(q * (s.price || 0)).toLocaleString()}원</td>
             </tr>
           `;
@@ -2521,6 +2677,148 @@ const ModalManager = (() => {
       } else {
         alert(res?.msg || '매입 실패');
       }
+    },
+
+    // ─── 동물 NPC 인터랙티브 기능 ───
+    talkNextNpc: (npcId) => {
+      const npcDef = TownMapData.NPCS.find(n => n.id === npcId);
+      if (!npcDef || !npcDef.dialogs) return;
+      const box = document.getElementById('npc-dialog-box');
+      if (box) {
+        const nextLine = npcDef.dialogs[Math.floor(Math.random() * npcDef.dialogs.length)];
+        box.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          box.textContent = `"${nextLine}"`;
+          box.style.transform = 'scale(1)';
+        }, 100);
+        SoundEngine.snap();
+      }
+    },
+
+    startNpcQuiz: (npcType) => {
+      const quizzes = [
+        { q: '회사가 낸 이익의 일부를 주주들에게 나누어 주는 돈을 무엇이라 할까요?', a: ['배당금', '복권상금', '학급세금'], ans: 0 },
+        { q: '은행에 돈을 맡기고 만기까지 기다렸을 때 원금에 더해 받는 것은?', a: ['이자', '수수료', '과태료'], ans: 0 },
+        { q: '물건이나 주식을 싼 가격에 사서 비싼 가격에 팔았을 때 생기는 이익은?', a: ['시세차익', '이자소득', '소득세'], ans: 0 },
+        { q: '학급 공동체의 편의와 시설 유지를 위해 국가나 학급에 납부하는 돈은?', a: ['세금', '기부금', '투자금'], ans: 0 },
+        { q: '현금 대신 편리하게 물건을 사고 결제하는 QR 간편결제 시스템은?', a: ['제로페이', '어음', '약속증서'], ans: 0 }
+      ];
+      const qItem = quizzes[Math.floor(Math.random() * quizzes.length)];
+      const box = document.getElementById('npc-dialog-box');
+      if (box) {
+        box.innerHTML = `
+          <div style="text-align:left; width:100%;">
+            <div style="font-weight:bold; color:#b45309; margin-bottom:8px;">💡 오늘의 퀴즈: ${qItem.q}</div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              ${qItem.a.map((opt, i) => `
+                <button class="pixel-btn-sm" style="text-align:left; background:#fff; border:1px solid #cbd5e1; padding:6px 10px; font-size:12px; cursor:pointer;" onclick="ModalManager.answerNpcQuiz(${i === qItem.ans})">
+                  ${i + 1}. ${opt}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+        SoundEngine.coin();
+      }
+    },
+
+    answerNpcQuiz: async (isCorrect) => {
+      const box = document.getElementById('npc-dialog-box');
+      if (!box) return;
+      if (isCorrect) {
+        SoundEngine.fanfare();
+        box.innerHTML = `
+          <div style="color:#15803d; font-weight:bold; font-size:15px; text-align:center;">
+            🎉 딩동댕! 정답입니다! (+장학금 1,000원 지급)
+          </div>
+        `;
+        const st = GameState.student;
+        const myName = st ? (st.name || st.이름) : '나';
+        await API.call('rewardStudent', { name: myName, amount: 1000, reason: 'NPC 경제 퀴즈 정답' }, true);
+        if (st) {
+          st.cash = (st.cash || 0) + 1000;
+          const cashEl = document.getElementById('hud-cash-val');
+          if (cashEl) cashEl.textContent = `${st.cash.toLocaleString()}원`;
+        }
+      } else {
+        SoundEngine.fail();
+        box.innerHTML = `
+          <div style="color:#dc2626; font-weight:bold; font-size:14px; text-align:center;">
+            ❌ 아쉽네요! 다음 기회에 다시 도전해보세요.
+          </div>
+        `;
+      }
+    },
+
+    getNpcFortune: (npcName) => {
+      const fortunes = [
+        '✨ 오늘은 주식 시장에서 기분 좋은 상승이 예상됩니다! 포트폴리오를 점검해보세요.',
+        '🌸 친구의 기숙사 미니룸에 방명록을 남기면 큰 행운이 찾아옵니다!',
+        '💰 계획적인 저축이 미래의 부자가 되는 가장 확실한 지름길입니다.',
+        '🍀 마음 상담실에서 오늘의 감정을 솔직히 적으면 마음이 한결 가벼워질 거예요.',
+        '🎡 오늘 하루도 친구들과 함께 웃음 가득한 클래스타운을 만들어보세요!'
+      ];
+      const selected = fortunes[Math.floor(Math.random() * fortunes.length)];
+      const box = document.getElementById('npc-dialog-box');
+      if (box) {
+        box.innerHTML = `
+          <div style="color:#6b21a8; font-weight:500; font-size:13px; text-align:center;">
+            ${selected}
+          </div>
+        `;
+        SoundEngine.fanfare();
+      }
+    },
+
+    // ─── 환경 구조물 인터랙션 ───
+    tossFountainCoin: async () => {
+      const st = GameState.student;
+      const myName = st ? (st.name || st.이름) : '나';
+      if (st && st.cash < 100) return alert('분수대에 던질 동전(100원)이 부족합니다!');
+
+      SoundEngine.coin();
+      if (st) {
+        st.cash -= 100;
+        const cashEl = document.getElementById('hud-cash-val');
+        if (cashEl) cashEl.textContent = `${st.cash.toLocaleString()}원`;
+      }
+
+      const luckyMessages = [
+        '✨ 퐁당~! "이번 주 주식 수익률 대박 나게 해주세요!" 소원이 하늘에 닿았습니다!',
+        '🌸 퐁당~! "기숙사 방에 좋은 일만 가득하길!" 행운 버프가 부여되었습니다.',
+        '💎 퐁당~! 분수대 깊은 곳에서 반짝이는 보물(보너스 500원)을 발견했습니다!'
+      ];
+      const win = Math.random() < 0.3;
+      if (win) {
+        SoundEngine.fanfare();
+        if (st) {
+          st.cash += 500;
+          const cashEl = document.getElementById('hud-cash-val');
+          if (cashEl) cashEl.textContent = `${st.cash.toLocaleString()}원`;
+        }
+        alert(luckyMessages[2]);
+      } else {
+        alert(luckyMessages[Math.floor(Math.random() * 2)]);
+      }
+      ModalManager.close();
+    },
+
+    restOnBench: () => {
+      SoundEngine.fanfare();
+      alert('☕ 벤치에서 따스한 햇살을 받으며 휴식을 취했습니다. 기분이 상쾌해졌습니다!');
+      ModalManager.close();
+    },
+
+    toggleStreetLamp: () => {
+      SoundEngine.snap();
+      alert('💡 가로등 스위치를 조작했습니다! 클래스타운 거리가 은은하게 빛납니다.');
+      ModalManager.close();
+    },
+
+    roastMarshmallow: () => {
+      SoundEngine.fanfare();
+      alert('🍡 모닥불에 마시멜로를 노릇노릇 맛있게 구웠습니다! 달콤하고 행복한 기분~!');
+      ModalManager.close();
     }
   };
 })();

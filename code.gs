@@ -1004,31 +1004,34 @@ function handleRequest(payload, callback) {
           const code = String(r['속성'] || '').trim();
           const name = String(r['아이템명'] || '').trim();
           const q = Number(r['수량'] || 1);
-          const p = Number(r['금액'] || 0); // 매수가격
+          const p = Number(r['금액'] || 0); // 실제 매수 당시 체결 단가
           const totalPaid = p * q;
 
-          if (code) {
-            holdings[code] = (holdings[code] || 0) + q;
-            totalInvests[code] = (totalInvests[code] || 0) + totalPaid;
+          const key = code || name;
+          if (key) {
+            holdings[key] = (holdings[key] || 0) + q;
+            totalInvests[key] = (totalInvests[key] || 0) + totalPaid;
           }
-          if (name) {
-            holdings[name] = (holdings[name] || 0) + q;
-            totalInvests[name] = (totalInvests[name] || 0) + totalPaid;
+          if (code && name && code !== name) {
+            holdings[name] = holdings[key];
+            totalInvests[name] = totalInvests[key];
           }
         });
 
         stocks.forEach(s => {
-          const q = holdings[s.code] || 0;
-          const invest = totalInvests[s.code] || 0;
+          const q = holdings[s.code] || holdings[s.name] || 0;
+          const invest = totalInvests[s.code] || totalInvests[s.name] || 0;
           if (q > 0 && invest > 0) {
             const avg = Math.round(invest / q);
             avgPrices[s.code] = avg;
+            avgPrices[s.name] = avg;
             const evalVal = q * (s.price || 0);
             const diff = evalVal - invest;
             profitLosses[s.code] = diff;
             profitRates[s.code] = ((diff / invest) * 100).toFixed(2) + '%';
           } else {
             avgPrices[s.code] = 0;
+            avgPrices[s.name] = 0;
             profitLosses[s.code] = 0;
             profitRates[s.code] = '0.00%';
           }
