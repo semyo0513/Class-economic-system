@@ -865,8 +865,8 @@
   </div>
 
   <!-- 3. 모달 컨테이너 -->
-  <div id="modal-overlay">
-    <div id="modal-container">
+  <div id="modal-overlay" onmousedown="event.stopPropagation()" onpointerdown="event.stopPropagation()">
+    <div id="modal-container" onmousedown="event.stopPropagation()" onpointerdown="event.stopPropagation()">
       <div class="modal-header-bar">
         <div class="modal-header-title" id="modal-title">🏛️ 건물명</div>
         <div class="modal-close-btn" onclick="ModalManager.close()">✕</div>

@@ -521,6 +521,12 @@ class TownScene extends Phaser.Scene {
   }
 
   checkInteractions() {
+    const modal = document.getElementById('modal-overlay');
+    if (modal && modal.style.display === 'flex') {
+      if (this.interactPrompt) this.interactPrompt.setVisible(false);
+      return;
+    }
+
     const px = this.player.x;
     const py = this.player.y;
     let found = null;
@@ -555,6 +561,9 @@ class TownScene extends Phaser.Scene {
 
   executeInteraction(target) {
     if (!target) return;
+    const modal = document.getElementById('modal-overlay');
+    if (modal && modal.style.display === 'flex') return;
+
     if (target.type === 'building') {
       ModalManager.open(target.id);
     } else if (target.type === 'ride') {
