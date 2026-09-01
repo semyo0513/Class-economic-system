@@ -150,6 +150,9 @@ function initSystemSheets() {
       ['세금율', '0.10', '기본 급여 및 송금 세금 비율 (10%)'],
       ['예금_기본이자율', '0.05', '은행 정기예금 연 이율 (5%)'],
       ['복권_가격', '500', '복권 1장 가격'],
+      ['마음상담_1일제한', '1', '마음 상담실(감정신호등) 1일 등록 제한 횟수 (0=무제한)'],
+      ['복권_1일제한', '3', '복권 1일 최대 구매 가능 횟수 (0=무제한)'],
+      ['예금_최소유지일', '1', '정기예금 가입 후 최소 해지 가능 유지일수 (0=당일해지가능, 1=최소1일후)'],
       ['감정신호등_좋음_보상', '500', '좋음 선택 시 지급액'],
       ['감정신호등_보통_보상', '300', '보통 선택 시 지급액'],
       ['감정신호등_힘듦_보상', '1000', '힘듦 선택 시 지급액']
@@ -958,11 +961,13 @@ function handleRequest(payload, callback) {
         let foundRow = -1;
         let principal = 0;
         let rate = 0.05;
+        let joinDateVal = '';
 
         for (let i = 1; i < data.length; i++) {
           if (String(data[i][1]).trim() === studentName && String(data[i][4]).trim() === '활성') {
             if (matchCount === depIndex) {
               foundRow = i + 1;
+              joinDateVal = data[i][0];
               principal = Number(data[i][2]) || 0;
               rate = Number(data[i][3]) || 0.05;
               break;
@@ -972,9 +977,24 @@ function handleRequest(payload, callback) {
         }
 
         if (foundRow > 0 && principal > 0) {
+          const cfg = getSettings();
+          const minDays = Number(cfg['예금_최소유지일'] !== undefined ? cfg['예금_최소유지일'] : 1);
+
+          if (minDays > 0 && studentName !== '선생님') {
+            const joinStr = (joinDateVal instanceof Date) ? Utilities.formatDate(joinDateVal, 'Asia/Seoul', 'yyyy-MM-dd') : String(joinDateVal).slice(0, 10);
+            const todayStr = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+            
+            if (joinStr === todayStr && minDays >= 1) {
+              result = { success: false, msg: `정기예금은 가입 후 최소 ${minDays}일이 지나야 해지할 수 있습니다.\n(가입일자: ${joinStr} / 오늘 가입한 예금은 내일부터 해지 가능)` };
+              break;
+            }
+          }
+
           const interest = Math.round(principal * rate);
           const totalPayout = principal + interest;
           depSh.getRange(foundRow, 5).setValue('해지');
+          depSh.getRange(foundRow, 6).setValue(nowStr());
+          depSh.getRange(foundRow, 7).setValue(interest);
           updateCash(studentName, totalPayout, `정기예금 만기해지 (원금 ${principal.toLocaleString()}원 + 이자 ${interest.toLocaleString()}원)`, '예금');
           const st = syncStudentAssets(studentName);
           result = { success: true, amount: totalPayout, principal: principal, interest: interest, msg: `정기예금 해지 완료! 원금+이자 총 ${totalPayout.toLocaleString()}원이 지급되었습니다.`, student: st };
@@ -1331,6 +1351,7 @@ function handleRequest(payload, callback) {
         break;
       }
 
+      case 'updateSettings':
       case 'updateFinancialSettings':
       case 'updateStockSettings': {
         const mode = payload.mode || payload.stockMode || 'REALTIME_NAVER';
@@ -1341,6 +1362,14 @@ function handleRequest(payload, callback) {
         const lotteryPrice = (payload.lotteryPrice !== undefined && !isNaN(Number(payload.lotteryPrice))) ? Number(payload.lotteryPrice) : null;
         const defaultSalary = (payload.defaultSalary !== undefined && !isNaN(Number(payload.defaultSalary))) ? Number(payload.defaultSalary) : null;
         const schoolName = payload.schoolName || null;
+
+        // 활동 제한 및 운영 정책 설정
+        const counselingLimit = (payload.counselingLimit !== undefined && !isNaN(Number(payload.counselingLimit))) ? Number(payload.counselingLimit) : null;
+        const lotteryLimit = (payload.lotteryLimit !== undefined && !isNaN(Number(payload.lotteryLimit))) ? Number(payload.lotteryLimit) : null;
+        const depositMinDays = (payload.depositMinDays !== undefined && !isNaN(Number(payload.depositMinDays))) ? Number(payload.depositMinDays) : null;
+        const rewardGood = (payload.rewardGood !== undefined && !isNaN(Number(payload.rewardGood))) ? Number(payload.rewardGood) : null;
+        const rewardNormal = (payload.rewardNormal !== undefined && !isNaN(Number(payload.rewardNormal))) ? Number(payload.rewardNormal) : null;
+        const rewardHard = (payload.rewardHard !== undefined && !isNaN(Number(payload.rewardHard))) ? Number(payload.rewardHard) : null;
 
         const setSh = getOrCreateSheet(SH.SETTINGS);
         const data = setSh.getDataRange().getValues();
@@ -1353,6 +1382,12 @@ function handleRequest(payload, callback) {
         if (lotteryPrice !== null) settingsMap['복권_가격'] = lotteryPrice;
         if (defaultSalary !== null) settingsMap['월급_기본금액'] = defaultSalary;
         if (schoolName) settingsMap['학교명'] = schoolName;
+        if (counselingLimit !== null) settingsMap['마음상담_1일제한'] = counselingLimit;
+        if (lotteryLimit !== null) settingsMap['복권_1일제한'] = lotteryLimit;
+        if (depositMinDays !== null) settingsMap['예금_최소유지일'] = depositMinDays;
+        if (rewardGood !== null) settingsMap['감정신호등_좋음_보상'] = rewardGood;
+        if (rewardNormal !== null) settingsMap['감정신호등_보통_보상'] = rewardNormal;
+        if (rewardHard !== null) settingsMap['감정신호등_힘듦_보상'] = rewardHard;
 
         Object.keys(settingsMap).forEach(key => {
           let updated = false;
@@ -1373,7 +1408,7 @@ function handleRequest(payload, callback) {
         }
 
         const freshSettings = getSettings();
-        result = { success: true, msg: '금융, 경제 및 주식 운영 설정이 성공적으로 저장되었습니다!', settings: freshSettings };
+        result = { success: true, msg: '금융, 경제 및 활동 운영 제한 설정이 성공적으로 저장되었습니다!', settings: freshSettings };
         break;
       }
 
@@ -1560,10 +1595,30 @@ function handleRequest(payload, callback) {
         break;
       }
 
-      // 6. 감정 신호등 (1일 1회 장학금)
+      // 6. 감정 신호등 / 마음 상담실 (1일 등록 제한 체크 & 장학금 지급)
       case 'logEmotion': {
+        const studentName = String(payload.name || payload.studentName || '').trim();
         const emotion = payload.emotion || '🟢 좋음';
         const cfg = getSettings();
+        const limit = Number(cfg['마음상담_1일제한'] !== undefined ? cfg['마음상담_1일제한'] : 1);
+
+        if (limit > 0 && studentName !== '선생님') {
+          const actSh = getOrCreateSheet(SH.ACTIVITY);
+          const actRows = sheetToObj(actSh);
+          const todayStr = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+          const todayCount = actRows.filter(r => {
+            const rName = String(r['이름'] || r['학생명'] || '').trim();
+            const rCat = String(r['카테고리'] || '').trim();
+            const rDate = String(r['일시'] || '').slice(0, 10);
+            return rName === studentName && (rCat === '감정신호등' || rCat === '마음상담') && rDate.startsWith(todayStr);
+          }).length;
+
+          if (todayCount >= limit) {
+            result = { success: false, msg: `마음 상담실은 하루에 ${limit}회만 등록할 수 있습니다. (내일 다시 참여해주세요!)` };
+            break;
+          }
+        }
+
         const bonusMap = {
           '🟢 좋음': Number(cfg['감정신호등_좋음_보상'] || 500),
           '🟡 보통': Number(cfg['감정신호등_보통_보상'] || 300),
@@ -1572,28 +1627,52 @@ function handleRequest(payload, callback) {
         const bonus = bonusMap[emotion] || 500;
 
         getOrCreateSheet(SH.ACTIVITY).appendRow([
-          nowStr(), payload.name, '감정신호등', emotion, '', '', bonus, '완료', payload.message || '', ''
+          nowStr(), studentName, '감정신호등', emotion, '', '', bonus, '완료', payload.message || '', ''
         ]);
 
         if (bonus > 0) {
-          updateCash(payload.name, bonus, `감정신호등 참여 보상(${emotion})`, '활동보상');
+          updateCash(studentName, bonus, `감정신호등 참여 보상(${emotion})`, '활동보상');
         }
 
-        result = { success: true, msg: `오늘의 기분 [${emotion}] 등록 완료! +${bonus.toLocaleString()}원 장학금 지급!` };
+        const freshSt = syncStudentAssets(studentName);
+        result = { success: true, msg: `오늘의 기분 [${emotion}] 등록 완료! +${bonus.toLocaleString()}원 장학금이 지급되었습니다!`, student: freshSt };
         break;
       }
 
-      // 7. 복권 구매 & 긁기 (4등 3000원 & 국고 귀속)
+      // 7. 복권 구매 & 긁기 (1일 구매 한도 체크 & 4등 3000원 & 국고 귀속)
       case 'buyLottery': {
+        const studentName = String(payload.name || payload.studentName || '').trim();
         const cfg = getSettings();
+        const limit = Number(cfg['복권_1일제한'] !== undefined ? cfg['복권_1일제한'] : 3);
+
+        if (limit > 0 && studentName !== '선생님') {
+          const txSh = getOrCreateSheet(SH.TX_LOG);
+          const txRows = sheetToObj(txSh);
+          const todayStr = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+          const todayCount = txRows.filter(r => {
+            const rName = String(r['이름'] || r['학생명'] || '').trim();
+            const rCat = String(r['카테고리'] || '').trim();
+            const rDate = String(r['일시'] || '').slice(0, 10);
+            return rName === studentName && rCat === '복권' && rDate.startsWith(todayStr);
+          }).length;
+
+          if (todayCount >= limit) {
+            result = { success: false, msg: `복권은 하루에 최대 ${limit}장까지만 구매할 수 있습니다. (1일 구매 한도 초과)` };
+            break;
+          }
+        }
+
         const price = Number(cfg['복권_가격'] || 500);
-        const st = syncStudentAssets(payload.name);
-        if (!st || st.cash < price) return respond({ success: false, msg: '현금 잔액이 부족합니다.' });
+        const st = syncStudentAssets(studentName);
+        if (!st || st.cash < price) {
+          result = { success: false, msg: `현금 잔액이 부족합니다. (필요: ${price.toLocaleString()}원 / 보유: ${(st ? st.cash : 0).toLocaleString()}원)` };
+          break;
+        }
 
         const txId = 'LOT' + Date.now().toString().slice(-6);
-        updateCash(payload.name, -price, '복권 구매', '복권');
-        logTreasury('입금', '복권판매수익', price, payload.name, `[복권판매] ${txId}`);
-        result = { success: true, txId: txId, msg: '복권 구매 완료' };
+        updateCash(studentName, -price, '복권 구매', '복권');
+        logTreasury('입금', '복권판매수익', price, studentName, `[복권판매] ${txId}`);
+        result = { success: true, txId: txId, msg: '복권 구매 완료', student: syncStudentAssets(studentName) };
         break;
       }
 

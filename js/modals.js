@@ -166,17 +166,28 @@ const ModalManager = (() => {
 
         API.call('getDeposits', { name: me }, true).then(data => {
           const deposits = Array.isArray(data) ? data : (data.deposits || []);
+          const minHoldDays = Number(GameState.settings?.['예금_최소유지일'] !== undefined ? GameState.settings['예금_최소유지일'] : 1);
+          const todayDateStr = new Date().toISOString().slice(0, 10);
+
           const tbody = document.getElementById('bank-deposits-tbody');
           if (tbody) {
-            tbody.innerHTML = deposits.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding:15px;">가입된 예금이 없습니다.</td></tr>' : deposits.map((d, i) => `
+            tbody.innerHTML = deposits.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding:15px;">가입된 예금이 없습니다.</td></tr>' : deposits.map((d, i) => {
+              const joinDate = String(d.가입일시 || d.일시 || d.날짜 || todayDateStr).slice(0, 10);
+              const isToday = (joinDate === todayDateStr);
+              const canWithdraw = !isToday || minHoldDays === 0 || isTeacher;
+              return `
               <tr>
-                <td>${d.일시 || d.날짜 || '2026-08-28'}</td>
-                <td>${(d.금액 || 0).toLocaleString()}원</td>
-                <td>${((d.속성 || rateVal) * 100).toFixed(1)}%</td>
+                <td>${joinDate}</td>
+                <td><strong>${(Number(d.예금원금 || d.금액 || 0)).toLocaleString()}원</strong></td>
+                <td>${((Number(d.이율 || d.속성 || rateVal)) * 100).toFixed(1)}%</td>
                 <td><span class="badge badge-success">${d.상태 || '활성'}</span></td>
-                <td><button class="pixel-btn-sm" onclick="ModalManager.handleWithdraw(${i})">만기해지</button></td>
+                <td>
+                  <button class="pixel-btn-sm" style="${canWithdraw ? 'background:#16a34a;' : 'background:#94a3b8; cursor:not-allowed;'}" onclick="ModalManager.handleWithdraw(${i}, '${joinDate}', ${canWithdraw})">
+                    ${canWithdraw ? '만기해지' : `🔒 가입 ${minHoldDays}일 후 가능`}
+                  </button>
+                </td>
               </tr>
-            `).join('');
+            `}).join('');
           }
         });
 
@@ -592,11 +603,14 @@ const ModalManager = (() => {
 
       // 6. 복권방 (리얼 인터랙티브 캔버스 스크래치 복권)
       case 'lottery': {
+        const lotPrice = Number(GameState.settings?.['복권_가격'] || 500);
+        const lotLimit = Number(GameState.settings?.['복권_1일제한'] !== undefined ? GameState.settings['복권_1일제한'] : 3);
+
         container.innerHTML = `
           <div class="lottery-panel" style="text-align:center; padding:10px;">
             <div style="background:#fef3c7; border:2px solid #f59e0b; padding:12px; border-radius:10px; margin-bottom:14px;">
               <h3 style="color:#b45309; font-size:17px; margin-bottom:4px;">🎰 ${schoolName} 행운의 즉석 스크래치 복권</h3>
-              <p style="font-size:12px; color:#92400e;">1장당 <strong>500원</strong> (국고 귀속) | 최고 <strong>50,000원</strong> 대박 행운! (4등 3,000원)</p>
+              <p style="font-size:12px; color:#92400e;">1장당 <strong>${lotPrice.toLocaleString()}원</strong> (국고 귀속) | 1일 최대 <strong>${lotLimit > 0 ? lotLimit + '장' : '무제한'}</strong> | 최고 <strong>50,000원</strong> 행운!</p>
             </div>
 
             <div id="lottery-game-area" style="text-align:center;">
@@ -604,9 +618,9 @@ const ModalManager = (() => {
               <div id="lottery-before-buy" style="background:#fff; border:3px dashed #d97706; border-radius:12px; padding:24px; margin:0 auto 16px; max-width:340px;">
                 <div style="font-size:48px; margin-bottom:8px;">🎟️</div>
                 <div style="font-size:16px; font-weight:bold; color:#1e293b;">행운의 즉석 스크래치 복권</div>
-                <div style="font-size:12px; color:#64748b; margin-top:4px;">구매 후 마우스나 손가락으로 직접 긁어보세요!</div>
+                <div style="font-size:12px; color:#64748b; margin-top:4px;">(1일 구매 한도: ${lotLimit > 0 ? lotLimit + '장' : '무제한'})</div>
                 <button class="pixel-btn-primary" style="margin-top:16px; width:auto; padding:10px 24px; font-size:15px; background:#d97706;" onclick="ModalManager.buyScratchLottery()">
-                  🎟️ 복권 1장 구매하기 (500원)
+                  🎟️ 복권 1장 구매하기 (${lotPrice.toLocaleString()}원)
                 </button>
               </div>
 
@@ -636,37 +650,41 @@ const ModalManager = (() => {
 
       // 7. 상담실
       case 'counseling': {
+        const rewardGood = Number(GameState.settings?.['감정신호등_좋음_보상'] || 500);
+        const rewardNormal = Number(GameState.settings?.['감정신호등_보통_보상'] || 300);
+        const rewardHard = Number(GameState.settings?.['감정신호등_힘듦_보상'] || 1000);
+        const counselingLimit = Number(GameState.settings?.['마음상담_1일제한'] !== undefined ? GameState.settings['마음상담_1일제한'] : 1);
         const todayKey = 'emotion_' + new Date().toISOString().slice(0, 10);
-        const alreadyDone = localStorage.getItem(todayKey) === 'true';
+        const alreadyDone = (localStorage.getItem(todayKey) === 'true') && (counselingLimit > 0);
 
         container.innerHTML = `
           <div class="counseling-panel">
             <div style="background:#f0fdf4; border:2px solid #86efac; padding:12px; border-radius:8px; margin-bottom:12px;">
               <h3 style="color:#166534; font-size:15px;">💚 ${schoolName} 마음 상담실 & 감정신호등</h3>
-              <p style="font-size:12px; color:#15803d;">오늘 나의 마음 상태를 선택하고 등록하면 매일 1회 학급화폐 장학금이 지급됩니다!</p>
+              <p style="font-size:12px; color:#15803d;">오늘 나의 마음 상태를 선택하고 등록하면 매일 1회 학급화폐 장학금이 지급됩니다! ${counselingLimit > 0 ? `(1일 ${counselingLimit}회 제한)` : ''}</p>
             </div>
 
             <div id="emotion-selected-display" style="background:#f1f5f9; border:2px solid #94a3b8; padding:8px 12px; border-radius:8px; margin-bottom:12px; font-weight:bold; font-size:13px; color:#1e293b; text-align:center;">
-              선택한 기분: <span id="emotion-selected-badge" style="color:#16a34a; font-size:14px;">🟢 기분 최고! (장학금 +500원)</span>
+              선택한 기분: <span id="emotion-selected-badge" style="color:#16a34a; font-size:14px;">🟢 기분 최고! (장학금 +${rewardGood.toLocaleString()}원)</span>
             </div>
 
             <div class="emotion-select-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:14px;">
-              <button class="emotion-opt-btn active" id="btn-emotion-good" style="cursor:pointer; background:#dcfce7; border:4px solid #16a34a; padding:14px 8px; border-radius:12px; text-align:center; transform:scale(1.05); box-shadow:0 6px 12px rgba(22,163,74,0.3); transition:all 0.15s ease;" onclick="ModalManager.selectEmotion('🟢 좋음', '기분 최고!', 500, this)">
+              <button class="emotion-opt-btn active" id="btn-emotion-good" style="cursor:pointer; background:#dcfce7; border:4px solid #16a34a; padding:14px 8px; border-radius:12px; text-align:center; transform:scale(1.05); box-shadow:0 6px 12px rgba(22,163,74,0.3); transition:all 0.15s ease;" onclick="ModalManager.selectEmotion('🟢 좋음', '기분 최고!', ${rewardGood}, this)">
                 <div style="font-size:32px;">🟢</div>
                 <div style="font-weight:900; color:#15803d; font-size:14px; margin-top:4px;">기분 최고!</div>
-                <div style="font-size:12px; font-weight:bold; color:#166534; margin-top:2px;">(+500원)</div>
+                <div style="font-size:12px; font-weight:bold; color:#166534; margin-top:2px;">(+${rewardGood.toLocaleString()}원)</div>
                 <div class="emotion-check-tag" style="margin-top:6px; font-size:11px; font-weight:bold; color:#15803d; background:#bbf7d0; border-radius:10px; padding:2px 6px;">선택됨 ✅</div>
               </button>
-              <button class="emotion-opt-btn" id="btn-emotion-normal" style="cursor:pointer; background:#fef9c3; border:2px solid #eab308; padding:14px 8px; border-radius:12px; text-align:center; opacity:0.75; transition:all 0.15s ease;" onclick="ModalManager.selectEmotion('🟡 보통', '그냥 그래요', 300, this)">
+              <button class="emotion-opt-btn" id="btn-emotion-normal" style="cursor:pointer; background:#fef9c3; border:2px solid #eab308; padding:14px 8px; border-radius:12px; text-align:center; opacity:0.75; transition:all 0.15s ease;" onclick="ModalManager.selectEmotion('🟡 보통', '그냥 그래요', ${rewardNormal}, this)">
                 <div style="font-size:32px;">🟡</div>
                 <div style="font-weight:900; color:#854d0e; font-size:14px; margin-top:4px;">그냥 그래요</div>
-                <div style="font-size:12px; font-weight:bold; color:#854d0e; margin-top:2px;">(+300원)</div>
+                <div style="font-size:12px; font-weight:bold; color:#854d0e; margin-top:2px;">(+${rewardNormal.toLocaleString()}원)</div>
                 <div class="emotion-check-tag" style="display:none; margin-top:6px; font-size:11px; font-weight:bold; color:#854d0e; background:#fef08a; border-radius:10px; padding:2px 6px;">선택됨 ✅</div>
               </button>
-              <button class="emotion-opt-btn" id="btn-emotion-hard" style="cursor:pointer; background:#fee2e2; border:2px solid #ef4444; padding:14px 8px; border-radius:12px; text-align:center; opacity:0.75; transition:all 0.15s ease;" onclick="ModalManager.selectEmotion('🔴 힘듦', '힘들고 지쳐요', 1000, this)">
+              <button class="emotion-opt-btn" id="btn-emotion-hard" style="cursor:pointer; background:#fee2e2; border:2px solid #ef4444; padding:14px 8px; border-radius:12px; text-align:center; opacity:0.75; transition:all 0.15s ease;" onclick="ModalManager.selectEmotion('🔴 힘듦', '힘들고 지쳐요', ${rewardHard}, this)">
                 <div style="font-size:32px;">🔴</div>
                 <div style="font-weight:900; color:#991b1b; font-size:14px; margin-top:4px;">힘들고 지쳐요</div>
-                <div style="font-size:12px; font-weight:bold; color:#991b1b; margin-top:2px;">(+1,000원)</div>
+                <div style="font-size:12px; font-weight:bold; color:#991b1b; margin-top:2px;">(+${rewardHard.toLocaleString()}원)</div>
                 <div class="emotion-check-tag" style="display:none; margin-top:6px; font-size:11px; font-weight:bold; color:#991b1b; background:#fecaca; border-radius:10px; padding:2px 6px;">선택됨 ✅</div>
               </button>
             </div>
@@ -675,8 +693,8 @@ const ModalManager = (() => {
               <textarea id="emotion-msg-input" placeholder="선생님께 전하고 싶은 말이나 오늘의 기분을 자유롭게 적어주세요. (비밀 보장)" style="width:100%; height:70px; padding:8px; border:2px solid #94a3b8; border-radius:6px; font-size:12px;"></textarea>
             </div>
 
-            <button class="pixel-btn-primary" style="${alreadyDone ? 'background:#94a3b8;' : ''}" onclick="ModalManager.submitEmotion()">
-              ${alreadyDone ? '✅ 오늘 이미 등록함 (재등록 가능)' : '✨ 감정신호등 등록하고 장학금 받기'}
+            <button class="pixel-btn-primary" style="${alreadyDone ? 'background:#64748b; cursor:not-allowed;' : ''}" onclick="ModalManager.submitEmotion()">
+              ${alreadyDone ? '✅ 오늘 등록 완료 (내일 다시 참여 가능)' : '✨ 감정신호등 등록하고 장학금 받기'}
             </button>
           </div>
         `;
@@ -1253,7 +1271,7 @@ const ModalManager = (() => {
               ` : ''}
             </div>
 
-            <!-- ════════ 탭 3: 금융 및 경제 설정 ════════ -->
+            <!-- ════════ 탭 3: 금융 및 경제 설정 & 활동 제한 정책 ════════ -->
             <div id="admin-cat-finance" class="admin-category-panel" style="display:none;">
               <!-- 1. 은행 / 세금 / 복권 / 월급 기본 경제 변수 -->
               <div style="background:#ffffff; border:2px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
@@ -1278,7 +1296,48 @@ const ModalManager = (() => {
                 </div>
               </div>
 
-              <!-- 2. 주식 운영 모드 및 시세 설정 -->
+              <!-- 2. 🛡️ 1일 활동 제한 및 운영 정책 설정 (신규) -->
+              <div style="background:#f0fdf4; border:2px solid #86efac; border-radius:8px; padding:12px; margin-bottom:12px;">
+                <div style="font-weight:bold; font-size:13px; color:#166534; margin-bottom:8px;">🛡️ 1일 활동 제한 및 학급 운영 정책</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label style="display:block; font-size:11px; font-weight:bold; margin-bottom:2px; color:#14532d;">💚 마음상담 1일 제한</label>
+                    <input type="number" min="0" id="admin-counseling-limit" value="${Number(GameState.settings?.['마음상담_1일제한'] !== undefined ? GameState.settings['마음상담_1일제한'] : 1)}" style="width:100%; padding:6px 8px; border:2px solid #86efac; border-radius:6px; font-size:12px;">
+                    <div style="font-size:10px; color:#15803d; margin-top:2px;">(기본 1회 / 0=무제한)</div>
+                  </div>
+                  <div class="form-group">
+                    <label style="display:block; font-size:11px; font-weight:bold; margin-bottom:2px; color:#14532d;">🎰 복권 1일 구매한도</label>
+                    <input type="number" min="0" id="admin-lottery-limit" value="${Number(GameState.settings?.['복권_1일제한'] !== undefined ? GameState.settings['복권_1일제한'] : 3)}" style="width:100%; padding:6px 8px; border:2px solid #86efac; border-radius:6px; font-size:12px;">
+                    <div style="font-size:10px; color:#15803d; margin-top:2px;">(기본 3장 / 0=무제한)</div>
+                  </div>
+                  <div class="form-group">
+                    <label style="display:block; font-size:11px; font-weight:bold; margin-bottom:2px; color:#14532d;">🔒 예금 최소유지일</label>
+                    <input type="number" min="0" id="admin-deposit-mindays" value="${Number(GameState.settings?.['예금_최소유지일'] !== undefined ? GameState.settings['예금_최소유지일'] : 1)}" style="width:100%; padding:6px 8px; border:2px solid #86efac; border-radius:6px; font-size:12px;">
+                    <div style="font-size:10px; color:#15803d; margin-top:2px;">(기본 1일 / 0=당일해지)</div>
+                  </div>
+                </div>
+
+                <!-- 감정신호등 장학금 보상 설정 -->
+                <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #86efac;">
+                  <div style="font-weight:bold; font-size:11px; color:#166534; margin-bottom:4px;">💖 마음상담(감정신호등) 선택별 장학금 보상액 (원)</div>
+                  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                    <div>
+                      <label style="font-size:10px; color:#15803d; font-weight:bold;">🟢 좋음 보상</label>
+                      <input type="number" id="admin-reward-good" value="${Number(GameState.settings?.['감정신호등_좋음_보상'] || 500)}" style="width:100%; padding:4px 6px; border:1px solid #86efac; border-radius:4px; font-size:11px;">
+                    </div>
+                    <div>
+                      <label style="font-size:10px; color:#854d0e; font-weight:bold;">🟡 보통 보상</label>
+                      <input type="number" id="admin-reward-normal" value="${Number(GameState.settings?.['감정신호등_보통_보상'] || 300)}" style="width:100%; padding:4px 6px; border:1px solid #86efac; border-radius:4px; font-size:11px;">
+                    </div>
+                    <div>
+                      <label style="font-size:10px; color:#991b1b; font-weight:bold;">🔴 힘듦 보상</label>
+                      <input type="number" id="admin-reward-hard" value="${Number(GameState.settings?.['감정신호등_힘듦_보상'] || 1000)}" style="width:100%; padding:4px 6px; border:1px solid #86efac; border-radius:4px; font-size:11px;">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. 주식 운영 모드 및 시세 설정 -->
               <div style="background:#f8fafc; border:2px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
                 <div style="font-weight:bold; font-size:13px; margin-bottom:6px;">📈 주식 운영 모드 설정</div>
                 <label style="margin-right:12px; font-size:12px;"><input type="radio" name="stock-mode-radio" value="REALTIME_NAVER" ${(GameState.settings?.['STOCK_MODE'] !== 'MANUAL') ? 'checked' : ''}> 실시간 네이버 증권 (다종목)</label>
@@ -1296,7 +1355,7 @@ const ModalManager = (() => {
                 <input type="number" id="admin-new-stock-price" placeholder="예: 1300" style="width:100%; padding:8px; border:2px solid #94a3b8; border-radius:6px;">
               </div>
 
-              <button class="pixel-btn-primary" onclick="ModalManager.saveFinancialSettings()">💾 금융 및 경제설정 전체 저장</button>
+              <button class="pixel-btn-primary" onclick="ModalManager.saveFinancialSettings()">💾 금융, 경제 및 운영 제한 설정 전체 저장</button>
             </div>
 
             <!-- ════════ 탭 4: 시스템 및 공지 관리 ════════ -->
@@ -2115,7 +2174,7 @@ const ModalManager = (() => {
       ModalManager.open('inventory');
     },
 
-    // ─── 금융 및 경제 설정 저장 (교장실) ───
+    // ─── 금융 및 경제 설정 & 활동 제한 정책 저장 (교장실) ───
     saveFinancialSettings: async () => {
       const modeEl = document.querySelector('input[name="stock-mode-radio"]:checked');
       const mode = modeEl ? modeEl.value : 'REALTIME_NAVER';
@@ -2127,10 +2186,17 @@ const ModalManager = (() => {
       const lotteryPrice = Number(document.getElementById('admin-lottery-price')?.value);
       const defaultSalary = Number(document.getElementById('admin-default-salary')?.value);
 
+      const counselingLimit = Number(document.getElementById('admin-counseling-limit')?.value);
+      const lotteryLimit = Number(document.getElementById('admin-lottery-limit')?.value);
+      const depositMinDays = Number(document.getElementById('admin-deposit-mindays')?.value);
+      const rewardGood = Number(document.getElementById('admin-reward-good')?.value);
+      const rewardNormal = Number(document.getElementById('admin-reward-normal')?.value);
+      const rewardHard = Number(document.getElementById('admin-reward-hard')?.value);
+
       const depositRate = !isNaN(depositRatePct) ? (depositRatePct / 100) : 0.05;
       const taxRate = !isNaN(taxRatePct) ? (taxRatePct / 100) : 0.10;
 
-      API.showLoading('금융 및 경제설정 저장 중...');
+      API.showLoading('운영 정책 및 경제설정 저장 중...');
       const payload = {
         mode: mode,
         stockMode: mode,
@@ -2140,7 +2206,13 @@ const ModalManager = (() => {
         depositRate: depositRate,
         taxRate: taxRate,
         lotteryPrice: isNaN(lotteryPrice) ? 500 : lotteryPrice,
-        defaultSalary: isNaN(defaultSalary) ? 50000 : defaultSalary
+        defaultSalary: isNaN(defaultSalary) ? 50000 : defaultSalary,
+        counselingLimit: isNaN(counselingLimit) ? 1 : counselingLimit,
+        lotteryLimit: isNaN(lotteryLimit) ? 3 : lotteryLimit,
+        depositMinDays: isNaN(depositMinDays) ? 1 : depositMinDays,
+        rewardGood: isNaN(rewardGood) ? 500 : rewardGood,
+        rewardNormal: isNaN(rewardNormal) ? 300 : rewardNormal,
+        rewardHard: isNaN(rewardHard) ? 1000 : rewardHard
       };
 
       const res = await API.call('updateFinancialSettings', payload);
@@ -2153,6 +2225,12 @@ const ModalManager = (() => {
       GameState.settings['세금_기본세율'] = taxRate;
       GameState.settings['복권_가격'] = isNaN(lotteryPrice) ? 500 : lotteryPrice;
       GameState.settings['월급_기본금액'] = isNaN(defaultSalary) ? 50000 : defaultSalary;
+      GameState.settings['마음상담_1일제한'] = isNaN(counselingLimit) ? 1 : counselingLimit;
+      GameState.settings['복권_1일제한'] = isNaN(lotteryLimit) ? 3 : lotteryLimit;
+      GameState.settings['예금_최소유지일'] = isNaN(depositMinDays) ? 1 : depositMinDays;
+      GameState.settings['감정신호등_좋음_보상'] = isNaN(rewardGood) ? 500 : rewardGood;
+      GameState.settings['감정신호등_보통_보상'] = isNaN(rewardNormal) ? 300 : rewardNormal;
+      GameState.settings['감정신호등_힘듦_보상'] = isNaN(rewardHard) ? 1000 : rewardHard;
 
       if (res && res.settings) {
         GameState.settings = { ...GameState.settings, ...res.settings };
@@ -2162,7 +2240,7 @@ const ModalManager = (() => {
       } catch (_) {}
 
       SoundEngine.fanfare();
-      alert(res?.msg || '금융 및 경제설정이 성공적으로 저장되었습니다!');
+      await AppDialog.alert(res?.msg || '금융, 경제 및 운영 정책 설정이 성공적으로 저장되었습니다!', '🎉 설정 저장 완료');
     },
     saveStockSettings: async () => {
       await ModalManager.saveFinancialSettings();
@@ -2381,22 +2459,29 @@ const ModalManager = (() => {
     buyScratchLottery: async () => {
       const st = GameState.student;
       const myName = st ? (st.name || st.이름) : '나';
+      const lotPrice = Number(GameState.settings?.['복권_가격'] || 500);
       const cash = st ? (st.cash || 0) : 0;
-      if (cash < 500 && myName !== '선생님') return alert('복권 구매를 위한 현금(500원)이 부족합니다!');
+      if (cash < lotPrice && myName !== '선생님') {
+        return AppDialog.alert(`복권 구매를 위한 현금(${lotPrice.toLocaleString()}원)이 부족합니다!`, '⚠️ 잔액 부족');
+      }
 
       API.showLoading('새 복권을 발권하는 중...');
       const buyRes = await API.call('buyLottery', { name: myName });
       if (!buyRes || !buyRes.success) {
         API.hideLoading();
-        return alert(buyRes?.msg || '복권 구매 실패');
+        return AppDialog.alert(buyRes?.msg || '복권 구매에 실패했습니다.', '⚠️ 구매 제한');
       }
 
       const scrRes = await API.call('scratchLottery', { name: myName });
       API.hideLoading();
 
-      if (st && myName !== '선생님') st.cash = (st.cash || 0) - 500;
+      if (buyRes.student) {
+        GameState.student = buyRes.student;
+      } else if (st && myName !== '선생님') {
+        st.cash = (st.cash || 0) - lotPrice;
+      }
       const cashEl = document.getElementById('hud-cash-val');
-      if (cashEl && st) cashEl.textContent = `${(st.cash || 0).toLocaleString()}원`;
+      if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
       // 1단계 카드 숨기고 2단계 스크래치 스테이지 노출
       const beforeBuy = document.getElementById('lottery-before-buy');
@@ -2541,16 +2626,27 @@ const ModalManager = (() => {
       const res = await API.call('logEmotion', { name: myName, emotion, message: msg });
       API.hideLoading();
 
+      if (!res || !res.success) {
+        return AppDialog.alert(res?.msg || '마음 상담실 등록에 실패했습니다.', '⚠️ 등록 제한');
+      }
+
       const todayKey = 'emotion_' + new Date().toISOString().slice(0, 10);
       localStorage.setItem(todayKey, 'true');
 
-      const bonus = emotion.includes('힘듦') ? 1000 : (emotion.includes('보통') ? 300 : 500);
-      if (st) st.cash = (st.cash || 0) + bonus;
+      if (res.student) {
+        GameState.student = res.student;
+      } else if (st) {
+        const rewardGood = Number(GameState.settings?.['감정신호등_좋음_보상'] || 500);
+        const rewardNormal = Number(GameState.settings?.['감정신호등_보통_보상'] || 300);
+        const rewardHard = Number(GameState.settings?.['감정신호등_힘듦_보상'] || 1000);
+        const bonus = emotion.includes('힘듦') ? rewardHard : (emotion.includes('보통') ? rewardNormal : rewardGood);
+        st.cash = (st.cash || 0) + bonus;
+      }
       const cashEl = document.getElementById('hud-cash-val');
-      if (cashEl && st) cashEl.textContent = `${st.cash.toLocaleString()}원`;
+      if (cashEl && GameState.student) cashEl.textContent = `${(GameState.student.cash || 0).toLocaleString()}원`;
 
       SoundEngine.fanfare();
-      alert(res?.msg || `오늘의 기분 [${emotion}] 등록 완료! +${bonus.toLocaleString()}원 장학금이 지급되었습니다!`);
+      await AppDialog.alert(res?.msg || `오늘의 기분 [${emotion}] 등록 완료! 장학금이 지급되었습니다!`, '🎉 등록 완료');
       open('counseling');
     },
 
@@ -3011,9 +3107,18 @@ const ModalManager = (() => {
       }
     },
 
-    handleWithdraw: async (index) => {
+    handleWithdraw: async (index, joinDate, canWithdraw) => {
       if (ModalManager._actionLock) return;
-      if (!confirm('정기예금을 만기 해지하여 원금과 이자를 수령하시겠습니까?')) return;
+      const minHoldDays = Number(GameState.settings?.['예금_최소유지일'] !== undefined ? GameState.settings['예금_최소유지일'] : 1);
+      const isTeacher = GameState.isAdmin || (GameState.student && GameState.student.name === '선생님');
+
+      if (canWithdraw === false && !isTeacher) {
+        return AppDialog.alert(`정기예금은 가입 후 최소 ${minHoldDays}일 이후부터 해지할 수 있습니다.\n(가입일자: ${joinDate || '오늘'} / 오늘 가입한 예금은 내일부터 해지 가능)`, '🔒 예금 해지 제한');
+      }
+
+      const ok = await AppDialog.confirm('정기예금을 만기 해지하여 원금과 이자를 수령하시겠습니까?', '🏦 예금 해지 확인');
+      if (!ok) return;
+
       const st = GameState.student;
       const myName = st ? (st.name || st.이름) : '나';
 
@@ -3029,10 +3134,10 @@ const ModalManager = (() => {
             if (cashEl) cashEl.textContent = `${(res.student.cash || 0).toLocaleString()}원`;
           }
           SoundEngine.fanfare();
-          alert(`예금 만기 해지 완료! 원금과 이자(${res.amount?.toLocaleString()}원)가 지급되었습니다.`);
+          await AppDialog.alert(res.msg || `예금 만기 해지 완료! 원금과 이자(${(res.amount || 0).toLocaleString()}원)가 지급되었습니다.`, '🎉 해지 완료');
           open('bank');
         } else {
-          alert(res?.msg || '해지 실패');
+          await AppDialog.alert(res?.msg || '해지 실패', '⚠️ 해지 불가');
         }
       } finally {
         ModalManager._actionLock = false;
