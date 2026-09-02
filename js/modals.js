@@ -300,7 +300,10 @@ const ModalManager = (() => {
 
             <!-- 하단: 내 주식 보유 포트폴리오 (슬림 테이블) -->
             <div style="background:#ffffff; border:2px solid #cbd5e1; border-radius:8px; padding:6px 10px;">
-              <div style="font-size:11px; font-weight:bold; color:#475569; margin-bottom:4px;">📊 나의 주식 보유 현황</div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <div style="font-size:11px; font-weight:bold; color:#475569;">📊 나의 주식 보유 현황</div>
+                <button class="pixel-btn-sm" style="background:#0284c7; padding:2px 8px; font-size:11px;" onclick="ModalManager.syncMyStockPortfolio()">🔄 보유주식 동기화</button>
+              </div>
               <div class="table-wrap" style="max-height:110px; overflow-y:auto;">
                 <table class="pixel-table" style="font-size:11px;">
                   <thead><tr><th>종목명</th><th>현재가</th><th>보유수량</th><th>평단가</th><th>수익률</th><th>총평가액</th></tr></thead>
@@ -2410,6 +2413,37 @@ const ModalManager = (() => {
       }
     },
 
+    syncMyStockPortfolio: async () => {
+      const st = GameState.student;
+      const me = st ? (st.name || st.이름) : (GameState.isAdmin ? '선생님' : '학생1');
+      API.showLoading('주식 시세 및 보유 현황 동기화 중...');
+      try {
+        const data = await API.call('getMultiStockData', { name: me });
+        API.hideLoading();
+        if (data && data.success) {
+          if (data.stocks) ModalManager.multiStockCache = data.stocks;
+          ModalManager.multiStockHoldings = data.holdings || {};
+          ModalManager.multiStockAvgPrices = data.avgPrices || {};
+          ModalManager.multiStockProfitLosses = data.profitLosses || {};
+          ModalManager.multiStockProfitRates = data.profitRates || {};
+
+          try {
+            if (data.stocks) localStorage.setItem('classbank_stock_prices_cache', JSON.stringify(data.stocks));
+            localStorage.setItem(`classbank_stock_avg_${me}`, JSON.stringify(ModalManager.multiStockAvgPrices));
+          } catch (_) {}
+
+          ModalManager.updateMultiStockUI();
+          SoundEngine.fanfare();
+          await AppDialog.alert('📈 나의 주식 보유 현황 및 최신 시세가 성공적으로 동기화되었습니다!', '🔄 동기화 완료');
+        } else {
+          await AppDialog.alert(data?.msg || '주식 보유 현황 동기화에 실패했습니다.', '⚠️ 동기화 실패');
+        }
+      } catch (e) {
+        API.hideLoading();
+        await AppDialog.alert('동기화 통신 중 오류가 발생했습니다: ' + e.message, '⚠️ 오류');
+      }
+    },
+
     handleTradeMultiStock: async (type) => {
       if (ModalManager._actionLock) return;
       const code = ModalManager.activeMultiStockCode || '005930';
@@ -3149,9 +3183,12 @@ const ModalManager = (() => {
       if (ModalManager._actionLock) return;
       const target = document.getElementById('transfer-target')?.value;
       const amt = Number(document.getElementById('transfer-amount')?.value);
-      if (!target || !amt || amt <= 0) return alert('받는 친구 이름과 올바른 송금 금액을 입력하세요.');
+      if (!target || !amt || amt <= 0) return AppDialog.alert('받는 친구 이름과 올바른 송금 금액을 입력하세요.', '⚠️ 입력 오류');
       const st = GameState.student;
       const myName = st ? (st.name || st.이름) : '나';
+
+      const ok = await AppDialog.confirm(`[${target}] 친구에게 ${amt.toLocaleString()}원을 송금하시겠습니까?`, '💸 용돈 송금 확인');
+      if (!ok) return;
 
       ModalManager._actionLock = true;
       API.showLoading('용돈 송금 중...');
@@ -3165,10 +3202,10 @@ const ModalManager = (() => {
             if (cashEl) cashEl.textContent = `${(res.student.cash || 0).toLocaleString()}원`;
           }
           SoundEngine.fanfare();
-          alert(`[${target}] 친구에게 ${amt.toLocaleString()}원을 송금했습니다!`);
+          await AppDialog.alert(res.msg || `[${target}] 친구에게 ${amt.toLocaleString()}원을 송금했습니다!`, '🎉 송금 완료');
           open('postoffice');
         } else {
-          alert(res?.msg || '송금 실패');
+          await AppDialog.alert(res?.msg || '송금 실패', '⚠️ 송금 실패');
         }
       } finally {
         ModalManager._actionLock = false;
@@ -3180,19 +3217,27 @@ const ModalManager = (() => {
       const target = document.getElementById('praise-target')?.value;
       const msg = document.getElementById('praise-msg')?.value;
       const bonus = Number(document.getElementById('praise-bonus')?.value || 500);
-      if (!target || !msg) return alert('칭찬할 친구 이름과 메시지를 입력하세요.');
+      if (!target || !msg) return AppDialog.alert('칭찬할 친구 이름과 메시지를 입력하세요.', '⚠️ 입력 오류');
       const st = GameState.student;
       const myName = st ? (st.name || st.이름) : '나';
+
+      const ok = await AppDialog.confirm(`[${target}] 친구에게 칭찬카드와 장학금(${bonus.toLocaleString()}원)을 발송하시겠습니까?`, '💌 칭찬카드 발송 확인');
+      if (!ok) return;
 
       API.showLoading('칭찬카드 발송 중...');
       const res = await API.call('sendPraise', { sender: myName, receiver: target, message: msg, bonus: bonus });
       API.hideLoading();
       if (res && res.success) {
+        if (res.student) {
+          GameState.student = res.student;
+          const cashEl = document.getElementById('hud-cash-val');
+          if (cashEl) cashEl.textContent = `${(res.student.cash || 0).toLocaleString()}원`;
+        }
         SoundEngine.fanfare();
-        alert(`[${target}] 친구에게 따뜻한 칭찬카드와 보너스를 보냈습니다!`);
+        await AppDialog.alert(res.msg || `[${target}] 친구에게 따뜻한 칭찬카드와 보너스를 보냈습니다!`, '🎉 칭찬카드 발송 완료');
         open('postoffice');
       } else {
-        alert(res?.msg || '칭찬카드 발송 실패');
+        await AppDialog.alert(res?.msg || '칭찬카드 발송 실패', '⚠️ 발송 실패');
       }
     },
 

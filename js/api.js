@@ -211,12 +211,16 @@ const API = (() => {
       case 'adminPaySalaries':
       case 'adminFineStudent':
       case 'adminWarnStudent':
+      case 'sendPraise':
       case 'sendPraiseCard':
+      case 'transfer':
+      case 'sendMoney':
       case 'addMartItem':
       case 'updateCash':
       case 'adminAddNotice':
       case 'requestSeatTrade':
       case 'logChat':
+      case 'getMailbox':
         return { success: true, msg: '성공적으로 처리되었습니다.' };
       default:
         return { success: true, msg: '요청 완료' };

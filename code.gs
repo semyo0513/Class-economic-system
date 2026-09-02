@@ -1711,7 +1711,107 @@ function handleRequest(payload, callback) {
         break;
       }
 
-      // 8. 교장실 직무 권한 부여, 월급 일괄배부, 벌금 징수, 경고장
+      // 8. 칭찬카드 발송 & 용돈 송금 & 우편함
+      case 'sendPraise':
+      case 'sendPraiseCard': {
+        const sender = String(payload.sender || payload.name || '선생님').trim();
+        const receiver = String(payload.receiver || payload.target || payload.studentName || '').trim();
+        const message = String(payload.message || payload.msg || '').trim();
+        const bonus = Number(payload.bonus || 0);
+
+        if (!receiver) {
+          result = { success: false, msg: '칭찬 카드를 받을 친구를 선택해주세요.' };
+          break;
+        }
+
+        const senderSt = syncStudentAssets(sender);
+        if (bonus > 0 && sender !== '선생님' && (!senderSt || senderSt.cash < bonus)) {
+          result = { success: false, msg: `동봉할 장학금 잔액이 부족합니다. (필요: ${bonus.toLocaleString()}원 / 보유: ${(senderSt ? senderSt.cash : 0).toLocaleString()}원)` };
+          break;
+        }
+
+        // 보너스 금액 차감 및 수령자 지급
+        if (bonus > 0) {
+          if (sender !== '선생님') {
+            updateCash(sender, -bonus, `[칭찬카드] ${receiver}에게 보너스 발송`, '송금');
+          }
+          updateCash(receiver, bonus, `[칭찬카드] ${sender}의 칭찬 보너스 수령`, '송금');
+        }
+
+        // 학급활동 시트에 칭찬카드 기록
+        getOrCreateSheet(SH.ACTIVITY).appendRow([
+          nowStr(), receiver, '칭찬카드', sender, message, '', bonus, '수령완료', message, ''
+        ]);
+
+        const freshSender = syncStudentAssets(sender);
+        result = {
+          success: true,
+          msg: `[${receiver}] 친구에게 따뜻한 칭찬카드${bonus > 0 ? `와 ${bonus.toLocaleString()}원 장학금` : ''}을 보냈습니다! 💌`,
+          student: freshSender
+        };
+        break;
+      }
+
+      case 'transfer':
+      case 'sendMoney': {
+        const sender = String(payload.sender || payload.name || '').trim();
+        const receiver = String(payload.receiver || payload.target || '').trim();
+        const amount = Number(payload.amount || 0);
+
+        if (!sender || !receiver || amount <= 0) {
+          result = { success: false, msg: '올바른 송금 대상과 금액을 입력해주세요.' };
+          break;
+        }
+        if (sender === receiver) {
+          result = { success: false, msg: '본인에게는 송금할 수 없습니다.' };
+          break;
+        }
+
+        const senderSt = syncStudentAssets(sender);
+        if (sender !== '선생님' && (!senderSt || senderSt.cash < amount)) {
+          result = { success: false, msg: `송금할 현금 잔액이 부족합니다. (필요: ${amount.toLocaleString()}원 / 보유: ${(senderSt ? senderSt.cash : 0).toLocaleString()}원)` };
+          break;
+        }
+
+        updateCash(sender, -amount, `[송금] ${receiver}에게 이체`, '송금');
+        updateCash(receiver, amount, `[입금] ${sender}로부터 송금 수령`, '송금');
+
+        getOrCreateSheet(SH.ACTIVITY).appendRow([
+          nowStr(), receiver, '송금우편', sender, `${amount.toLocaleString()}원 송금`, '', amount, '입금완료', `${sender}의 송금`, ''
+        ]);
+
+        result = {
+          success: true,
+          msg: `[${receiver}] 친구에게 ${amount.toLocaleString()}원을 성공적으로 송금했습니다!`,
+          student: syncStudentAssets(sender)
+        };
+        break;
+      }
+
+      case 'getMailbox': {
+        const studentName = String(payload.name || payload.studentName || '').trim();
+        const actSh = getOrCreateSheet(SH.ACTIVITY);
+        const rows = sheetToObj(actSh);
+        const mails = [];
+
+        rows.forEach(r => {
+          const rReceiver = String(r['이름'] || r['학생명'] || '').trim();
+          const rCat = String(r['카테고리'] || '').trim();
+          if (rReceiver === studentName && (rCat === '칭찬카드' || rCat === '송금우편' || rCat === '우편' || rCat === '안내')) {
+            mails.unshift({
+              일시: r['일시'] || r['날짜'] || '',
+              이름: r['구분'] || r['발신자'] || r['내용'] || '선생님',
+              카테고리: rCat,
+              메모: r['비고'] || r['메모'] || r['상세내용'] || r['내용'] || r['메세지'] || ''
+            });
+          }
+        });
+
+        result = { success: true, mails: mails };
+        break;
+      }
+
+      // 9. 교장실 직무 권한 부여, 월급 일괄배부, 벌금 징수, 경고장
       case 'setStudentPermission': {
         const name = payload.targetStudent;
         const newPerm = payload.permission || '일반';
